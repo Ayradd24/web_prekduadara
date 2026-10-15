@@ -24,7 +24,6 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        alert('Login Berhasil!');
         router.push('/dashboard');
       } else {
         alert(data.message);
