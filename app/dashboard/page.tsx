@@ -1,31 +1,11 @@
+import Sidebar from '@/components/Sidebar';
+
 export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans">
       
       {/* 1. SIDEBAR NAVIGASI (KIRI) */}
-      <aside className="w-64 bg-[#2D4F2A] rounded-2xl p-4 flex flex-col gap-3 text-white shrink-0 hidden md:flex">
-        <div className="bg-[#1E3F20] py-3 px-4 rounded-xl text-center font-bold text-sm">
-          Navigasi Utama
-        </div>
-
-        <nav className="flex flex-col gap-2 mt-2">
-          <button className="bg-[#EAA800] text-gray-900 font-bold py-3 px-4 rounded-xl text-left text-sm flex items-center gap-3 shadow-md cursor-default">
-            <span>📊</span> Ringkasan / Dashboard
-          </button>
-          <button className="bg-[#EAA800] text-gray-900 font-bold py-3 px-4 rounded-xl text-left text-sm flex items-center gap-3 shadow-md cursor-default">
-            <span>🧾</span> Transaksi & Penjualan
-          </button>
-          <button className="bg-[#EAA800] text-gray-900 font-bold py-3 px-4 rounded-xl text-left text-sm flex items-center gap-3 shadow-md cursor-default">
-            <span>📦</span> Management Stok
-          </button>
-          <button className="bg-[#EAA800] text-gray-900 font-bold py-3 px-4 rounded-xl text-left text-sm flex items-center gap-3 shadow-md cursor-default">
-            <span>👥</span> Management Kasir & Shift
-          </button>
-          <button className="bg-[#EAA800] text-gray-900 font-bold py-3 px-4 rounded-xl text-left text-sm flex items-center gap-3 shadow-md cursor-default">
-            <span>⚙️</span> Pengaturan Toko
-          </button>
-        </nav>
-      </aside>
+      <Sidebar />
 
       {/* 2. KONTEN UTAMA (KANAN) */}
       <main className="flex-1 flex flex-col gap-6 overflow-hidden">
