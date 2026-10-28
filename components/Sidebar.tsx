@@ -111,8 +111,11 @@ const menuItems: MenuItem[] = [
   },
 ];
 
+import { useAuth } from '@/context/AuthContext';
+
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   return (
     <aside className="w-64 lg:w-72 bg-[#2D4F2A] rounded-2xl p-4 flex flex-col gap-3 text-white shrink-0 hidden md:flex select-none shadow-lg">
@@ -145,6 +148,30 @@ export default function Sidebar() {
           );
         })}
       </nav>
+
+      {/* User Info & Logout Button dari AuthContext (Global State) */}
+      <div className="mt-auto pt-3 border-t border-[#466642] flex flex-col gap-2">
+        <div className="flex items-center gap-2.5 px-2">
+          <div className="w-8 h-8 rounded-full bg-[#E57E25] text-white flex items-center justify-center font-bold text-xs shadow-sm shrink-0">
+            {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
+          </div>
+          <div className="overflow-hidden">
+            <p className="text-xs font-bold text-white truncate">
+              {user?.name || 'Admin PrekDuaDara'}
+            </p>
+            <p className="text-[10px] text-emerald-200 truncate">
+              {user?.role || 'Owner'} • {user?.email || 'admin@gmail.com'}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={logout}
+          className="w-full mt-1 py-2 px-3 bg-[#1E3A1C] hover:bg-red-700 text-red-200 hover:text-white rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+        >
+          <span>🚪</span>
+          <span>Logout Sistem</span>
+        </button>
+      </div>
     </aside>
   );
 }
