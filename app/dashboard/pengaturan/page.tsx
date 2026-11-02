@@ -2,7 +2,7 @@ import Sidebar from '@/components/Sidebar';
 
 export default function PengaturanPage() {
   return (
-    <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans">
+    <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans items-start">
       <Sidebar />
       <main className="flex-1 flex flex-col gap-6 overflow-hidden">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
