@@ -46,7 +46,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans">
+    <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans items-start">
       {/* 1. SIDEBAR NAVIGASI (KIRI) */}
       <Sidebar />
 
@@ -241,22 +241,20 @@ export default function DashboardPage() {
                       </td>
                       <td className="py-3 px-2">
                         <span
-                          className={`font-semibold text-[10px] px-2 py-1 rounded ${
-                            tx.paymentMethod === 'QRIS'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}
+                          className={`font-semibold text-[10px] px-2 py-1 rounded ${tx.paymentMethod === 'QRIS'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-blue-100 text-blue-800'
+                            }`}
                         >
                           {tx.paymentMethod}
                         </span>
                       </td>
                       <td className="py-3 px-2">
                         <span
-                          className={`font-bold text-[10px] px-2 py-1 rounded border ${
-                            tx.status === 'Berhasil'
-                              ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                              : 'bg-red-50 text-red-600 border-red-200'
-                          }`}
+                          className={`font-bold text-[10px] px-2 py-1 rounded border ${tx.status === 'Berhasil'
+                            ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                            : 'bg-red-50 text-red-600 border-red-200'
+                            }`}
                         >
                           {tx.status}
                         </span>

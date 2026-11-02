@@ -118,7 +118,7 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
 
   return (
-    <aside className="w-64 lg:w-72 bg-[#2D4F2A] rounded-2xl p-4 flex flex-col gap-3 text-white shrink-0 hidden md:flex select-none shadow-lg">
+    <aside className="w-64 lg:w-72 bg-[#2D4F2A] rounded-2xl p-4 flex flex-col gap-3 text-white shrink-0 hidden md:flex select-none shadow-lg sticky top-3 sm:top-5 h-[calc(100vh-1.5rem)] sm:h-[calc(100vh-2.5rem)] self-start overflow-y-auto">
       {/* Header Navigasi */}
       <div className="bg-[#5C7D55] text-white py-3 px-4 rounded-xl text-center font-bold text-sm tracking-wide shadow-sm">
         Navigasi Utama
@@ -133,14 +133,13 @@ export default function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
-              className={`py-3 px-4 rounded-xl text-left text-sm flex items-center gap-3 transition-all duration-150 cursor-pointer ${
-                isActive
+              className={`py-3 px-4 rounded-xl text-left text-sm flex items-center gap-3 transition-all duration-150 cursor-pointer ${isActive
                   ? /* Kolom Kanan: Saat Dipencet / Terpilih (Active/Pressed - Olive Gold Kalem) */
-                    'bg-gradient-to-b from-[#BAA66D] via-[#A18F57] to-[#887844] text-[#17371C] font-black shadow-inner scale-[0.99] border border-[#7D6B38]/50'
+                  'bg-gradient-to-b from-[#BAA66D] via-[#A18F57] to-[#887844] text-[#17371C] font-black shadow-inner scale-[0.99] border border-[#7D6B38]/50'
                   : /* Kolom Kiri: Saat Idle / Default (Oranye Emas Cerah) */
-                    /* Kolom Tengah: Saat Diarahkan (Hover - Champagne Emas Berkilau) */
-                    'bg-gradient-to-r from-[#FF9E00] to-[#FB8C00] text-[#143419] font-bold shadow-md hover:bg-gradient-to-b hover:from-[#FFE38F] hover:via-[#F9C354] hover:to-[#EAA824] hover:text-[#123017] hover:shadow-lg hover:scale-[1.01] active:bg-gradient-to-b active:from-[#BAA66D] active:via-[#A18F57] active:to-[#887844] active:scale-[0.98]'
-              }`}
+                  /* Kolom Tengah: Saat Diarahkan (Hover - Champagne Emas Berkilau) */
+                  'bg-gradient-to-r from-[#FF9E00] to-[#FB8C00] text-[#143419] font-bold shadow-md hover:bg-gradient-to-b hover:from-[#FFE38F] hover:via-[#F9C354] hover:to-[#EAA824] hover:text-[#123017] hover:shadow-lg hover:scale-[1.01] active:bg-gradient-to-b active:from-[#BAA66D] active:via-[#A18F57] active:to-[#887844] active:scale-[0.98]'
+                }`}
             >
               <span className="shrink-0">{item.icon}</span>
               <span className="truncate">{item.name}</span>

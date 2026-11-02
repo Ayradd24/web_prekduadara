@@ -7,7 +7,7 @@ export default function StokPage() {
   const { stokList, updateStok, restockItem } = useStok();
 
   return (
-    <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans">
+    <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans items-start">
       <Sidebar />
       <main className="flex-1 flex flex-col gap-6 overflow-hidden">
         {/* Header */}
@@ -65,13 +65,12 @@ export default function StokPage() {
                     </td>
                     <td className="py-3.5 px-3">
                       <span
-                        className={`font-bold text-[10px] px-2.5 py-1 rounded-full ${
-                          item.status === 'Aman'
+                        className={`font-bold text-[10px] px-2.5 py-1 rounded-full ${item.status === 'Aman'
                             ? 'bg-emerald-100 text-emerald-800'
                             : item.status === 'Menipis'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
                       >
                         {item.status}
                       </span>

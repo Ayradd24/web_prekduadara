@@ -16,7 +16,7 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const response = await fetch('http://localhost:5000/api/login', {
         method: 'POST',
@@ -28,46 +28,32 @@ export default function LoginPage() {
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.ok && data.data?.user) {
         // Simpan sesi autentikasi ke Global State (AuthContext)
-        const userObj = data.data?.user || {
-          id: 'USR-01',
-          name: 'Admin PrekDuaDara',
-          email: email,
-          role: 'Owner' as const,
-        };
-        const jwtToken = data.data?.accessToken || data.token || 'jwt_token_prekduadara_verified';
+        const userObj = data.data.user;
+        const jwtToken = data.data.accessToken || data.token;
 
         login(
           {
             id: String(userObj.id),
             name: userObj.name,
             email: userObj.email,
-            role: (userObj.role === 'owner' ? 'Owner' : userObj.role === 'cashier' ? 'Kasir' : 'Manager') as 'Owner' | 'Manager' | 'Kasir',
+            role: (userObj.role?.toLowerCase() === 'owner'
+              ? 'Owner'
+              : userObj.role?.toLowerCase() === 'cashier'
+                ? 'Kasir'
+                : 'Manager') as 'Owner' | 'Manager' | 'Kasir',
           },
           jwtToken
         );
         router.push('/dashboard');
       } else {
-        alert(data.message || 'Login gagal!');
+        alert(data.message || 'Login gagal! Periksa email dan password Anda.');
       }
     } catch {
-      // Fallback jika backend belum aktif saat testing, tetap bisa login untuk demo state
-      const konfirmasi = confirm(
-        'Backend belum tersambung di port 5000.\nApakah Anda ingin masuk menggunakan mode simulasi State Demo?'
+      alert(
+        'Tidak dapat terhubung ke server backend (port 5000).\nPastikan server backend dan database Laragon sudah aktif.'
       );
-      if (konfirmasi) {
-        login(
-          {
-            id: 'USR-01',
-            name: 'Admin PrekDuaDara (Demo)',
-            email: email || 'admin@gmail.com',
-            role: 'Owner',
-          },
-          'demo_jwt_token_local_session'
-        );
-        router.push('/dashboard');
-      }
     } finally {
       setLoading(false);
     }
@@ -76,14 +62,13 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen w-full bg-gradient-to-br from-[#F7B733] to-[#FC4A1A] flex items-center justify-center p-4">
       <div className="max-w-4xl w-full flex flex-col md:flex-row items-center justify-between gap-8 md:gap-12">
-        
         {/* Kartu Login (Sisi Kiri) */}
         <div className="bg-[#FAF9F6] rounded-3xl p-8 sm:p-10 w-full max-w-md shadow-xl flex flex-col items-center text-center mx-auto md:mx-0">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">PrekDuaDara</h1>
-          
+
           <div className="w-36 h-36 relative mb-6">
             <Image
-              src="/logo.png" 
+              src="/logo.png"
               alt="Logo PrekDuaDara"
               fill
               className="object-contain"
@@ -116,9 +101,10 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="w-full bg-[#1E3F20] hover:bg-[#152e17] text-white font-semibold py-3 rounded-lg transition duration-200 tracking-wider text-sm shadow-md"
+              disabled={loading}
+              className="w-full bg-[#1E3F20] hover:bg-[#152e17] disabled:opacity-60 text-white font-semibold py-3 rounded-lg transition duration-200 tracking-wider text-sm shadow-md cursor-pointer"
             >
-              LOGIN
+              {loading ? 'MEMPROSES...' : 'LOGIN'}
             </button>
           </form>
 
@@ -134,11 +120,11 @@ export default function LoginPage() {
           <span className="inline-block bg-[#1E3F20] text-white text-xs px-3 py-1 rounded-full font-semibold tracking-wide uppercase">
             PANEL ADMIN
           </span>
-          
+
           <h2 className="text-3xl sm:text-4xl font-extrabold leading-tight text-gray-900">
             Pantau penjualan toko dalam satu layar.
           </h2>
-          
+
           <p className="text-sm text-gray-900 font-medium leading-relaxed">
             Tinggalkan buku tulis. Semua catatan pesanan dari kasir langsung terkumpul rapi dan siap dibaca.
           </p>
@@ -158,7 +144,6 @@ export default function LoginPage() {
             </li>
           </ul>
         </div>
-
       </div>
     </main>
   );
