@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 interface MenuItem {
   name: string;
@@ -111,66 +112,71 @@ const menuItems: MenuItem[] = [
   },
 ];
 
-import { useAuth } from '@/context/AuthContext';
-
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
   return (
-    <aside className="w-64 lg:w-72 bg-[#2D4F2A] rounded-2xl p-4 flex flex-col gap-3 text-white shrink-0 hidden md:flex select-none shadow-lg sticky top-3 sm:top-5 h-[calc(100vh-1.5rem)] sm:h-[calc(100vh-2.5rem)] self-start overflow-y-auto">
-      {/* Header Navigasi */}
-      <div className="bg-[#5C7D55] text-white py-3 px-4 rounded-xl text-center font-bold text-sm tracking-wide shadow-sm">
-        Navigasi Utama
-      </div>
+    <>
+      {/* Spacer statis agar konten utama di sebelah kanan tetap memiliki ruang yang presisi */}
+      <div className="w-64 lg:w-72 shrink-0 hidden md:block" aria-hidden="true" />
 
-      {/* Menu Navigasi dengan 3 State Sesuai Figma */}
-      <nav className="flex flex-col gap-2.5 mt-1">
-        {menuItems.map((item) => {
-          const isActive = pathname === item.href;
-
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={`py-3 px-4 rounded-xl text-left text-sm flex items-center gap-3 transition-all duration-150 cursor-pointer ${isActive
-                  ? /* Kolom Kanan: Saat Dipencet / Terpilih (Active/Pressed - Olive Gold Kalem) */
-                  'bg-gradient-to-b from-[#BAA66D] via-[#A18F57] to-[#887844] text-[#17371C] font-black shadow-inner scale-[0.99] border border-[#7D6B38]/50'
-                  : /* Kolom Kiri: Saat Idle / Default (Oranye Emas Cerah) */
-                  /* Kolom Tengah: Saat Diarahkan (Hover - Champagne Emas Berkilau) */
-                  'bg-gradient-to-r from-[#FF9E00] to-[#FB8C00] text-[#143419] font-bold shadow-md hover:bg-gradient-to-b hover:from-[#FFE38F] hover:via-[#F9C354] hover:to-[#EAA824] hover:text-[#123017] hover:shadow-lg hover:scale-[1.01] active:bg-gradient-to-b active:from-[#BAA66D] active:via-[#A18F57] active:to-[#887844] active:scale-[0.98]'
-                }`}
-            >
-              <span className="shrink-0">{item.icon}</span>
-              <span className="truncate">{item.name}</span>
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* User Info & Logout Button dari AuthContext (Global State) */}
-      <div className="mt-auto pt-3 border-t border-[#466642] flex flex-col gap-2">
-        <div className="flex items-center gap-2.5 px-2">
-          <div className="w-8 h-8 rounded-full bg-[#E57E25] text-white flex items-center justify-center font-bold text-xs shadow-sm shrink-0">
-            {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
-          </div>
-          <div className="overflow-hidden">
-            <p className="text-xs font-bold text-white truncate">
-              {user?.name || 'Admin PrekDuaDara'}
-            </p>
-            <p className="text-[10px] text-emerald-200 truncate">
-              {user?.role || 'Owner'} • {user?.email || 'admin@gmail.com'}
-            </p>
-          </div>
+      {/* Sidebar Fixed: Paten di posisi kiri layar, tidak goyah saat di-scroll maupun pindah halaman */}
+      <aside className="fixed top-4 bottom-4 left-4 sm:top-6 sm:bottom-6 sm:left-6 z-40 w-64 lg:w-72 bg-[#2D4F2A] rounded-2xl p-4 flex flex-col gap-3 text-white shrink-0 hidden md:flex select-none shadow-lg overflow-y-auto">
+        {/* Header Navigasi */}
+        <div className="bg-[#5C7D55] text-white py-3 px-4 rounded-xl text-center font-bold text-sm tracking-wide shadow-sm">
+          Navigasi Utama
         </div>
-        <button
-          onClick={logout}
-          className="w-full mt-1 py-2 px-3 bg-[#1E3A1C] hover:bg-red-700 text-red-200 hover:text-white rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-2 shadow-sm cursor-pointer"
-        >
-          <span>🚪</span>
-          <span>Logout Sistem</span>
-        </button>
-      </div>
-    </aside>
+
+        {/* Menu Navigasi dengan 3 State Sesuai Figma */}
+        <nav className="flex flex-col gap-2.5 mt-1">
+          {menuItems.map((item) => {
+            const isActive = pathname === item.href;
+
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`py-3 px-4 rounded-xl text-left text-sm flex items-center gap-3 transition-colors duration-150 cursor-pointer border ${
+                  isActive
+                    ? /* Kolom Kanan: Saat Dipencet / Terpilih (Active/Pressed - Olive Gold Kalem) */
+                      'bg-gradient-to-b from-[#BAA66D] via-[#A18F57] to-[#887844] text-[#17371C] font-black shadow-inner border-[#7D6B38]/50'
+                    : /* Kolom Kiri: Saat Idle / Default (Oranye Emas Cerah) */
+                      /* Kolom Tengah: Saat Diarahkan (Hover - Champagne Emas Berkilau) */
+                      'bg-gradient-to-r from-[#FF9E00] to-[#FB8C00] text-[#143419] font-bold shadow-md border-transparent hover:bg-gradient-to-b hover:from-[#FFE38F] hover:via-[#F9C354] hover:to-[#EAA824] hover:text-[#123017] hover:shadow-lg active:bg-gradient-to-b active:from-[#BAA66D] active:via-[#A18F57] active:to-[#887844]'
+                }`}
+              >
+                <span className="shrink-0">{item.icon}</span>
+                <span className="truncate">{item.name}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* User Info & Logout Button dari AuthContext (Global State) */}
+        <div className="mt-auto pt-3 border-t border-[#466642] flex flex-col gap-2">
+          <div className="flex items-center gap-2.5 px-2">
+            <div className="w-8 h-8 rounded-full bg-[#E57E25] text-white flex items-center justify-center font-bold text-xs shadow-sm shrink-0">
+              {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-xs font-bold text-white truncate">
+                {user?.name || 'Admin PrekDuaDara'}
+              </p>
+              <p className="text-[10px] text-emerald-200 truncate">
+                {user?.role || 'Owner'} • {user?.email || 'admin@gmail.com'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={logout}
+            className="w-full mt-1 py-2 px-3 bg-[#1E3A1C] hover:bg-red-700 text-red-200 hover:text-white rounded-xl text-xs font-bold transition-colors duration-150 flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+          >
+            <span>🚪</span>
+            <span>Logout Sistem</span>
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

@@ -1,0 +1,20 @@
+# Antigravity Rules - Project PrekDuaDara
+
+## Technical Stack & Architecture
+- Framework: Next.js (App Router, direktori `app/`).
+- Styling: Pure Tailwind CSS.
+- Icons: `lucide-react`.
+- Backend & DB: Node.js / Express.js dengan MariaDB/MySQL.
+
+## Data, Auth & State Protection (PENTING)
+- **Database & API Calls:** Dilarang mengedit, merusak, atau menghapus fungsi `fetch`/Axios, *endpoint* API, serta integrasi data MariaDB yang sudah berjalan saat mengubah atau merapikan UI.
+- **JWT & Authentication:** Pertahankan penanganan token JWT (header `Authorization: Bearer <token>`, penyimpanan token di cookies/localStorage, serta proteksi *route*). Jangan menghapus logika *auth state*.
+- **State Management:** Jangan mengubah logika pengolahan *state* (misalnya `useState`, `useContext`, atau `useEffect`) yang berfungsi menangani data transaksi, kasir, dan stok, kecuali ada instruksi eksplisit.
+
+## UI & Layout Flexibility
+- Utamakan konsistensi warna khas PrekDuaDara (Sidebar `#2D452B` dan aksen oranye `#F3A712`).
+- Bebas menyesuaikan *styling* atau kerapian komponen UI selama tidak mengubah alur *routing* dasar Next.js (`next/link` / `useRouter`).
+
+## Code Output Standard
+- Selalu cantumkan `"use client";` jika komponen menggunakan interaksi, state, atau hooks.
+- Berikan kode lengkap per file saat melakukan perubahan agar tidak ada logika backend/auth yang tertinggal atau terpotong.

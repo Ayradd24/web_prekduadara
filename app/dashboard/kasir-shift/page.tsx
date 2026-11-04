@@ -420,7 +420,7 @@ export default function KasirShiftPage() {
   const kasirOff = kasirList.filter((c) => !c.isActive || c.statusLive === 'Selesai Shift / Off').length;
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] flex p-3 sm:p-5 gap-5 font-sans items-start">
+    <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans items-start">
       {/* 1. SIDEBAR KIRI */}
       <Sidebar />
 
