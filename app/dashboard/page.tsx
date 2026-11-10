@@ -15,34 +15,12 @@ export default function DashboardPage() {
     filterStatus,
     setFilterStatus,
     resetFilters,
-    addTransaction,
     stats,
   } = useTransactions();
 
   // Helper format rupiah
   const formatRupiah = (val: number) => {
     return 'Rp ' + val.toLocaleString('id-ID');
-  };
-
-  // Handler demo tambah order baru (menguji reactivity state)
-  const handleDemoOrder = () => {
-    const isBakar = Math.random() > 0.5;
-    const price = isBakar ? 18000 : 17000;
-    const isTunai = Math.random() > 0.5;
-
-    addTransaction({
-      cashier: 'Rian Pratama',
-      terminal: 'Kasir Pos-01',
-      itemsSummary: isBakar
-        ? '1x Ayam Geprek Bakar + Es Teh'
-        : '1x Ayam Geprek Biasa + Es Teh',
-      totalItems: 1,
-      subtotal: price,
-      diskon: 0,
-      total: price,
-      paymentMethod: isTunai ? 'Tunai' : 'QRIS',
-      status: 'Berhasil',
-    });
   };
 
   return (
@@ -78,12 +56,6 @@ export default function DashboardPage() {
               className="px-3 py-2 border border-emerald-300 bg-emerald-50 text-emerald-800 rounded-lg text-xs font-semibold hover:bg-emerald-100 cursor-pointer"
             >
               📊 Export Excel
-            </button>
-            <button
-              onClick={handleDemoOrder}
-              className="px-3 py-2 bg-[#FC4A1A] text-white rounded-lg text-xs font-bold hover:bg-orange-600 shadow-sm cursor-pointer transition-all"
-            >
-              + Order Baru (F1)
             </button>
           </div>
         </div>

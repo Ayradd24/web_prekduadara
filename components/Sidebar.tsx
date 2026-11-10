@@ -137,14 +137,13 @@ export default function Sidebar() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`py-3 px-4 rounded-xl text-left text-sm flex items-center gap-3 transition-colors duration-150 cursor-pointer border ${
-                  isActive
-                    ? /* Kolom Kanan: Saat Dipencet / Terpilih (Active/Pressed - Olive Gold Kalem) */
-                      'bg-gradient-to-b from-[#BAA66D] via-[#A18F57] to-[#887844] text-[#17371C] font-black shadow-inner border-[#7D6B38]/50'
-                    : /* Kolom Kiri: Saat Idle / Default (Oranye Emas Cerah) */
-                      /* Kolom Tengah: Saat Diarahkan (Hover - Champagne Emas Berkilau) */
-                      'bg-gradient-to-r from-[#FF9E00] to-[#FB8C00] text-[#143419] font-bold shadow-md border-transparent hover:bg-gradient-to-b hover:from-[#FFE38F] hover:via-[#F9C354] hover:to-[#EAA824] hover:text-[#123017] hover:shadow-lg active:bg-gradient-to-b active:from-[#BAA66D] active:via-[#A18F57] active:to-[#887844]'
-                }`}
+                className={`py-3 px-4 rounded-xl text-left text-sm font-bold flex items-center gap-3 transition-colors duration-150 cursor-pointer border ${isActive
+                  ? /* Kolom Kanan: Saat Dipencet / Terpilih (Active/Pressed - Olive Gold Kalem) */
+                  'bg-gradient-to-b from-[#BAA66D] via-[#A18F57] to-[#887844] text-[#17371C] shadow-inner border-[#7D6B38]/50'
+                  : /* Kolom Kiri: Saat Idle / Default (Oranye Emas Cerah) */
+                  /* Kolom Tengah: Saat Diarahkan (Hover - Champagne Emas Berkilau) */
+                  'bg-gradient-to-r from-[#FF9E00] to-[#FB8C00] text-[#143419] shadow-md border-transparent hover:bg-gradient-to-b hover:from-[#FFE38F] hover:via-[#F9C354] hover:to-[#EAA824] hover:text-[#123017] hover:shadow-lg active:bg-gradient-to-b active:from-[#BAA66D] active:via-[#A18F57] active:to-[#887844]'
+                  }`}
               >
                 <span className="shrink-0">{item.icon}</span>
                 <span className="truncate">{item.name}</span>
