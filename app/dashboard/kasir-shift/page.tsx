@@ -865,7 +865,15 @@ export default function KasirShiftPage() {
 
               {/* Tabel Sinkron dengan Database `kasir` */}
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full min-w-[680px] table-fixed text-left border-collapse">
+                  <colgroup>
+                    <col className="w-[24%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[18%]" />
+                    <col className="w-[20%]" />
+                    <col className="w-[13%]" />
+                    <col className="w-[11%]" />
+                  </colgroup>
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50/70 text-xs font-extrabold text-gray-600 uppercase tracking-wider">
                       <th className="py-3 px-3 whitespace-nowrap">STAF KASIR</th>

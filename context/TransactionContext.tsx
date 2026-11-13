@@ -41,6 +41,7 @@ interface TransactionContextType {
   setFilterStatus: (s: string) => void;
   resetFilters: () => void;
   addTransaction: (tx: Omit<Transaction, 'id' | 'time' | 'date'>) => void;
+  addSimulatedTransaction: () => void;
   stats: TransactionStats;
 }
 
@@ -118,6 +119,57 @@ const initialTransactions: Transaction[] = [
   },
 ];
 
+const SIMULATED_CASHIERS = [
+  { cashier: 'Rian Pratama', terminal: 'Kasir Pos-01' },
+  { cashier: 'Siti Rahma', terminal: 'Kasir Pos-02' },
+  { cashier: 'Budi Santoso', terminal: 'Kasir Pos-03' },
+];
+
+const SIMULATED_MENUS = [
+  {
+    itemsSummary: '1x Ayam Geprek Bakar + Es Teh',
+    totalItems: 1,
+    subtotal: 18000,
+    diskon: 0,
+    total: 18000,
+  },
+  {
+    itemsSummary: '2x Ayam Geprek Biasa + Es Teh',
+    totalItems: 2,
+    subtotal: 34000,
+    diskon: 0,
+    total: 34000,
+  },
+  {
+    itemsSummary: '2x Ayam Geprek Bakar + Es Teh',
+    totalItems: 2,
+    subtotal: 36000,
+    diskon: 0,
+    total: 36000,
+  },
+  {
+    itemsSummary: '1x Paket Geprek Mozarella + Es Jeruk',
+    totalItems: 1,
+    subtotal: 25000,
+    diskon: 0,
+    total: 25000,
+  },
+  {
+    itemsSummary: '3x Ayam Geprek Sambal Bawang + Es Teh',
+    totalItems: 3,
+    subtotal: 51000,
+    diskon: 2000,
+    total: 49000,
+  },
+  {
+    itemsSummary: '2x Paket Komplit Geprek + Tahu Crispy',
+    totalItems: 2,
+    subtotal: 42000,
+    diskon: 0,
+    total: 42000,
+  },
+];
+
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
 
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
@@ -152,6 +204,48 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     };
 
     setTransactions((prev) => [fullTx, ...prev]);
+  };
+
+  // Simulasi Order Kasir Baru Secara Realistis
+  const addSimulatedTransaction = () => {
+    const now = new Date();
+    const timeStr = now.toTimeString().split(' ')[0];
+    const chosenCashier =
+      SIMULATED_CASHIERS[Math.floor(Math.random() * SIMULATED_CASHIERS.length)];
+    const chosenMenu =
+      SIMULATED_MENUS[Math.floor(Math.random() * SIMULATED_MENUS.length)];
+    const paymentMethod: 'Tunai' | 'QRIS' = Math.random() > 0.5 ? 'QRIS' : 'Tunai';
+
+    setTransactions((prev) => {
+      // Cari nomor urut tertinggi dari format #TRX-202410-XXXX
+      let maxSeq = 192;
+      prev.forEach((t) => {
+        const parts = t.id.split('-');
+        const num = parseInt(parts[parts.length - 1], 10);
+        if (!isNaN(num) && num < 9000 && num > maxSeq) {
+          maxSeq = num;
+        }
+      });
+
+      const nextId = `#TRX-202410-${String(maxSeq + 1).padStart(4, '0')}`;
+
+      const simulatedTx: Transaction = {
+        id: nextId,
+        time: timeStr,
+        date: 'Hari ini',
+        cashier: chosenCashier.cashier,
+        terminal: chosenCashier.terminal,
+        itemsSummary: chosenMenu.itemsSummary,
+        totalItems: chosenMenu.totalItems,
+        subtotal: chosenMenu.subtotal,
+        diskon: chosenMenu.diskon,
+        total: chosenMenu.total,
+        paymentMethod,
+        status: 'Berhasil',
+      };
+
+      return [simulatedTx, ...prev];
+    });
   };
 
   // Computed State: Filtered Transactions (Real-time reactivity)
@@ -237,6 +331,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         setFilterStatus,
         resetFilters,
         addTransaction,
+        addSimulatedTransaction,
         stats,
       }}
     >

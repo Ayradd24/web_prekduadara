@@ -184,17 +184,21 @@ export default function TransaksiPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<string>("Bulan Ini");
   const [activePage, setActivePage] = useState<number>(1);
   const [showFilterMenu, setShowFilterMenu] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const formatRupiah = (val: number) => "Rp " + val.toLocaleString("id-ID");
 
   // Gabungkan transaksi baru dari context dengan rincian default
   const displayOrders = useMemo(() => {
+    const initialIds = new Set([
+      "#TRX-202410-0192",
+      "#TRX-202410-0191",
+      "#TRX-202410-0190",
+      "#TRX-202410-0189",
+      "#TRX-202410-0188",
+    ]);
     const extraFromContext: RecentOrderRow[] = filteredTransactions
-      .filter(
-        (tx) =>
-          !tx.id.startsWith("#TRX-202410-019") &&
-          !tx.id.startsWith("#TRX-202410-018")
-      )
+      .filter((tx) => !initialIds.has(tx.id))
       .map((tx) => ({
         id: tx.id.replace("#TRX-", "#GPRK-"),
         time: `${tx.time} WIB`,
@@ -228,6 +232,53 @@ export default function TransaksiPage() {
     });
   }, [filteredTransactions, searchQuery, filterPayment]);
 
+  // Fungsi Export CSV kompatibel Microsoft Excel (UTF-8 BOM)
+  const handleExportExcel = () => {
+    const headers = [
+      "ID Transaksi",
+      "Waktu",
+      "Kasir",
+      "Menu/Item",
+      "Metode Bayar",
+      "Total",
+      "Status",
+    ];
+
+    const rows = displayOrders.map((order) => [
+      order.id,
+      `${order.time} (${order.relativeTime})`,
+      order.branch,
+      `${order.mainMenu} (${order.addons})`,
+      `${order.paymentBadge} - ${order.orderType}`,
+      formatRupiah(order.total),
+      "Berhasil",
+    ]);
+
+    const csvContent =
+      "\uFEFF" +
+      [
+        headers.join(","),
+        ...rows.map((row) =>
+          row.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(",")
+        ),
+      ].join("\r\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "Laporan_Transaksi_PrekDuaDara.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setToastMessage("Laporan transaksi berhasil diunduh!");
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
+
   const getHeatmapCellStyle = (level: string) => {
     switch (level) {
       case "peak":
@@ -247,6 +298,16 @@ export default function TransaksiPage() {
 
   return (
     <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans items-start text-gray-900">
+      {/* Notifikasi Toast Modern (Pojok Kanan Bawah) */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-[#2D452B] text-white border border-[#415C3E] px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-xs sm:text-sm font-bold transition-all">
+          <span className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300 shrink-0">
+            ✓
+          </span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* 1. SIDEBAR KIRI (FIXED & PATEN) */}
       <Sidebar />
 
@@ -328,9 +389,7 @@ export default function TransaksiPage() {
 
               <button
                 type="button"
-                onClick={() =>
-                  alert("Mengunduh laporan transaksi dalam format Excel (.xlsx)...")
-                }
+                onClick={handleExportExcel}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 rounded-xl text-xs font-bold transition cursor-pointer"
               >
                 <FileSpreadsheet size={14} className="text-emerald-700" />
@@ -1229,14 +1288,23 @@ export default function TransaksiPage() {
 
           {/* Table */}
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs sm:text-sm">
+            <table className="w-full min-w-[880px] table-fixed text-left border-collapse text-xs sm:text-sm">
+              <colgroup>
+                <col className="w-[12%]" />
+                <col className="w-[13%]" />
+                <col className="w-[29%]" />
+                <col className="w-[7%]" />
+                <col className="w-[15%]" />
+                <col className="w-[14%]" />
+                <col className="w-[10%]" />
+              </colgroup>
               <thead>
                 <tr className="border-y border-gray-200 bg-gray-50 text-gray-600 font-extrabold text-xs uppercase tracking-wider">
                   <th className="py-3.5 px-3 whitespace-nowrap">Order ID</th>
                   <th className="py-3.5 px-3 whitespace-nowrap">
                     Waktu Transaksi
                   </th>
-                  <th className="py-3.5 px-3 min-w-[240px]">
+                  <th className="py-3.5 px-3">
                     Menu Utama Dipesan
                   </th>
                   <th className="py-3.5 px-3 text-center whitespace-nowrap">

@@ -842,17 +842,26 @@ export default function StokPage() {
 
             {/* Table with clean, non-cramped column widths */}
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs sm:text-sm">
+              <table className="w-full min-w-[760px] table-fixed text-left border-collapse text-xs sm:text-sm">
+                <colgroup>
+                  <col className="w-[30%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[17%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[7%]" />
+                </colgroup>
                 <thead>
                   <tr className="border-y border-gray-200 bg-gray-50 text-xs font-extrabold text-gray-600 uppercase tracking-wider">
-                    <th className="py-3.5 px-3 min-w-[230px]">
+                    <th className="py-3.5 px-3">
                       BAHAN BAKU &amp; SKU
                     </th>
                     <th className="py-3.5 px-3 whitespace-nowrap">KATEGORI</th>
                     <th className="py-3.5 px-3 text-right whitespace-nowrap">
                       STOK AKTUAL
                     </th>
-                    <th className="py-3.5 px-3 min-w-[145px]">
+                    <th className="py-3.5 px-3">
                       KETAHANAN &amp; SAFETY
                     </th>
                     <th className="py-3.5 px-3 text-right whitespace-nowrap">
