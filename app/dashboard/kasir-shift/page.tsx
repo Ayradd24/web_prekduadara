@@ -1,172 +1,450 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
-import Sidebar from '@/components/Sidebar';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
+import Sidebar from "@/components/Sidebar";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  ClipboardList,
+  Coffee,
+  CreditCard,
+  Edit3,
+  Filter,
+  Lock,
+  Moon,
+  Power,
+  Printer,
+  RefreshCw,
+  Repeat,
+  RotateCcw,
+  Save,
+  ScanBarcode,
+  Search,
+  ShieldCheck,
+  Store,
+  Trash2,
+  User,
+  UserCheck,
+  UserPlus,
+  Users,
+  Wallet,
+  X,
+} from "lucide-react";
+
+type SingleBranchName =
+  | "Cabang Sudirman Utama"
+  | "Cabang Tebet Eco Park"
+  | "Cabang Dago Heritage";
+
+type ShiftMainType =
+  | "Shift Pagi"
+  | "Shift Siang"
+  | "Shift Malam"
+  | "Off / Libur";
+
+type LiveStatusType =
+  | "Aktif Melayani"
+  | "Standby / Rehat"
+  | "Selesai Shift / Off";
 
 export interface KasirItem {
   id: string; // cashier_code, misal: '#KSR-001'
   dbId?: number;
-  name: string; // 'Rian', 'Siti', 'Budi'
-  roleTitle: string; // 'Kasir'
-  shift: string; // 'Shift Pagi (08:00 - 12:00)', 'Shift Siang (12:00 - 17:00)', 'Shift Malam (17:00 - 22:00)'
-  shiftMain: 'Shift Pagi' | 'Shift Siang' | 'Shift Malam' | 'Off / Libur';
-  shiftHours: string; // '08:00 - 12:00', '12:00 - 17:00', '17:00 - 22:00'
-  statusLive: 'Aktif Melayani' | 'Standby / Rehat' | 'Selesai Shift / Off';
+  name: string;
+  roleTitle: string;
+  shift: string;
+  shiftMain: ShiftMainType;
+  shiftHours: string;
+  statusLive: LiveStatusType;
   isActive: boolean;
+  branch: SingleBranchName;
   avatarColor: string;
   initials: string;
   createdAt?: string;
 }
 
-// Data Default (Sesuai persis dengan database MariaDB prekduadara_db tabel `kasir`)
+interface ApiCashierRow {
+  id: string;
+  dbId?: number;
+  name: string;
+  roleTitle?: string;
+  role_title?: string;
+  shift?: string;
+  statusLive?: LiveStatusType;
+  status_live?: LiveStatusType;
+  isActive?: boolean | number;
+  is_active?: boolean | number;
+  branch?: SingleBranchName;
+  createdAt?: string;
+}
+
+interface BranchDrawerState {
+  counter: string;
+  operatorId: string;
+  operatorName: string;
+  shiftInfo: string;
+  modalAwal: number;
+  totalSales: number;
+  totalNotes: number;
+  isOpen: boolean;
+  lastClosedInfo?: string;
+}
+
+const BRANCH_OPTIONS = [
+  "Semua Cabang",
+  "Cabang Sudirman Utama",
+  "Cabang Tebet Eco Park",
+  "Cabang Dago Heritage",
+] as const;
+
+const SINGLE_BRANCHES: SingleBranchName[] = [
+  "Cabang Sudirman Utama",
+  "Cabang Tebet Eco Park",
+  "Cabang Dago Heritage",
+];
+
+// Data Default (Sinkron dengan tabel `kasir` MariaDB prekduadara_db + profil cabang)
 const INITIAL_KASIR: KasirItem[] = [
   {
-    id: '#KSR-001',
+    id: "#KSR-001",
     dbId: 1,
-    name: 'Rian',
-    roleTitle: 'Kasir',
-    shift: 'Shift Pagi (08:00 - 12:00)',
-    shiftMain: 'Shift Pagi',
-    shiftHours: '08:00 - 12:00',
-    statusLive: 'Aktif Melayani',
+    name: "Rian",
+    roleTitle: "Kasir",
+    shift: "Shift Pagi (08:00 - 12:00)",
+    shiftMain: "Shift Pagi",
+    shiftHours: "08:00 - 12:00",
+    statusLive: "Aktif Melayani",
     isActive: true,
-    avatarColor: 'bg-amber-100 text-amber-800 border-amber-300',
-    initials: 'RN',
+    branch: "Cabang Sudirman Utama",
+    avatarColor: "bg-amber-100 text-amber-800 border-amber-300",
+    initials: "RN",
   },
   {
-    id: '#KSR-002',
+    id: "#KSR-002",
     dbId: 2,
-    name: 'Siti',
-    roleTitle: 'Kasir',
-    shift: 'Shift Siang (12:00 - 17:00)',
-    shiftMain: 'Shift Siang',
-    shiftHours: '12:00 - 17:00',
-    statusLive: 'Standby / Rehat',
+    name: "Siti",
+    roleTitle: "Kasir",
+    shift: "Shift Siang (12:00 - 17:00)",
+    shiftMain: "Shift Siang",
+    shiftHours: "12:00 - 17:00",
+    statusLive: "Standby / Rehat",
     isActive: true,
-    avatarColor: 'bg-orange-100 text-orange-800 border-orange-300',
-    initials: 'ST',
+    branch: "Cabang Sudirman Utama",
+    avatarColor: "bg-orange-100 text-orange-800 border-orange-300",
+    initials: "ST",
   },
   {
-    id: '#KSR-003',
+    id: "#KSR-003",
     dbId: 3,
-    name: 'Budi',
-    roleTitle: 'Kasir',
-    shift: 'Shift Malam (17:00 - 22:00)',
-    shiftMain: 'Shift Malam',
-    shiftHours: '17:00 - 22:00',
-    statusLive: 'Standby / Rehat',
+    name: "Budi",
+    roleTitle: "Kasir",
+    shift: "Shift Malam (17:00 - 22:00)",
+    shiftMain: "Shift Malam",
+    shiftHours: "17:00 - 22:00",
+    statusLive: "Standby / Rehat",
     isActive: true,
-    avatarColor: 'bg-slate-100 text-slate-700 border-slate-300',
-    initials: 'BD',
+    branch: "Cabang Sudirman Utama",
+    avatarColor: "bg-slate-100 text-slate-700 border-slate-300",
+    initials: "BD",
+  },
+  {
+    id: "#KSR-004",
+    name: "Dimas",
+    roleTitle: "Kepala Kasir",
+    shift: "Shift Pagi (08:00 - 12:00)",
+    shiftMain: "Shift Pagi",
+    shiftHours: "08:00 - 12:00",
+    statusLive: "Aktif Melayani",
+    isActive: true,
+    branch: "Cabang Tebet Eco Park",
+    avatarColor: "bg-emerald-100 text-emerald-800 border-emerald-300",
+    initials: "DM",
+  },
+  {
+    id: "#KSR-005",
+    name: "Nabila",
+    roleTitle: "Kasir",
+    shift: "Shift Siang (12:00 - 17:00)",
+    shiftMain: "Shift Siang",
+    shiftHours: "12:00 - 17:00",
+    statusLive: "Standby / Rehat",
+    isActive: true,
+    branch: "Cabang Tebet Eco Park",
+    avatarColor: "bg-blue-100 text-blue-800 border-blue-300",
+    initials: "NB",
+  },
+  {
+    id: "#KSR-006",
+    name: "Fajar",
+    roleTitle: "Kasir",
+    shift: "Shift Pagi (08:00 - 12:00)",
+    shiftMain: "Shift Pagi",
+    shiftHours: "08:00 - 12:00",
+    statusLive: "Aktif Melayani",
+    isActive: true,
+    branch: "Cabang Dago Heritage",
+    avatarColor: "bg-amber-100 text-amber-800 border-amber-300",
+    initials: "FJ",
+  },
+  {
+    id: "#KSR-007",
+    name: "Citra",
+    roleTitle: "Kasir",
+    shift: "Shift Malam (17:00 - 22:00)",
+    shiftMain: "Shift Malam",
+    shiftHours: "17:00 - 22:00",
+    statusLive: "Selesai Shift / Off",
+    isActive: false,
+    branch: "Cabang Dago Heritage",
+    avatarColor: "bg-gray-100 text-gray-700 border-gray-300",
+    initials: "CT",
   },
 ];
 
-export default function KasirShiftPage() {
-  const [kasirList, setKasirList] = useState<KasirItem[]>(INITIAL_KASIR);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedShiftFilter, setSelectedShiftFilter] = useState<string>('Semua');
-  const [showShiftDropdown, setShowShiftDropdown] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [alertMsg, setAlertMsg] = useState<{ text: string; type: 'success' | 'info' | 'warning' } | null>(null);
-
-  // State Form Kasir
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formName, setFormName] = useState('');
-  const [formRole, setFormRole] = useState('Kasir');
-  const [formId, setFormId] = useState('#KSR-004');
-  const [formShift, setFormShift] = useState<'Pagi' | 'Siang' | 'Malam'>('Pagi');
-  const [formIsActive, setFormIsActive] = useState(true);
-
-  // Active Drawer State (Menggunakan kasir aktif dari database: Rian #KSR-001)
-  const [drawerData, setDrawerData] = useState({
-    counter: 'Counter #01',
-    operator: 'Rian (#KSR-001)',
-    shiftInfo: 'Shift Pagi (08:00 - 12:00) • Login 07:54 WIB • Modal Awal Rp 500.000',
+const INITIAL_DRAWERS: Record<SingleBranchName, BranchDrawerState> = {
+  "Cabang Sudirman Utama": {
+    counter: "Counter #01",
+    operatorId: "#KSR-001",
+    operatorName: "Rian",
+    shiftInfo: "Shift Pagi (08:00 - 12:00) • Login 07:54 WIB",
+    modalAwal: 500000,
     totalSales: 3842500,
     totalNotes: 94,
     isOpen: true,
-  });
+  },
+  "Cabang Tebet Eco Park": {
+    counter: "Counter #02",
+    operatorId: "#KSR-004",
+    operatorName: "Dimas",
+    shiftInfo: "Shift Pagi (08:00 - 12:00) • Login 07:58 WIB",
+    modalAwal: 500000,
+    totalSales: 2915000,
+    totalNotes: 71,
+    isOpen: true,
+  },
+  "Cabang Dago Heritage": {
+    counter: "Counter #03",
+    operatorId: "#KSR-006",
+    operatorName: "Fajar",
+    shiftInfo: "Shift Pagi (08:00 - 12:00) • Login 08:01 WIB",
+    modalAwal: 400000,
+    totalSales: 2480000,
+    totalNotes: 63,
+    isOpen: true,
+  },
+};
 
-  const showAlert = (text: string, type: 'success' | 'info' | 'warning' = 'success') => {
-    setAlertMsg({ text, type });
-    setTimeout(() => setAlertMsg(null), 3500);
-  };
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+  return name.trim().slice(0, 2).toUpperCase() || "KS";
+}
 
-  // Helper format inisial
-  const getInitials = (name: string) => {
-    const parts = name.trim().split(' ');
-    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    return name.slice(0, 2).toUpperCase();
-  };
+function parseShift(shiftStr?: string): {
+  shiftMain: ShiftMainType;
+  shiftHours: string;
+} {
+  let shiftMain: ShiftMainType = "Shift Pagi";
+  let shiftHours = "08:00 - 12:00";
 
-  // Helper parse shift database string
-  const parseShift = (shiftStr?: string) => {
-    let shiftMain: 'Shift Pagi' | 'Shift Siang' | 'Shift Malam' | 'Off / Libur' = 'Shift Pagi';
-    let shiftHours = '08:00 - 12:00';
+  if (!shiftStr) return { shiftMain, shiftHours };
 
-    if (!shiftStr) return { shiftMain, shiftHours };
+  const lower = shiftStr.toLowerCase();
+  if (lower.includes("siang")) {
+    shiftMain = "Shift Siang";
+    shiftHours = "12:00 - 17:00";
+  } else if (lower.includes("malam")) {
+    shiftMain = "Shift Malam";
+    shiftHours = "17:00 - 22:00";
+  } else if (lower.includes("off") || lower.includes("libur")) {
+    shiftMain = "Off / Libur";
+    shiftHours = "Jadwal Libur";
+  }
 
-    if (shiftStr.toLowerCase().includes('siang')) {
-      shiftMain = 'Shift Siang';
-      shiftHours = '12:00 - 17:00';
-    } else if (shiftStr.toLowerCase().includes('malam')) {
-      shiftMain = 'Shift Malam';
-      shiftHours = '17:00 - 22:00';
-    } else if (shiftStr.toLowerCase().includes('off') || shiftStr.toLowerCase().includes('libur')) {
-      shiftMain = 'Off / Libur';
-      shiftHours = 'Jadwal Libur';
-    }
+  return { shiftMain, shiftHours };
+}
 
-    return { shiftMain, shiftHours };
-  };
+function generateNextCashierCode(list: KasirItem[]): string {
+  const maxNum = list.reduce((max, item) => {
+    const match = item.id.match(/(\d+)/);
+    const num = match ? parseInt(match[1], 10) : 0;
+    return Math.max(max, num);
+  }, 0);
+  return `#KSR-${String(maxNum + 1).padStart(3, "0")}`;
+}
 
-  // 1. FETCH DATA DARI API BACKEND MARIADB
+export default function KasirShiftPage() {
+  const [kasirList, setKasirList] = useState<KasirItem[]>(INITIAL_KASIR);
+  const [drawersByBranch, setDrawersByBranch] =
+    useState<Record<SingleBranchName, BranchDrawerState>>(INITIAL_DRAWERS);
+
+  // Filter Header & Tabel
+  const [selectedBranch, setSelectedBranch] = useState<string>("Semua Cabang");
+  const [showBranchMenu, setShowBranchMenu] = useState(false);
+  const branchDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedShiftFilter, setSelectedShiftFilter] =
+    useState<string>("Semua");
+  const [showShiftDropdown, setShowShiftDropdown] = useState(false);
+  const shiftDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [dbConnected, setDbConnected] = useState(false);
+
+  // Toast Notification dengan useRef Timer
+  const [toastMsg, setToastMsg] = useState<{
+    text: string;
+    type: "success" | "info" | "warning";
+  } | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback(
+    (text: string, type: "success" | "info" | "warning" = "success") => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+      setToastMsg({ text, type });
+      toastTimerRef.current = setTimeout(() => {
+        setToastMsg(null);
+      }, 3400);
+    },
+    []
+  );
+
+  // State Form Kasir
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formName, setFormName] = useState("");
+  const [formRole, setFormRole] = useState("Kasir");
+  const [formId, setFormId] = useState("#KSR-008");
+  const [formBranch, setFormBranch] = useState<SingleBranchName>(
+    "Cabang Sudirman Utama"
+  );
+  const [formShift, setFormShift] = useState<"Pagi" | "Siang" | "Malam">(
+    "Pagi"
+  );
+  const [formIsActive, setFormIsActive] = useState(true);
+
+  // State Modals Interaktif (Menggantikan alert & confirm)
+  const [showSopModal, setShowSopModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<KasirItem | null>(null);
+
+  // Modal Ganti Operator Laci
+  const [showSwitchOperatorModal, setShowSwitchOperatorModal] = useState(false);
+  const [selectedNewOperatorId, setSelectedNewOperatorId] = useState("");
+
+  // Modal Tutup Shift / Buka Shift Baru
+  const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
+  const [countedCashInput, setCountedCashInput] = useState("");
+  const [reopenModalAwalInput, setReopenModalAwalInput] = useState("500000");
+
+  // Click-outside handler untuk dropdown cabang & filter shift
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        branchDropdownRef.current &&
+        !branchDropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowBranchMenu(false);
+      }
+      if (
+        shiftDropdownRef.current &&
+        !shiftDropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowShiftDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Refs untuk pembacaan state terkini saat sinkronisasi DB tanpa memicu re-fetch loop
+  const kasirListRef = useRef<KasirItem[]>(kasirList);
+  kasirListRef.current = kasirList;
+  const editingIdRef = useRef<string | null>(editingId);
+  editingIdRef.current = editingId;
+  const formNameRef = useRef<string>(formName);
+  formNameRef.current = formName;
+
+  // 1. FETCH DATA DARI API BACKEND MARIADB (`Cabang Sudirman Utama`)
   const loadCashiersFromDB = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/cashiers');
+      const res = await fetch("http://localhost:5000/api/cashiers");
       const json = await res.json();
       if (json.success && Array.isArray(json.data) && json.data.length > 0) {
         const avatarBgs = [
-          'bg-amber-100 text-amber-800 border-amber-300',
-          'bg-orange-100 text-orange-800 border-orange-300',
-          'bg-slate-100 text-slate-700 border-slate-300',
-          'bg-blue-100 text-blue-800 border-blue-300',
+          "bg-amber-100 text-amber-800 border-amber-300",
+          "bg-orange-100 text-orange-800 border-orange-300",
+          "bg-slate-100 text-slate-700 border-slate-300",
+          "bg-emerald-100 text-emerald-800 border-emerald-300",
         ];
 
-        const mapped: KasirItem[] = json.data.map((c: any, idx: number) => {
-          const { shiftMain, shiftHours } = parseShift(c.shift);
-          return {
-            id: c.id, // cashier_code (#KSR-001)
-            dbId: c.dbId,
-            name: c.name,
-            roleTitle: c.roleTitle || 'Kasir',
-            shift: c.shift || 'Shift Pagi (08:00 - 12:00)',
-            shiftMain,
-            shiftHours,
-            statusLive: c.statusLive || 'Aktif Melayani',
-            isActive: Boolean(c.isActive),
-            avatarColor: avatarBgs[idx % avatarBgs.length],
-            initials: getInitials(c.name),
-            createdAt: c.createdAt,
-          };
-        });
+        const mappedDbItems: KasirItem[] = (json.data as ApiCashierRow[]).map(
+          (c, idx) => {
+            const { shiftMain, shiftHours } = parseShift(c.shift);
+            const activeFlag = Boolean(c.isActive ?? c.is_active ?? true);
+            const liveStatus: LiveStatusType =
+              c.statusLive ||
+              c.status_live ||
+              (activeFlag ? "Aktif Melayani" : "Selesai Shift / Off");
 
-        setKasirList(mapped);
+            return {
+              id: c.id,
+              dbId: c.dbId,
+              name: c.name,
+              roleTitle: c.roleTitle || c.role_title || "Kasir",
+              shift: c.shift || "Shift Pagi (08:00 - 12:00)",
+              shiftMain,
+              shiftHours,
+              statusLive: liveStatus,
+              isActive: activeFlag,
+              branch: c.branch || "Cabang Sudirman Utama",
+              avatarColor: avatarBgs[idx % avatarBgs.length],
+              initials: getInitials(c.name),
+              createdAt: c.createdAt,
+            };
+          }
+        );
 
-        // Update kasir aktif pada drawer jika ada kasir yang aktif
-        const activeOne = mapped.find((item) => item.statusLive === 'Aktif Melayani' && item.isActive);
-        if (activeOne) {
-          setDrawerData((prev) => ({
+        const otherBranches = kasirListRef.current.filter(
+          (item) => item.branch !== "Cabang Sudirman Utama"
+        );
+        const nextList = [...mappedDbItems, ...otherBranches];
+
+        setDbConnected(true);
+        setKasirList(nextList);
+
+        if (!editingIdRef.current && formNameRef.current === "") {
+          setFormId(generateNextCashierCode(nextList));
+        }
+
+        const activeSudirman = mappedDbItems.find(
+          (item) => item.statusLive === "Aktif Melayani" && item.isActive
+        );
+        if (activeSudirman) {
+          setDrawersByBranch((prev) => ({
             ...prev,
-            operator: `${activeOne.name} (${activeOne.id})`,
-            shiftInfo: `${activeOne.shift} • Login Aktif • Modal Awal Rp 500.000`,
+            "Cabang Sudirman Utama": {
+              ...prev["Cabang Sudirman Utama"],
+              operatorId: activeSudirman.id,
+              operatorName: activeSudirman.name,
+              shiftInfo: `${activeSudirman.shift} • Login Aktif`,
+            },
           }));
         }
       }
     } catch {
-      // Jika backend belum aktif, tetap gunakan INITIAL_KASIR
+      setDbConnected(false);
     } finally {
       setIsLoading(false);
     }
@@ -176,278 +454,947 @@ export default function KasirShiftPage() {
     loadCashiersFromDB();
   }, [loadCashiersFromDB]);
 
+  // Cabang target untuk Laci Kasir & aksi tulis
+  const activeDrawerBranch: SingleBranchName =
+    selectedBranch === "Semua Cabang"
+      ? formBranch
+      : (selectedBranch as SingleBranchName);
+
+  const activeDrawer = drawersByBranch[activeDrawerBranch];
+
+  // Daftar kasir sesuai pilihan cabang di header
+  const branchScopedKasir = useMemo(() => {
+    if (selectedBranch === "Semua Cabang") return kasirList;
+    return kasirList.filter((k) => k.branch === selectedBranch);
+  }, [kasirList, selectedBranch]);
+
+  // Filter Data Berdasarkan Cabang, Pencarian & Shift
+  const filteredKasir = useMemo(() => {
+    return branchScopedKasir.filter((item) => {
+      const q = searchQuery.trim().toLowerCase();
+      const matchesSearch =
+        q === "" ||
+        item.name.toLowerCase().includes(q) ||
+        item.id.toLowerCase().includes(q) ||
+        item.roleTitle.toLowerCase().includes(q) ||
+        item.shift.toLowerCase().includes(q) ||
+        item.branch.toLowerCase().includes(q);
+
+      if (selectedShiftFilter === "Semua") return matchesSearch;
+      if (selectedShiftFilter === "Pagi")
+        return matchesSearch && item.shift.includes("Pagi");
+      if (selectedShiftFilter === "Siang")
+        return matchesSearch && item.shift.includes("Siang");
+      if (selectedShiftFilter === "Malam")
+        return matchesSearch && item.shift.includes("Malam");
+      return matchesSearch;
+    });
+  }, [branchScopedKasir, searchQuery, selectedShiftFilter]);
+
+  // Metrik Ringkasan Dinamis Berdasarkan Cabang Terpilih
+  const kpiStats = useMemo(() => {
+    const totalKasir = branchScopedKasir.length;
+    const kasirOnline = branchScopedKasir.filter(
+      (c) => c.statusLive === "Aktif Melayani" && c.isActive
+    ).length;
+    const kasirStandby = branchScopedKasir.filter(
+      (c) => c.statusLive === "Standby / Rehat" && c.isActive
+    ).length;
+    const kasirOff = branchScopedKasir.filter(
+      (c) => !c.isActive || c.statusLive === "Selesai Shift / Off"
+    ).length;
+
+    return { totalKasir, kasirOnline, kasirStandby, kasirOff };
+  }, [branchScopedKasir]);
+
+  // Reset seluruh filter tabel
+  const handleResetFilters = () => {
+    setSelectedBranch("Semua Cabang");
+    setSearchQuery("");
+    setSelectedShiftFilter("Semua");
+    showToast("Seluruh filter telah direset ke Semua Cabang.", "info");
+  };
+
   // 2. TOGGLE STATUS AKSES KASIR (Sinkron ke Database)
   const handleToggleActive = async (id: string) => {
     const targetKasir = kasirList.find((c) => c.id === id);
-    const nextActive = !targetKasir?.isActive;
+    if (!targetKasir) return;
+    const nextActive = !targetKasir.isActive;
 
-    // Optimistic Update di UI
-    setKasirList((prev) =>
-      prev.map((c) => {
-        if (c.id === id) {
-          return {
-            ...c,
-            isActive: nextActive,
-            statusLive: nextActive
-              ? c.shiftMain === 'Off / Libur'
-                ? 'Standby / Rehat'
-                : 'Aktif Melayani'
-              : 'Selesai Shift / Off',
-          };
+    let nextList = kasirList.map((c) => {
+      if (c.id !== id) return c;
+      return {
+        ...c,
+        isActive: nextActive,
+        statusLive: (nextActive
+          ? c.shiftMain === "Off / Libur"
+            ? "Standby / Rehat"
+            : "Aktif Melayani"
+          : "Selesai Shift / Off") as LiveStatusType,
+      };
+    });
+
+    if (!nextActive) {
+      const nextDrawers = { ...drawersByBranch };
+      let drawerChanged = false;
+      const promotedIds = new Set<string>();
+
+      SINGLE_BRANCHES.forEach((bName) => {
+        if (nextDrawers[bName].operatorId === id) {
+          drawerChanged = true;
+          const replacement = nextList.find(
+            (c) => c.branch === bName && c.isActive && c.id !== id
+          );
+          if (replacement) {
+            promotedIds.add(replacement.id);
+            nextDrawers[bName] = {
+              ...nextDrawers[bName],
+              operatorId: replacement.id,
+              operatorName: replacement.name,
+              shiftInfo: `${replacement.shift} • Dialihkan Otomatis`,
+            };
+          } else {
+            nextDrawers[bName] = {
+              ...nextDrawers[bName],
+              isOpen: false,
+              lastClosedInfo:
+                "Laci ditutup otomatis (tidak ada operator aktif)",
+            };
+          }
         }
-        return c;
-      })
-    );
-
-    try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('prek_auth_token') : null;
-      await fetch(`http://localhost:5000/api/cashiers/${encodeURIComponent(id)}/toggle`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
       });
-    } catch {
-      // Tetap terupdate di UI
+
+      if (promotedIds.size > 0) {
+        nextList = nextList.map((c) =>
+          promotedIds.has(c.id)
+            ? { ...c, statusLive: "Aktif Melayani" as LiveStatusType }
+            : c
+        );
+      }
+
+      if (drawerChanged) {
+        setDrawersByBranch(nextDrawers);
+      }
     }
 
-    showAlert('Status hak akses kasir berhasil diperbarui!', 'success');
+    setKasirList(nextList);
+
+    try {
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("prek_auth_token")
+          : null;
+      await fetch(
+        `http://localhost:5000/api/cashiers/${encodeURIComponent(id)}/toggle`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+    } catch {
+      // Tetap terupdate di state lokal
+    }
+
+    showToast(
+      `Hak akses ${targetKasir.name} (${targetKasir.id}) ${
+        nextActive ? "diaktifkan" : "dinonaktifkan"
+      }!`,
+      "success"
+    );
   };
 
   // 3. EDIT KASIR
   const handleStartEdit = (kasir: KasirItem) => {
     setEditingId(kasir.id);
     setFormName(kasir.name);
-    setFormRole(kasir.roleTitle || 'Kasir');
+    setFormRole(kasir.roleTitle || "Kasir");
     setFormId(kasir.id);
-    if (kasir.shift.includes('Siang')) setFormShift('Siang');
-    else if (kasir.shift.includes('Malam')) setFormShift('Malam');
-    else setFormShift('Pagi');
+    setFormBranch(kasir.branch);
+    if (kasir.shift.includes("Siang")) setFormShift("Siang");
+    else if (kasir.shift.includes("Malam")) setFormShift("Malam");
+    else setFormShift("Pagi");
     setFormIsActive(kasir.isActive);
 
-    showAlert(`Mengedit data: ${kasir.name}`, 'info');
+    const formElem = document.getElementById("form-kasir-container");
+    formElem?.scrollIntoView({ behavior: "smooth" });
+    showToast(`Mengedit profil kasir: ${kasir.name} (${kasir.id})`, "info");
   };
 
   // 4. RESET FORM
-  const handleResetForm = () => {
+  const handleResetForm = useCallback(() => {
     setEditingId(null);
-    setFormName('');
-    setFormRole('Kasir');
-    const nextNum = kasirList.length + 1;
-    setFormId(`#KSR-${String(nextNum).padStart(3, '0')}`);
-    setFormShift('Pagi');
+    setFormName("");
+    setFormRole("Kasir");
+    setFormId(generateNextCashierCode(kasirList));
+    setFormBranch(
+      selectedBranch === "Semua Cabang"
+        ? "Cabang Sudirman Utama"
+        : (selectedBranch as SingleBranchName)
+    );
+    setFormShift("Pagi");
     setFormIsActive(true);
-  };
+  }, [kasirList, selectedBranch]);
 
-  // 5. SIMPAN KASIR (POST / PUT ke Database)
+  // 5. SIMPAN KASIR (POST / PUT ke Database + State Multi-Cabang)
   const handleSaveKasir = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim()) {
-      showAlert('Nama kasir wajib diisi!', 'warning');
+    const cleanName = formName.trim();
+    const cleanRole = formRole.trim() || "Kasir";
+    const rawCode = formId.trim().toUpperCase();
+    const cleanCode = rawCode.startsWith("#") ? rawCode : `#${rawCode}`;
+
+    if (!cleanName) {
+      showToast("Nama lengkap kasir wajib diisi!", "warning");
       return;
     }
 
-    const shiftMap: Record<string, { label: string; main: 'Shift Pagi' | 'Shift Siang' | 'Shift Malam'; hours: string }> = {
-      Pagi: { label: 'Shift Pagi (08:00 - 12:00)', main: 'Shift Pagi', hours: '08:00 - 12:00' },
-      Siang: { label: 'Shift Siang (12:00 - 17:00)', main: 'Shift Siang', hours: '12:00 - 17:00' },
-      Malam: { label: 'Shift Malam (17:00 - 22:00)', main: 'Shift Malam', hours: '17:00 - 22:00' },
+    if (
+      !editingId &&
+      kasirList.some((k) => k.id.toUpperCase() === cleanCode.toUpperCase())
+    ) {
+      showToast(
+        `Kode Kasir ${cleanCode} sudah digunakan! Gunakan kode unik lain.`,
+        "warning"
+      );
+      return;
+    }
+
+    const shiftMap: Record<
+      "Pagi" | "Siang" | "Malam",
+      { label: string; main: ShiftMainType; hours: string }
+    > = {
+      Pagi: {
+        label: "Shift Pagi (08:00 - 12:00)",
+        main: "Shift Pagi",
+        hours: "08:00 - 12:00",
+      },
+      Siang: {
+        label: "Shift Siang (12:00 - 17:00)",
+        main: "Shift Siang",
+        hours: "12:00 - 17:00",
+      },
+      Malam: {
+        label: "Shift Malam (17:00 - 22:00)",
+        main: "Shift Malam",
+        hours: "17:00 - 22:00",
+      },
     };
 
-    const chosen = shiftMap[formShift] || shiftMap.Pagi;
-    const statusLive = !formIsActive
-      ? 'Selesai Shift / Off'
-      : chosen.main === 'Shift Pagi'
-        ? 'Aktif Melayani'
-        : 'Standby / Rehat';
+    const chosen = shiftMap[formShift];
+    const statusLive: LiveStatusType = !formIsActive
+      ? "Selesai Shift / Off"
+      : chosen.main === "Shift Pagi"
+        ? "Aktif Melayani"
+        : "Standby / Rehat";
 
-    const token = typeof window !== 'undefined' ? localStorage.getItem('prek_auth_token') : null;
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("prek_auth_token")
+        : null;
 
     if (editingId) {
-      // Update di State Lokal
       setKasirList((prev) =>
         prev.map((item) =>
           item.id === editingId
             ? {
                 ...item,
-                name: formName.trim(),
-                roleTitle: formRole,
+                name: cleanName,
+                roleTitle: cleanRole,
                 shift: chosen.label,
                 shiftMain: chosen.main,
                 shiftHours: chosen.hours,
-                statusLive: statusLive as any,
+                statusLive,
                 isActive: formIsActive,
-                initials: getInitials(formName),
+                branch: formBranch,
+                initials: getInitials(cleanName),
               }
             : item
         )
       );
 
-      // Kirim Update ke Backend jika token ada
-      try {
-        await fetch(`http://localhost:5000/api/cashiers/${encodeURIComponent(editingId)}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            name: formName.trim(),
-            role_title: formRole,
-            shift: chosen.label,
-            status_live: statusLive,
-          }),
+      // Update operator name di laci jika kasir ini sedang memegang laci
+      setDrawersByBranch((prev) => {
+        const next = { ...prev };
+        SINGLE_BRANCHES.forEach((bName) => {
+          if (next[bName].operatorId === editingId) {
+            next[bName] = {
+              ...next[bName],
+              operatorName: cleanName,
+              shiftInfo: `${chosen.label} • Diperbarui`,
+            };
+          }
         });
-      } catch {}
+        return next;
+      });
 
-      showAlert(`Data kasir ${formName} berhasil diperbarui!`, 'success');
+      try {
+        await fetch(
+          `http://localhost:5000/api/cashiers/${encodeURIComponent(editingId)}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({
+              name: cleanName,
+              role_title: cleanRole,
+              shift: chosen.label,
+              status_live: statusLive,
+              is_active: formIsActive,
+            }),
+          }
+        );
+      } catch {
+        // Tetap tersimpan di state lokal
+      }
+
+      showToast(
+        `Profil kasir ${cleanName} (${editingId}) berhasil diperbarui!`,
+        "success"
+      );
+      setEditingId(null);
+      setFormName("");
+      setFormRole("Kasir");
+      setFormId(generateNextCashierCode(kasirList));
     } else {
-      // Tambah Baru di State Lokal
-      const newCode = formId || `#KSR-${String(kasirList.length + 1).padStart(3, '0')}`;
       const newKasir: KasirItem = {
-        id: newCode,
-        name: formName.trim(),
-        roleTitle: formRole || 'Kasir',
+        id: cleanCode,
+        name: cleanName,
+        roleTitle: cleanRole,
         shift: chosen.label,
         shiftMain: chosen.main,
         shiftHours: chosen.hours,
-        statusLive: statusLive as any,
+        statusLive,
         isActive: formIsActive,
-        avatarColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-        initials: getInitials(formName),
+        branch: formBranch,
+        avatarColor: "bg-emerald-100 text-emerald-800 border-emerald-300",
+        initials: getInitials(cleanName),
       };
 
-      setKasirList((prev) => [newKasir, ...prev]);
+      const nextList = [newKasir, ...kasirList];
+      setKasirList(nextList);
 
-      // Kirim POST ke Backend
-      try {
-        const res = await fetch('http://localhost:5000/api/cashiers', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            name: formName.trim(),
-            shift: chosen.label,
-          }),
-        });
-        const resJson = await res.json();
-        if (resJson.success) {
-          loadCashiersFromDB();
+      if (formBranch === "Cabang Sudirman Utama") {
+        try {
+          const res = await fetch("http://localhost:5000/api/cashiers", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({
+              cashier_code: cleanCode,
+              name: cleanName,
+              role_title: cleanRole,
+              shift: chosen.label,
+              status_live: statusLive,
+              is_active: formIsActive,
+            }),
+          });
+          const resJson = await res.json();
+          if (resJson.success) {
+            loadCashiersFromDB();
+          }
+        } catch {
+          // Tetap tersimpan di state lokal
         }
-      } catch {}
+      }
 
-      showAlert(`Kasir baru ${formName} berhasil didaftarkan!`, 'success');
+      showToast(
+        `Staf kasir baru ${cleanName} (${cleanCode}) berhasil ditambahkan ke ${formBranch}!`,
+        "success"
+      );
+      setEditingId(null);
+      setFormName("");
+      setFormRole("Kasir");
+      setFormId(generateNextCashierCode(nextList));
     }
-
-    handleResetForm();
   };
 
-  // 6. HAPUS KASIR (DELETE ke Database)
-  const handleDeleteKasir = async (id: string, name: string) => {
-    if (!confirm(`Yakin ingin menghapus data kasir "${name}" (${id}) dari database?`)) return;
+  // 6. KONFIRMASI HAPUS KASIR (Modal Interaktif)
+  const handleConfirmDeleteKasir = async () => {
+    if (!deleteTarget) return;
+    const { id, name } = deleteTarget;
 
-    // Optimistic Delete
-    setKasirList((prev) => prev.filter((c) => c.id !== id));
-    showAlert(`Kasir ${name} telah dihapus.`, 'info');
-    if (editingId === id) handleResetForm();
+    let nextList = kasirList.filter((c) => c.id !== id);
+
+    const nextDrawers = { ...drawersByBranch };
+    let drawerChanged = false;
+    const promotedIds = new Set<string>();
+
+    SINGLE_BRANCHES.forEach((bName) => {
+      if (nextDrawers[bName].operatorId === id) {
+        drawerChanged = true;
+        const replacement = nextList.find(
+          (c) => c.branch === bName && c.isActive
+        );
+        if (replacement) {
+          promotedIds.add(replacement.id);
+          nextDrawers[bName] = {
+            ...nextDrawers[bName],
+            operatorId: replacement.id,
+            operatorName: replacement.name,
+            shiftInfo: `${replacement.shift} • Dialihkan Otomatis`,
+          };
+        } else {
+          nextDrawers[bName] = {
+            ...nextDrawers[bName],
+            isOpen: false,
+            lastClosedInfo:
+              "Laci ditutup otomatis (tidak ada operator aktif)",
+          };
+        }
+      }
+    });
+
+    if (promotedIds.size > 0) {
+      nextList = nextList.map((c) =>
+        promotedIds.has(c.id)
+          ? { ...c, statusLive: "Aktif Melayani" as LiveStatusType }
+          : c
+      );
+    }
+
+    if (drawerChanged) {
+      setDrawersByBranch(nextDrawers);
+    }
+
+    setKasirList(nextList);
+    if (editingId === id) {
+      setEditingId(null);
+      setFormName("");
+      setFormId(generateNextCashierCode(nextList));
+    }
+    setDeleteTarget(null);
+    showToast(`Data kasir ${name} (${id}) telah dihapus.`, "info");
 
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('prek_auth_token') : null;
-      await fetch(`http://localhost:5000/api/cashiers/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-    } catch {}
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("prek_auth_token")
+          : null;
+      await fetch(
+        `http://localhost:5000/api/cashiers/${encodeURIComponent(id)}`,
+        {
+          method: "DELETE",
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+    } catch {
+      // Tetap terhapus di UI
+    }
   };
 
-  // 7. GANTI OPERATOR LACI
-  const handleGantiOperator = () => {
-    const onlineCashiers = kasirList.filter((c) => c.isActive);
-    if (onlineCashiers.length === 0) {
-      showAlert('Tidak ada kasir aktif yang dapat menggantikan.', 'warning');
+  // 7. BUKA MODAL GANTI OPERATOR LACI
+  const availableBranchCashiers = useMemo(() => {
+    const branchMatch = kasirList.filter(
+      (c) => c.branch === activeDrawerBranch && c.isActive
+    );
+    return branchMatch.length > 0
+      ? branchMatch
+      : kasirList.filter((c) => c.isActive);
+  }, [kasirList, activeDrawerBranch]);
+
+  const handleOpenSwitchOperator = () => {
+    if (availableBranchCashiers.length === 0) {
+      showToast(
+        "Tidak ada staf kasir berstatus akses aktif untuk menggantikan operator.",
+        "warning"
+      );
       return;
     }
-    const currentName = drawerData.operator.split(' (')[0];
-    const candidate = onlineCashiers.find((c) => c.name !== currentName) || onlineCashiers[0];
-    setDrawerData((prev) => ({
+    const candidate =
+      availableBranchCashiers.find((c) => c.id !== activeDrawer.operatorId) ||
+      availableBranchCashiers[0];
+    setSelectedNewOperatorId(candidate.id);
+    setShowSwitchOperatorModal(true);
+  };
+
+  const handleConfirmSwitchOperator = (e: React.FormEvent) => {
+    e.preventDefault();
+    const chosen = availableBranchCashiers.find(
+      (c) => c.id === selectedNewOperatorId
+    );
+    if (!chosen) return;
+
+    const nowTime = new Date().toTimeString().slice(0, 5);
+    setDrawersByBranch((prev) => ({
       ...prev,
-      operator: `${candidate.name} (${candidate.id})`,
-      shiftInfo: `${candidate.shift} • Login Baru • Modal Awal Rp 500.000`,
+      [activeDrawerBranch]: {
+        ...prev[activeDrawerBranch],
+        operatorId: chosen.id,
+        operatorName: chosen.name,
+        shiftInfo: `${chosen.shift} • Serah Terima ${nowTime} WIB`,
+        isOpen: true,
+      },
     }));
-    showAlert(`Operator laci dialihkan ke ${candidate.name}!`, 'success');
+
+    setKasirList((prev) =>
+      prev.map((c) => {
+        if (c.branch !== activeDrawerBranch) return c;
+        if (c.id === chosen.id) {
+          return { ...c, statusLive: "Aktif Melayani", isActive: true };
+        }
+        if (c.id === activeDrawer.operatorId && c.statusLive === "Aktif Melayani") {
+          return { ...c, statusLive: "Standby / Rehat" };
+        }
+        return c;
+      })
+    );
+
+    setShowSwitchOperatorModal(false);
+    showToast(
+      `Operator laci ${activeDrawer.counter} (${activeDrawerBranch}) dialihkan ke ${chosen.name} (${chosen.id})!`,
+      "success"
+    );
   };
 
-  // 8. TUTUP SHIFT PAKSA
-  const handleTutupShift = () => {
-    if (
-      confirm(
-        `TUTUP SHIFT PAKSA COUNTER #01?\n\nOperator: ${drawerData.operator}\nTotal Penjualan: Rp ${drawerData.totalSales.toLocaleString(
-          'id-ID'
-        )}\nTotal Nota: ${drawerData.totalNotes}\n\nStruk rekap 'Shift X-Report' akan otomatis dicetak.`
-      )
-    ) {
-      setDrawerData((prev) => ({
-        ...prev,
+  // 8. TUTUP SHIFT (REKONSILIASI X-REPORT) & BUKA SHIFT BARU
+  const expectedDrawerCash = activeDrawer.modalAwal + activeDrawer.totalSales;
+
+  const handleOpenCloseShiftModal = () => {
+    setCountedCashInput(String(expectedDrawerCash));
+    setReopenModalAwalInput(String(activeDrawer.modalAwal));
+    setShowCloseShiftModal(true);
+  };
+
+  const handleConfirmCloseShift = (e: React.FormEvent) => {
+    e.preventDefault();
+    const nowTime = new Date().toTimeString().slice(0, 5);
+    const counted = parseFloat(countedCashInput) || expectedDrawerCash;
+    const diff = counted - expectedDrawerCash;
+
+    setDrawersByBranch((prev) => ({
+      ...prev,
+      [activeDrawerBranch]: {
+        ...prev[activeDrawerBranch],
         isOpen: false,
-      }));
-      showAlert('Shift Counter #01 berhasil ditutup dan struk rekap dicetak.', 'success');
-    }
+        lastClosedInfo: `Ditutup ${nowTime} WIB • Fisik Rp ${Math.round(
+          counted
+        ).toLocaleString("id-ID")} (${
+          diff === 0
+            ? "Sesuai Sistem"
+            : diff > 0
+              ? `Surplus +Rp ${Math.round(diff).toLocaleString("id-ID")}`
+              : `Selisih -Rp ${Math.round(Math.abs(diff)).toLocaleString("id-ID")}`
+        })`,
+      },
+    }));
+
+    setKasirList((prev) =>
+      prev.map((c) =>
+        c.id === activeDrawer.operatorId
+          ? { ...c, statusLive: "Selesai Shift / Off" }
+          : c
+      )
+    );
+
+    setShowCloseShiftModal(false);
+    showToast(
+      `Shift ${activeDrawer.counter} (${activeDrawerBranch}) ditutup & Shift X-Report berhasil direkap!`,
+      "success"
+    );
   };
 
-  // Filter Data Berdasarkan Pencarian & Shift
-  const filteredKasir = kasirList.filter((item) => {
-    const matchesSearch =
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.roleTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.shift.toLowerCase().includes(searchQuery.toLowerCase());
+  const handleConfirmReopenShift = (e: React.FormEvent) => {
+    e.preventDefault();
+    const modalBaru = Math.max(0, parseFloat(reopenModalAwalInput) || 500000);
+    const nowTime = new Date().toTimeString().slice(0, 5);
 
-    if (selectedShiftFilter === 'Semua') return matchesSearch;
-    if (selectedShiftFilter === 'Pagi') return matchesSearch && item.shift.includes('Pagi');
-    if (selectedShiftFilter === 'Siang') return matchesSearch && item.shift.includes('Siang');
-    if (selectedShiftFilter === 'Malam') return matchesSearch && item.shift.includes('Malam');
-    return matchesSearch;
-  });
+    setDrawersByBranch((prev) => ({
+      ...prev,
+      [activeDrawerBranch]: {
+        ...prev[activeDrawerBranch],
+        modalAwal: modalBaru,
+        isOpen: true,
+        shiftInfo: `Shift Aktif • Dibuka kembali pukul ${nowTime} WIB`,
+      },
+    }));
 
-  // Metrik Ringkasan Berdasarkan Data Tabel `kasir`
-  const totalKasir = kasirList.length;
-  const kasirOnline = kasirList.filter((c) => c.statusLive === 'Aktif Melayani' && c.isActive).length;
-  const kasirStandby = kasirList.filter((c) => c.statusLive === 'Standby / Rehat' && c.isActive).length;
-  const kasirOff = kasirList.filter((c) => !c.isActive || c.statusLive === 'Selesai Shift / Off').length;
+    setKasirList((prev) =>
+      prev.map((c) =>
+        c.id === activeDrawer.operatorId
+          ? { ...c, statusLive: "Aktif Melayani", isActive: true }
+          : c
+      )
+    );
+
+    setShowCloseShiftModal(false);
+    showToast(
+      `Shift baru ${activeDrawer.counter} (${activeDrawerBranch}) berhasil dibuka dengan modal awal Rp ${modalBaru.toLocaleString(
+        "id-ID"
+      )}!`,
+      "success"
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans items-start text-gray-900">
-      {/* 1. SIDEBAR KIRI */}
-      <Sidebar />
+    <div className="min-h-screen print:min-h-0 bg-[#FAF6E9] print:bg-white flex p-4 sm:p-6 print:p-0 gap-6 font-sans items-start text-gray-900">
+      {/* Toast Notification Seragam */}
+      {toastMsg && (
+        <div
+          className={`print:hidden fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-xs sm:text-sm font-bold text-white border transition-all ${
+            toastMsg.type === "success"
+              ? "bg-[#2D452B] border-[#415C3E]"
+              : toastMsg.type === "warning"
+                ? "bg-amber-600 border-amber-500"
+                : "bg-slate-800 border-slate-700"
+          }`}
+        >
+          <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center shrink-0">
+            {toastMsg.type === "warning" ? (
+              <AlertTriangle size={14} />
+            ) : (
+              <CheckCircle2 size={15} className="text-emerald-300" />
+            )}
+          </div>
+          <span>{toastMsg.text}</span>
+        </div>
+      )}
+
+      {/* MODAL 1: PANDUAN SOP PERGANTIAN SHIFT */}
+      {showSopModal && (
+        <div
+          className="print:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setShowSopModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-lg overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-[#2D452B] text-white px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <ShieldCheck size={18} className="text-[#F3A712]" />
+                <div>
+                  <h3 className="text-sm sm:text-base font-extrabold">
+                    SOP Pergantian Shift &amp; Serah Terima Laci Tunai
+                  </h3>
+                  <p className="text-[11px] text-emerald-200 font-medium">
+                    Standar Operasional Kasir POS PrekDuaDara
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSopModal(false)}
+                className="p-1 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3 text-xs sm:text-sm text-gray-700 font-medium">
+              {[
+                "Hitung total uang tunai fisik di dalam laci kasir (Modal Awal + Penjualan Tunai).",
+                "Klik tombol 'Tutup Shift (X-Report)' untuk mencocokkan nominal fisik dengan catatan sistem.",
+                "Cetak struk rekapitulasi Shift X-Report pada printer thermal 58mm/80mm.",
+                "Serahkan laci kasir beserta lembar X-Report yang telah ditandatangani kepada operator shift berikutnya.",
+                "Gunakan tombol 'Ganti Operator Laci' agar transaksi baru tercatat atas nama kasir penerus.",
+              ].map((step, i) => (
+                <div
+                  key={i}
+                  className="p-3 rounded-xl bg-[#FAF8F3] border border-gray-200 flex items-start gap-3"
+                >
+                  <span className="w-6 h-6 rounded-full bg-[#F3A712] text-gray-950 font-black text-xs flex items-center justify-center shrink-0">
+                    {i + 1}
+                  </span>
+                  <span className="leading-relaxed">{step}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowSopModal(false)}
+                className="px-4 py-2 rounded-xl bg-[#2D452B] text-white text-xs font-extrabold cursor-pointer"
+              >
+                Mengerti &amp; Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: KONFIRMASI HAPUS KASIR */}
+      {deleteTarget && (
+        <div
+          className="print:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setDeleteTarget(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-[#DC2626] text-white px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Trash2 size={18} />
+                <h3 className="text-sm sm:text-base font-extrabold">
+                  Konfirmasi Hapus Staf Kasir
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="p-1 rounded-lg text-red-100 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 text-xs sm:text-sm text-gray-700 leading-relaxed font-medium">
+              Apakah Anda yakin ingin menghapus profil kasir{" "}
+              <strong className="text-gray-900 font-extrabold">
+                {deleteTarget.name} ({deleteTarget.id})
+              </strong>{" "}
+              dari <strong className="text-gray-900">{deleteTarget.branch}</strong>?
+              Tindakan ini akan mencabut akses login POS kasir tersebut.
+            </div>
+
+            <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteKasir}
+                className="px-4 py-2 rounded-xl bg-[#DC2626] hover:bg-red-700 text-white text-xs font-extrabold cursor-pointer"
+              >
+                Ya, Hapus Kasir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: GANTI OPERATOR LACI KASIR */}
+      {showSwitchOperatorModal && (
+        <div
+          className="print:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setShowSwitchOperatorModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-[#2D452B] text-white px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Repeat size={18} className="text-[#F3A712]" />
+                <div>
+                  <h3 className="text-sm sm:text-base font-extrabold">
+                    Ganti Operator Laci ({activeDrawer.counter})
+                  </h3>
+                  <p className="text-[11px] text-emerald-200 font-medium">
+                    {activeDrawerBranch}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSwitchOperatorModal(false)}
+                className="p-1 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmSwitchOperator} className="p-5 space-y-4">
+              <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 text-xs text-gray-700">
+                Operator Saat Ini:{" "}
+                <strong className="font-extrabold text-gray-900">
+                  {activeDrawer.operatorName} ({activeDrawer.operatorId})
+                </strong>
+              </div>
+
+              <div>
+                <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1.5">
+                  Pilih Operator Kasir Penerus
+                </label>
+                <select
+                  value={selectedNewOperatorId}
+                  onChange={(e) => setSelectedNewOperatorId(e.target.value)}
+                  className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-gray-900 bg-white focus:outline-none focus:border-[#EA8E18] cursor-pointer"
+                >
+                  {availableBranchCashiers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.id}) — {c.shiftMain} [{c.branch.replace("Cabang ", "")}]
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowSwitchOperatorModal(false)}
+                  className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-[#F3A712] hover:bg-[#df980e] text-gray-950 text-xs font-extrabold cursor-pointer"
+                >
+                  Alihkan Laci Sekarang
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: TUTUP SHIFT (X-REPORT) / BUKA SHIFT BARU */}
+      {showCloseShiftModal && (
+        <div
+          className="print:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setShowCloseShiftModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className={`${
+                activeDrawer.isOpen ? "bg-[#E11D48]" : "bg-[#1E562F]"
+              } text-white px-5 py-4 flex items-center justify-between`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Power size={18} />
+                <div>
+                  <h3 className="text-sm sm:text-base font-extrabold">
+                    {activeDrawer.isOpen
+                      ? `Tutup Shift & Rekonsiliasi (${activeDrawer.counter})`
+                      : `Buka Shift Baru (${activeDrawer.counter})`}
+                  </h3>
+                  <p className="text-[11px] text-white/85 font-medium">
+                    {activeDrawerBranch} • Operator: {activeDrawer.operatorName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCloseShiftModal(false)}
+                className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {activeDrawer.isOpen ? (
+              <form onSubmit={handleConfirmCloseShift} className="p-5 space-y-4">
+                <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 font-medium">Modal Awal Laci:</span>
+                    <strong className="text-gray-900">
+                      Rp {activeDrawer.modalAwal.toLocaleString("id-ID")}
+                    </strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 font-medium">
+                      Total Penjualan ({activeDrawer.totalNotes} Nota):
+                    </span>
+                    <strong className="text-gray-900">
+                      Rp {activeDrawer.totalSales.toLocaleString("id-ID")}
+                    </strong>
+                  </div>
+                  <div className="flex justify-between pt-1.5 border-t border-gray-200 font-extrabold text-gray-900">
+                    <span>Ekspektasi Total Kas Sistem:</span>
+                    <span className="text-[#B45309]">
+                      Rp {expectedDrawerCash.toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                    Nominal Uang Fisik Dihitung di Laci (Rp) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="500"
+                    value={countedCashInput}
+                    onChange={(e) => setCountedCashInput(e.target.value)}
+                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-extrabold text-gray-900 focus:outline-none focus:border-[#E11D48]"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setShowCloseShiftModal(false)}
+                    className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl bg-[#E11D48] hover:bg-[#BE123C] text-white text-xs font-extrabold cursor-pointer"
+                  >
+                    Tutup Shift &amp; Cetak X-Report
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleConfirmReopenShift} className="p-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                    Modal Awal Laci Tunai Baru (Rp) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="10000"
+                    value={reopenModalAwalInput}
+                    onChange={(e) => setReopenModalAwalInput(e.target.value)}
+                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-extrabold text-gray-900 focus:outline-none focus:border-[#1E562F]"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setShowCloseShiftModal(false)}
+                    className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl bg-[#1E562F] hover:bg-[#164223] text-white text-xs font-extrabold cursor-pointer"
+                  >
+                    Buka Shift Laci Sekarang
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 1. SIDEBAR KIRI (FIXED & PATEN) */}
+      <div className="print:hidden shrink-0">
+        <Sidebar />
+      </div>
 
       {/* 2. AREA KONTEN UTAMA */}
-      <main className="flex-1 flex flex-col gap-5 overflow-x-hidden max-w-full">
-        {/* Toast Notifikasi */}
-        {alertMsg && (
-          <div
-            className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-bold text-white transition-all transform animate-bounce ${
-              alertMsg.type === 'success'
-                ? 'bg-[#1E562F]'
-                : alertMsg.type === 'warning'
-                  ? 'bg-amber-600'
-                  : 'bg-blue-600'
-            }`}
-          >
-            <span className="text-lg">
-              {alertMsg.type === 'success' ? '✓' : alertMsg.type === 'warning' ? '⚠' : 'ℹ'}
-            </span>
-            <span>{alertMsg.text}</span>
-          </div>
-        )}
-
-        {/* TOP NAVBAR HEADER */}
-        <header className="bg-white rounded-2xl px-5 py-3.5 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
+      <main className="flex-1 flex flex-col gap-6 overflow-x-hidden print:overflow-visible max-w-full">
+        {/* TOP NAVBAR HEADER (SERAGAM DENGAN DASHBOARD & STOK) */}
+        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm print:shadow-none border border-gray-200 flex flex-wrap items-center justify-between gap-4">
           {/* Logo & Subtitle */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3.5">
             <img
               src="/logo.png"
               alt="Logo PrekDuaDara"
@@ -457,128 +1404,148 @@ export default function KasirShiftPage() {
               <div className="font-extrabold text-base text-[#EA8E18] tracking-tight leading-tight">
                 PrekDuaDara
               </div>
-              <div className="text-xs text-gray-600 font-medium leading-tight">
+              <div className="text-xs text-gray-600 font-medium leading-tight mt-0.5">
                 Pengaturan Staf &amp; Kasir Restoran
               </div>
             </div>
           </div>
 
-          {/* Cabang & Navigation Tabs */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            {/* Cabang Selector */}
-            <div className="flex items-center gap-2 px-3.5 py-2 bg-[#F8F9FA] border border-gray-200 rounded-xl text-xs font-bold text-gray-800 cursor-pointer hover:bg-gray-100 transition">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#EA8E18] shrink-0"></span>
-              <span>Cabang Sudirman Utama</span>
-              <svg className="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
+          {/* Info Cetak Saat Mode Print */}
+          <div className="hidden print:block text-right text-xs text-gray-700">
+            <div className="font-bold text-gray-900">
+              Laporan Staf Kasir &amp; Shift • {selectedBranch}
             </div>
-
-            {/* Navigation Tabs */}
-            <nav className="hidden xl:flex items-center gap-2 text-xs font-bold text-gray-700">
-              <Link
-                href="/dashboard"
-                className="px-3 py-1.5 hover:text-[#EA8E18] hover:bg-orange-50 rounded-lg transition"
-              >
-                Dashboard POS
-              </Link>
-              <Link
-                href="/dashboard/transaksi"
-                className="px-3 py-1.5 hover:text-[#EA8E18] hover:bg-orange-50 rounded-lg transition"
-              >
-                Riwayat Transaksi
-              </Link>
-              <Link
-                href="/dashboard/stok"
-                className="px-3 py-1.5 hover:text-[#EA8E18] hover:bg-orange-50 rounded-lg transition"
-              >
-                Shift &amp; Laci
-              </Link>
-              <div className="px-3.5 py-1.5 bg-[#EA8E18] text-white font-bold rounded-lg shadow-sm">
-                Pengaturan Kasir
-              </div>
-            </nav>
+            <div className="mt-0.5">
+              Total Kasir Terfilter: {filteredKasir.length} Staf • Online:{" "}
+              {kpiStats.kasirOnline} Kasir
+            </div>
           </div>
 
-          {/* Sync & User Profile */}
-          <div className="flex items-center gap-3">
+          {/* Right Controls: Branch Selector, Online Sync & User Profile */}
+          <div className="print:hidden flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
+            {/* Interactive Branch Selector */}
+            <div ref={branchDropdownRef} className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowBranchMenu((prev) => !prev)}
+                className="h-9 w-[225px] justify-between shrink-0 flex items-center gap-2 px-3.5 bg-[#F8F9FA] border border-gray-200 rounded-xl text-xs font-bold text-gray-800 cursor-pointer hover:bg-gray-100 transition"
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <Store size={14} className="text-[#EA8E18] shrink-0" />
+                  <span className="truncate">{selectedBranch}</span>
+                </span>
+                <ChevronDown size={14} className="text-gray-500 shrink-0" />
+              </button>
+
+              {showBranchMenu && (
+                <div className="absolute right-0 mt-1.5 w-[225px] bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-30 text-xs">
+                  {BRANCH_OPTIONS.map((branch) => (
+                    <button
+                      key={branch}
+                      type="button"
+                      onClick={() => {
+                        setSelectedBranch(branch);
+                        if (branch !== "Semua Cabang") {
+                          setFormBranch(branch as SingleBranchName);
+                        }
+                        setShowBranchMenu(false);
+                        showToast(`Menampilkan staf kasir: ${branch}`, "info");
+                      }}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-2 hover:bg-amber-50/60 transition cursor-pointer ${
+                        selectedBranch === branch
+                          ? "font-extrabold text-[#EA8E18] bg-amber-50/40"
+                          : "font-semibold text-gray-700"
+                      }`}
+                    >
+                      <Store size={13} className="shrink-0" />
+                      <span className="truncate">{branch}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Online Sync Pill */}
-            <div className="flex items-center gap-2 px-3.5 py-1.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full">
+            <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
             {/* User Profile */}
-            <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200">
+            <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
               <div className="text-right">
-                <div className="text-xs font-extrabold text-gray-900 leading-tight">Rian Pratama</div>
-                <div className="text-[11px] text-[#EA8E18] font-bold leading-tight">Supervisor Kasir</div>
+                <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
+                  Rian Pratama
+                </div>
+                <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
+                  Supervisor Kasir
+                </div>
               </div>
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-sm shrink-0">
-                <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
+                <User size={16} />
               </div>
             </div>
           </div>
         </header>
 
         {/* PAGE TITLE & ACTION ROW */}
-        <section className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
+        <section className="print:hidden bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col xl:flex-row xl:items-center justify-between gap-5">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
                 Pengaturan &amp; Manajemen Kasir
               </h1>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-300 text-xs font-extrabold uppercase tracking-wide">
-                <svg className="w-3.5 h-3.5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-300 text-xs font-extrabold uppercase tracking-wide shrink-0">
+                <ShieldCheck size={14} className="text-amber-600" />
                 DATABASE KASIR
               </span>
-              <span className="px-2.5 py-1 rounded-md bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold">
-                Tabel `kasir` • Cabang #01
+              <span className="px-2.5 py-1 rounded-md bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold shrink-0">
+                Tabel `kasir` • {selectedBranch}
               </span>
             </div>
-            <p className="text-xs sm:text-sm text-gray-600 mt-1.5 font-medium">
-              Kelola data kasir dari database MariaDB (tabel `kasir`), pantau status shift, dan atur hak akses akun secara real-time.
+            <p className="text-xs sm:text-sm text-gray-600 mt-1.5 font-medium leading-relaxed">
+              Kelola data kasir dari database MariaDB (tabel `kasir`), pantau
+              status shift lintas cabang, dan atur hak akses akun secara
+              real-time.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 self-start md:self-auto flex-wrap">
+          <div className="flex items-center gap-2.5 self-start xl:self-auto flex-wrap sm:flex-nowrap shrink-0">
             {/* Filter Shift Dropdown */}
-            <div className="relative">
+            <div ref={shiftDropdownRef} className="relative shrink-0">
               <button
                 type="button"
-                onClick={() => setShowShiftDropdown(!showShiftDropdown)}
-                className="px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 shadow-sm cursor-pointer"
+                onClick={() => setShowShiftDropdown((prev) => !prev)}
+                className="h-10 w-[185px] justify-between shrink-0 whitespace-nowrap px-3.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-2xs cursor-pointer"
               >
-                <svg className="w-4 h-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                </svg>
-                <span>Filter Shift: {selectedShiftFilter}</span>
-                <svg className="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
+                <span className="flex items-center gap-2 min-w-0">
+                  <Filter size={14} className="text-gray-600 shrink-0" />
+                  <span className="truncate">
+                    Filter Shift: {selectedShiftFilter}
+                  </span>
+                </span>
+                <ChevronDown size={14} className="text-gray-500 shrink-0" />
               </button>
 
               {showShiftDropdown && (
-                <div className="absolute right-0 mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-xl z-20 py-1.5 text-xs sm:text-sm">
+                <div className="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-xl z-30 py-1.5 text-xs">
                   {[
-                    { key: 'Semua', label: 'Semua Shift' },
-                    { key: 'Pagi', label: 'Shift Pagi (08:00 - 12:00)' },
-                    { key: 'Siang', label: 'Shift Siang (12:00 - 17:00)' },
-                    { key: 'Malam', label: 'Shift Malam (17:00 - 22:00)' },
+                    { key: "Semua", label: "Semua Shift" },
+                    { key: "Pagi", label: "Shift Pagi (08:00 - 12:00)" },
+                    { key: "Siang", label: "Shift Siang (12:00 - 17:00)" },
+                    { key: "Malam", label: "Shift Malam (17:00 - 22:00)" },
                   ].map((opt) => (
                     <button
                       key={opt.key}
+                      type="button"
                       onClick={() => {
                         setSelectedShiftFilter(opt.key);
                         setShowShiftDropdown(false);
                       }}
-                      className={`w-full text-left px-4 py-2 hover:bg-gray-50 font-semibold ${
-                        selectedShiftFilter === opt.key ? 'text-[#EA8E18] font-bold bg-amber-50' : 'text-gray-700'
+                      className={`w-full text-left px-4 py-2.5 hover:bg-amber-50/60 transition cursor-pointer ${
+                        selectedShiftFilter === opt.key
+                          ? "text-[#EA8E18] font-extrabold bg-amber-50/40"
+                          : "text-gray-700 font-semibold"
                       }`}
                     >
                       {opt.label}
@@ -588,18 +1555,31 @@ export default function KasirShiftPage() {
               )}
             </div>
 
+            {/* Tombol Cetak Laporan */}
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="h-10 w-[92px] justify-center shrink-0 whitespace-nowrap bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <Printer size={14} className="shrink-0" />
+              <span>Cetak</span>
+            </button>
+
             {/* Tombol Refresh dari Database */}
             <button
               type="button"
-              onClick={loadCashiersFromDB}
+              onClick={() => {
+                loadCashiersFromDB();
+                showToast("Menyinkronkan ulang data tabel kasir...", "info");
+              }}
               title="Refresh Data dari Database"
-              className="p-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl transition shadow-sm cursor-pointer"
+              aria-label="Refresh Data dari Database"
+              className="h-10 w-10 justify-center shrink-0 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl transition flex items-center cursor-pointer"
             >
-              <svg className={`w-4 h-4 ${isLoading ? 'animate-spin text-[#EA8E18]' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M23 4v6h-6" />
-                <path d="M1 20v-6h6" />
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-              </svg>
+              <RefreshCw
+                size={15}
+                className={isLoading ? "animate-spin text-[#EA8E18]" : ""}
+              />
             </button>
 
             {/* Tambah Kasir Baru Button */}
@@ -607,396 +1587,440 @@ export default function KasirShiftPage() {
               type="button"
               onClick={() => {
                 handleResetForm();
-                const formElem = document.getElementById('form-kasir-container');
-                formElem?.scrollIntoView({ behavior: 'smooth' });
-                showAlert('Silakan isi form di sebelah kanan untuk menambahkan staf kasir', 'info');
+                const formElem = document.getElementById(
+                  "form-kasir-container"
+                );
+                formElem?.scrollIntoView({ behavior: "smooth" });
+                showToast(
+                  "Silakan lengkapi form di sebelah kanan untuk mendaftarkan kasir baru.",
+                  "info"
+                );
               }}
-              className="px-4 py-2.5 bg-gradient-to-r from-[#EA8E18] to-[#F59E0B] hover:from-[#d67e10] hover:to-[#ea8e18] text-white rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center gap-2 shadow-sm cursor-pointer"
+              className="h-10 w-[178px] justify-center shrink-0 whitespace-nowrap bg-[#F3A712] hover:bg-[#df980e] text-gray-950 rounded-xl text-xs font-extrabold transition flex items-center gap-2 shadow-xs cursor-pointer"
             >
-              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="8.5" cy="7" r="4" />
-                <line x1="20" y1="8" x2="20" y2="14" />
-                <line x1="23" y1="11" x2="17" y2="11" />
-              </svg>
+              <UserPlus size={15} className="shrink-0" />
               <span>+ Tambah Kasir Baru</span>
             </button>
           </div>
         </section>
 
         {/* 4 SUMMARY STAT CARDS */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4 gap-5 print:gap-3">
           {/* Card 1: Total Kasir */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-gray-600 tracking-wider uppercase">
+          <div className="bg-white rounded-2xl p-6 print:p-3.5 shadow-sm print:shadow-none border border-gray-200 flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-extrabold text-gray-500 tracking-wider uppercase truncate">
                 TOTAL KASIR TERDAFTAR
-              </span>
-              <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200 text-[#EA8E18] flex items-center justify-center">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
+              </p>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl sm:text-3xl print:text-lg font-black text-gray-900">
+                  {kpiStats.totalKasir}
+                </span>
+                <span className="text-xs sm:text-sm font-bold text-gray-500">
+                  Staf Kasir
+                </span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-bold min-w-0">
+                <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                <span className="truncate">{selectedBranch}</span>
               </div>
             </div>
-            <div className="my-2.5 flex items-baseline gap-2">
-              <span className="text-2xl sm:text-3xl font-black text-gray-900">{totalKasir}</span>
-              <span className="text-xs sm:text-sm font-bold text-gray-600">Staf Kasir</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold pt-2.5 border-t border-gray-100">
-              <svg className="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <span>Tersimpan di tabel `kasir`</span>
+            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-amber-50 border border-amber-200 text-[#EA8E18] flex items-center justify-center shrink-0">
+              <Users size={20} />
             </div>
           </div>
 
           {/* Card 2: Sedang Bertugas */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-gray-600 tracking-wider uppercase">
-                SEDANG BERTUGAS
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-extrabold border border-emerald-200">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                Live
-              </span>
+          <div className="bg-white rounded-2xl p-6 print:p-3.5 shadow-sm print:shadow-none border border-gray-200 flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-extrabold text-gray-500 tracking-wider uppercase truncate">
+                  SEDANG BERTUGAS
+                </p>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold border border-emerald-200 shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                  Live
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl sm:text-3xl print:text-lg font-black text-gray-900">
+                  {kpiStats.kasirOnline}
+                </span>
+                <span className="text-xs sm:text-sm font-bold text-gray-500">
+                  Kasir Online
+                </span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-600 font-semibold min-w-0">
+                <UserCheck size={14} className="text-emerald-600 shrink-0" />
+                <span className="truncate">Status: Aktif Melayani</span>
+              </div>
             </div>
-            <div className="my-2.5 flex items-baseline gap-2">
-              <span className="text-2xl sm:text-3xl font-black text-gray-900">{kasirOnline}</span>
-              <span className="text-xs sm:text-sm font-bold text-gray-600">Kasir Online</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-gray-600 font-semibold pt-2.5 border-t border-gray-100">
-              <svg className="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="16 3 21 3 21 8" />
-                <line x1="4" y1="20" x2="21" y2="3" />
-                <polyline points="21 16 21 21 16 21" />
-                <line x1="15" y1="15" x2="21" y2="21" />
-                <line x1="4" y1="4" x2="9" y2="9" />
-              </svg>
-              <span>Status: Aktif Melayani</span>
+            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
+              <UserCheck size={20} />
             </div>
           </div>
 
           {/* Card 3: Standby / Istirahat */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-gray-600 tracking-wider uppercase">
+          <div className="bg-white rounded-2xl p-6 print:p-3.5 shadow-sm print:shadow-none border border-gray-200 flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-extrabold text-gray-500 tracking-wider uppercase truncate">
                 STANDBY / ISTIRAHAT
-              </span>
-              <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-200 text-[#EA8E18] flex items-center justify-center">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
-                  <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
-                  <line x1="6" y1="1" x2="6" y2="4" />
-                  <line x1="10" y1="1" x2="10" y2="4" />
-                  <line x1="14" y1="1" x2="14" y2="4" />
-                </svg>
+              </p>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl sm:text-3xl print:text-lg font-black text-gray-900">
+                  {kpiStats.kasirStandby}
+                </span>
+                <span className="text-xs sm:text-sm font-bold text-gray-500">
+                  Kasir
+                </span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-600 font-semibold min-w-0">
+                <Coffee size={14} className="text-[#EA8E18] shrink-0" />
+                <span className="truncate">Pergantian shift berikutnya</span>
               </div>
             </div>
-            <div className="my-2.5 flex items-baseline gap-2">
-              <span className="text-2xl sm:text-3xl font-black text-gray-900">{kasirStandby}</span>
-              <span className="text-xs sm:text-sm font-bold text-gray-600">Kasir</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-gray-600 font-semibold pt-2.5 border-t border-gray-100">
-              <svg className="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              <span>Pergantian shift berikutnya</span>
+            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-orange-50 border border-orange-200 text-[#EA8E18] flex items-center justify-center shrink-0">
+              <Coffee size={20} />
             </div>
           </div>
 
-          {/* Card 4: Off / Libur / Cuti */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-gray-600 tracking-wider uppercase">
+          {/* Card 4: Off / Non-Aktif */}
+          <div className="bg-white rounded-2xl p-6 print:p-3.5 shadow-sm print:shadow-none border border-gray-200 flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-extrabold text-gray-500 tracking-wider uppercase truncate">
                 OFF / NON-AKTIF
-              </span>
-              <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 text-gray-600 flex items-center justify-center">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                </svg>
+              </p>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl sm:text-3xl print:text-lg font-black text-gray-900">
+                  {kpiStats.kasirOff}
+                </span>
+                <span className="text-xs sm:text-sm font-bold text-gray-500">
+                  Kasir
+                </span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-600 font-semibold min-w-0">
+                <Lock size={14} className="text-gray-500 shrink-0" />
+                <span className="truncate">Hak akses akun tertahan</span>
               </div>
             </div>
-            <div className="my-2.5 flex items-baseline gap-2">
-              <span className="text-2xl sm:text-3xl font-black text-gray-900">{kasirOff}</span>
-              <span className="text-xs sm:text-sm font-bold text-gray-600">Kasir</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-gray-600 font-semibold pt-2.5 border-t border-gray-100">
-              <svg className="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-              <span>Hak akses akun tertahan</span>
+            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-gray-100 border border-gray-200 text-gray-600 flex items-center justify-center shrink-0">
+              <Moon size={20} />
             </div>
           </div>
         </section>
 
         {/* ACTIVE CASH DRAWER BANNER */}
-        <section className="bg-[#FFFDF7] rounded-2xl p-5 border border-[#F59E0B]/40 shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-5">
+        <section
+          className={`print:hidden rounded-2xl p-6 border shadow-sm flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-5 ${
+            activeDrawer.isOpen
+              ? "bg-[#FFFDF7] border-[#F59E0B]/40"
+              : "bg-gray-50 border-gray-300"
+          }`}
+        >
           {/* Sisi Kiri: Operator & Counter Info */}
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#FEF3C7] border border-[#F59E0B]/50 flex items-center justify-center text-amber-800 shrink-0 shadow-sm">
-              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="2" y="4" width="20" height="16" rx="2" />
-                <path d="M7 15h0.01" />
-                <path d="M12 15h0.01" />
-                <path d="M17 15h0.01" />
-                <path d="M2 10h20" />
-              </svg>
+          <div className="flex items-start sm:items-center gap-4">
+            <div
+              className={`w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-xs ${
+                activeDrawer.isOpen
+                  ? "bg-[#FEF3C7] border-[#F59E0B]/50 text-amber-800"
+                  : "bg-gray-200 border-gray-300 text-gray-600"
+              }`}
+            >
+              <Wallet size={22} />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-extrabold text-emerald-700 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  LACI KASIR AKTIF SAAT INI
+                <span
+                  className={`text-xs font-extrabold flex items-center gap-1.5 ${
+                    activeDrawer.isOpen ? "text-emerald-700" : "text-gray-600"
+                  }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      activeDrawer.isOpen
+                        ? "bg-emerald-500 animate-pulse"
+                        : "bg-gray-400"
+                    }`}
+                  ></span>
+                  {activeDrawer.isOpen
+                    ? "LACI KASIR AKTIF SAAT INI"
+                    : "LACI KASIR DITUTUP (SELESAI SHIFT)"}
                 </span>
                 <span className="px-2.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-xs font-extrabold">
-                  {drawerData.counter}
+                  {activeDrawer.counter}
+                </span>
+                <span className="px-2.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold">
+                  {activeDrawerBranch}
                 </span>
               </div>
-              <h2 className="text-base sm:text-lg font-black text-gray-900 mt-0.5">
-                {drawerData.operator}
+              <h2 className="text-base sm:text-lg font-black text-gray-900 mt-1">
+                {activeDrawer.operatorName} ({activeDrawer.operatorId})
               </h2>
-              <p className="text-xs sm:text-sm text-gray-600 font-medium">
-                {drawerData.shiftInfo}
+              <p className="text-xs sm:text-sm text-gray-600 font-medium mt-0.5">
+                {activeDrawer.shiftInfo} • Modal Awal Rp{" "}
+                {activeDrawer.modalAwal.toLocaleString("id-ID")}
               </p>
+              {!activeDrawer.isOpen && activeDrawer.lastClosedInfo && (
+                <p className="text-xs font-bold text-rose-700 mt-1">
+                  {activeDrawer.lastClosedInfo}
+                </p>
+              )}
             </div>
           </div>
 
           {/* Sisi Tengah: Metrik Shift */}
-          <div className="flex items-center gap-6 sm:gap-10 border-y lg:border-y-0 lg:border-x border-[#FDE68A] py-3 lg:py-0 lg:px-8">
-            <div>
-              <div className="text-xs font-extrabold text-gray-600 uppercase tracking-wider">
+          <div className="flex items-center gap-6 sm:gap-10 border-y xl:border-y-0 xl:border-x border-[#FDE68A] py-3 xl:py-0 xl:px-8 shrink-0">
+            <div className="w-[160px] shrink-0">
+              <div className="text-xs font-extrabold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                 TOTAL PENJUALAN SHIFT
               </div>
-              <div className="text-lg sm:text-xl font-black text-[#B45309] mt-0.5">
-                Rp {drawerData.totalSales.toLocaleString('id-ID')}
+              <div className="text-lg sm:text-xl font-black text-[#B45309] mt-1 tabular-nums whitespace-nowrap">
+                Rp {activeDrawer.totalSales.toLocaleString("id-ID")}
               </div>
             </div>
-            <div>
-              <div className="text-xs font-extrabold text-gray-600 uppercase tracking-wider">
+            <div className="w-[130px] shrink-0">
+              <div className="text-xs font-extrabold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                 TRANSAKSI SELESAI
               </div>
-              <div className="text-lg sm:text-xl font-black text-gray-900 mt-0.5">
-                {drawerData.totalNotes} Nota
+              <div className="text-lg sm:text-xl font-black text-gray-900 mt-1 tabular-nums whitespace-nowrap">
+                {activeDrawer.totalNotes} Nota
               </div>
             </div>
           </div>
 
           {/* Sisi Kanan: Action Buttons */}
-          <div className="flex items-center gap-2.5 sm:self-end lg:self-center">
+          <div className="flex items-center gap-2.5 sm:self-end xl:self-center shrink-0">
             <button
               type="button"
-              onClick={handleGantiOperator}
-              className="px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
+              onClick={handleOpenSwitchOperator}
+              disabled={!activeDrawer.isOpen}
+              className="h-10 w-[178px] shrink-0 justify-center whitespace-nowrap bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none text-gray-800 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
             >
-              <svg className="w-4 h-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M16 3h5v5" />
-                <path d="M4 20L21 3" />
-                <path d="M21 16v5h-5" />
-                <path d="M15 15l6 6" />
-                <path d="M4 4l5 5" />
-              </svg>
+              <Repeat size={14} className="text-gray-600 shrink-0" />
               <span>Ganti Operator Laci</span>
             </button>
+
             <button
               type="button"
-              onClick={handleTutupShift}
-              className="px-4 py-2.5 bg-[#E11D48] hover:bg-[#BE123C] text-white rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
+              onClick={handleOpenCloseShiftModal}
+              className={`h-10 w-[162px] shrink-0 justify-center whitespace-nowrap rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer ${
+                activeDrawer.isOpen
+                  ? "bg-[#E11D48] hover:bg-[#BE123C] text-white"
+                  : "bg-[#1E562F] hover:bg-[#164223] text-white"
+              }`}
             >
-              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
-                <line x1="12" y1="2" x2="12" y2="12" />
-              </svg>
-              <span>Tutup Shift Paksa</span>
+              <Power size={14} className="shrink-0" />
+              <span>
+                {activeDrawer.isOpen ? "Tutup Shift Paksa" : "Buka Shift Baru"}
+              </span>
             </button>
           </div>
         </section>
 
         {/* 2-COLUMN MAIN CONTENT: LEFT (TABLE) & RIGHT (FORM & HARDWARE) */}
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          {/* KOLOM KIRI: TABEL DAFTAR KASIR (8 cols) */}
-          <div className="lg:col-span-8 flex flex-col gap-5">
-            <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-gray-200 flex flex-col gap-5">
-              {/* Header Tabel */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <h3 className="text-base sm:text-lg font-extrabold text-gray-900">
+        <section className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+          {/* KOLOM KIRI: TABEL DAFTAR KASIR (8 cols, 12 on print) */}
+          <div className="xl:col-span-8 print:col-span-12 flex flex-col gap-6">
+            <div className="bg-white rounded-2xl p-6 print:p-3 shadow-sm print:shadow-none border border-gray-200 flex flex-col gap-5">
+              {/* Header Tabel & Search */}
+              <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <h3 className="text-base sm:text-lg font-extrabold text-gray-900 whitespace-nowrap">
                     Daftar Staf Kasir POS
                   </h3>
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-xs font-extrabold">
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-xs font-extrabold tabular-nums whitespace-nowrap shrink-0">
                     {filteredKasir.length} Terdata
                   </span>
                 </div>
 
-                {/* Search Input */}
-                <div className="relative w-full sm:w-64">
-                  <svg
-                    className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
+                {/* Search Input + Reset (Selalu Tampil & Statis) */}
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                  <div className="relative h-9 flex-1 sm:w-[250px] sm:flex-none shrink-0">
+                    <Search
+                      size={15}
+                      className="text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Cari nama, kode, atau cabang..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-9 w-full pl-9 pr-8 bg-gray-50 border border-gray-300 rounded-xl text-xs sm:text-sm font-medium text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-[#EA8E18]"
+                    />
+                    {searchQuery !== "" && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery("")}
+                        title="Hapus pencarian"
+                        aria-label="Hapus pencarian"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 cursor-pointer"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    disabled={
+                      searchQuery === "" &&
+                      selectedShiftFilter === "Semua" &&
+                      selectedBranch === "Semua Cabang"
+                    }
+                    title="Reset Filter"
+                    className="h-9 w-[86px] shrink-0 justify-center whitespace-nowrap border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none rounded-xl text-xs font-bold text-gray-700 flex items-center gap-1.5 transition cursor-pointer"
                   >
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Cari nama atau ID kasir..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-medium text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#EA8E18]/40 focus:border-[#EA8E18]"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 text-xs"
-                    >
-                      ✕
-                    </button>
-                  )}
+                    <RotateCcw size={13} className="shrink-0" />
+                    <span>Reset</span>
+                  </button>
                 </div>
               </div>
 
               {/* Tabel Sinkron dengan Database `kasir` */}
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[680px] table-fixed text-left border-collapse">
+              <div className="overflow-x-auto print:overflow-visible">
+                <table className="table-fixed w-[910px] print:table-auto print:w-full print:text-[10px] text-left border-collapse text-xs sm:text-sm">
                   <colgroup>
-                    <col className="w-[24%]" />
-                    <col className="w-[14%]" />
-                    <col className="w-[18%]" />
-                    <col className="w-[20%]" />
-                    <col className="w-[13%]" />
-                    <col className="w-[11%]" />
+                    <col className="w-[240px] print:w-auto" />
+                    <col className="w-[130px] print:w-auto" />
+                    <col className="w-[165px] print:w-auto" />
+                    <col className="w-[165px] print:w-auto" />
+                    <col className="w-[105px] print:w-auto" />
+                    <col className="w-[105px] print:w-auto" />
                   </colgroup>
                   <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50/70 text-xs font-extrabold text-gray-600 uppercase tracking-wider">
-                      <th className="py-3 px-3 whitespace-nowrap">STAF KASIR</th>
-                      <th className="py-3 px-3 whitespace-nowrap">PERAN</th>
-                      <th className="py-3 px-3 whitespace-nowrap">SHIFT TERJADWAL</th>
-                      <th className="py-3 px-3 whitespace-nowrap">STATUS LIVE</th>
-                      <th className="py-3 px-3 text-center whitespace-nowrap">AKSES AKTIF</th>
-                      <th className="py-3 px-3 text-right whitespace-nowrap">AKSI</th>
+                    <tr className="border-y border-gray-200 bg-gray-50 text-xs print:text-[9px] font-extrabold text-gray-600 uppercase tracking-wider">
+                      <th className="py-4 px-4 whitespace-nowrap">
+                        STAF KASIR &amp; CABANG
+                      </th>
+                      <th className="py-4 px-4 whitespace-nowrap">PERAN</th>
+                      <th className="py-4 px-4 whitespace-nowrap">
+                        SHIFT TERJADWAL
+                      </th>
+                      <th className="py-4 px-4 whitespace-nowrap">
+                        STATUS LIVE
+                      </th>
+                      <th className="py-4 px-4 text-center whitespace-nowrap">
+                        AKSES AKTIF
+                      </th>
+                      <th className="py-4 px-4 text-center whitespace-nowrap print:hidden">
+                        AKSI
+                      </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 text-xs sm:text-sm">
+                  <tbody className="divide-y divide-gray-200 text-gray-800">
                     {filteredKasir.map((kasir) => (
-                      <tr key={kasir.id} className="hover:bg-[#FAF6E9]/50 transition group">
-                        {/* 1. Staf Kasir (Avatar, Nama, ID/cashier_code) */}
-                        <td className="py-3.5 px-3 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
+                      <tr
+                        key={kasir.id}
+                        className="hover:bg-amber-50/30 transition-colors"
+                      >
+                        {/* 1. Staf Kasir (Avatar, Nama, ID/cashier_code, Cabang) */}
+                        <td className="py-5 px-4">
+                          <div className="flex items-start gap-3.5 min-w-0">
                             <div
-                              className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs border ${kasir.avatarColor} shrink-0`}
+                              className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs border ${kasir.avatarColor} shrink-0 mt-0.5 print:hidden`}
                             >
                               {kasir.initials}
                             </div>
-                            <div>
-                              <div className="font-extrabold text-gray-900 text-xs sm:text-sm">
+                            <div className="min-w-0 flex-1">
+                              <div className="font-extrabold text-gray-900 text-xs sm:text-sm truncate">
                                 {kasir.name}
                               </div>
-                              <div className="text-xs text-gray-500 font-semibold">
-                                {kasir.id}
+                              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                <span className="inline-block px-2 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-700 font-extrabold text-[10px] shrink-0">
+                                  {kasir.id}
+                                </span>
+                                <span className="text-xs text-gray-500 font-medium truncate">
+                                  {kasir.branch.replace("Cabang ", "")}
+                                </span>
                               </div>
                             </div>
                           </div>
                         </td>
 
                         {/* 2. Peran (role_title) */}
-                        <td className="py-3.5 px-3 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-gray-100 border border-gray-200 text-gray-800 font-bold text-xs">
-                            {kasir.roleTitle || 'Kasir'}
-                          </span>
+                        <td className="py-5 px-4 font-bold text-gray-900 whitespace-nowrap truncate">
+                          {kasir.roleTitle || "Kasir"}
                         </td>
 
                         {/* 3. Shift Terjadwal (shift) */}
-                        <td className="py-3.5 px-3 whitespace-nowrap">
-                          <div>
-                            <div
-                              className={`font-bold text-xs sm:text-sm ${
-                                kasir.shift.includes('Pagi')
-                                  ? 'text-amber-800'
-                                  : kasir.shift.includes('Siang')
-                                    ? 'text-orange-700'
-                                    : kasir.shift.includes('Malam')
-                                      ? 'text-slate-800'
-                                      : 'text-rose-700'
-                              }`}
-                            >
-                              {kasir.shiftMain}
-                            </div>
-                            <div className="text-xs text-gray-500 font-medium">
-                              {kasir.shiftHours}
-                            </div>
+                        <td className="py-5 px-4 whitespace-nowrap">
+                          <div
+                            className={`font-extrabold text-xs sm:text-sm ${
+                              kasir.shift.includes("Pagi")
+                                ? "text-amber-800"
+                                : kasir.shift.includes("Siang")
+                                  ? "text-orange-700"
+                                  : kasir.shift.includes("Malam")
+                                    ? "text-slate-800"
+                                    : "text-rose-700"
+                            }`}
+                          >
+                            {kasir.shiftMain}
+                          </div>
+                          <div className="text-xs text-gray-500 font-medium mt-1 tabular-nums">
+                            {kasir.shiftHours}
                           </div>
                         </td>
 
                         {/* 4. Status Live (status_live) */}
-                        <td className="py-3.5 px-3 whitespace-nowrap">
-                          {kasir.statusLive === 'Aktif Melayani' ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 whitespace-nowrap">
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                              Aktif Melayani
+                        <td className="py-5 px-4 whitespace-nowrap">
+                          {kasir.statusLive === "Aktif Melayani" ? (
+                            <span className="inline-flex items-center justify-center gap-1.5 w-[144px] py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 whitespace-nowrap">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                              <span>Aktif Melayani</span>
                             </span>
-                          ) : kasir.statusLive === 'Standby / Rehat' ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200 whitespace-nowrap">
-                              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                              Standby / Rehat
+                          ) : kasir.statusLive === "Standby / Rehat" ? (
+                            <span className="inline-flex items-center justify-center gap-1.5 w-[144px] py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200 whitespace-nowrap">
+                              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                              <span>Standby / Rehat</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold border border-gray-200 whitespace-nowrap">
-                              <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-                              Selesai Shift / Off
+                            <span className="inline-flex items-center justify-center gap-1.5 w-[144px] py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold border border-gray-200 whitespace-nowrap">
+                              <span className="w-2 h-2 rounded-full bg-gray-400 shrink-0"></span>
+                              <span>Selesai Shift / Off</span>
                             </span>
                           )}
                         </td>
 
                         {/* 5. Akses Aktif (is_active) Toggle Switch */}
-                        <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                        <td className="py-5 px-4 text-center whitespace-nowrap">
                           <button
                             type="button"
                             title="Nyalakan / Matikan Hak Akses Kasir"
                             onClick={() => handleToggleActive(kasir.id)}
                             className={`w-11 h-6 inline-flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 ${
-                              kasir.isActive ? 'bg-[#1E562F]' : 'bg-gray-300'
+                              kasir.isActive ? "bg-[#1E562F]" : "bg-gray-300"
                             }`}
                           >
                             <span
                               className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
-                                kasir.isActive ? 'translate-x-5' : 'translate-x-0'
+                                kasir.isActive
+                                  ? "translate-x-5"
+                                  : "translate-x-0"
                               }`}
                             />
                           </button>
                         </td>
 
                         {/* 6. Aksi (Edit & Delete) */}
-                        <td className="py-3.5 px-3 text-right whitespace-nowrap">
-                          <div className="inline-flex items-center gap-1.5 text-gray-500">
+                        <td className="py-5 px-4 text-center whitespace-nowrap print:hidden">
+                          <div className="inline-flex items-center justify-center gap-2 text-gray-500">
                             <button
                               type="button"
                               onClick={() => handleStartEdit(kasir)}
                               title="Edit Data Kasir"
-                              className="p-1.5 border border-gray-200 hover:border-[#EA8E18] hover:text-[#EA8E18] hover:bg-amber-50 rounded-lg transition cursor-pointer"
+                              className="w-8 h-8 shrink-0 border border-gray-200 hover:border-[#EA8E18] hover:text-[#EA8E18] hover:bg-amber-50 rounded-lg flex items-center justify-center transition cursor-pointer"
                             >
-                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                              </svg>
+                              <Edit3 size={14} />
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeleteKasir(kasir.id, kasir.name)}
+                              onClick={() => setDeleteTarget(kasir)}
                               title="Hapus Kasir"
-                              className="p-1.5 border border-gray-200 hover:border-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                              className="w-8 h-8 shrink-0 border border-gray-200 hover:border-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg flex items-center justify-center transition cursor-pointer"
                             >
-                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <polyline points="3 6 5 6 21 6" />
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                              </svg>
+                              <Trash2 size={14} />
                             </button>
                           </div>
                         </td>
@@ -1005,8 +2029,25 @@ export default function KasirShiftPage() {
 
                     {filteredKasir.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="py-8 text-center text-gray-500 font-medium">
-                          {isLoading ? 'Memuat data dari database...' : 'Tidak ada data kasir yang sesuai.'}
+                        <td
+                          colSpan={6}
+                          className="py-10 text-center text-gray-500 font-medium"
+                        >
+                          <p>
+                            {isLoading
+                              ? "Memuat data dari database..."
+                              : "Tidak ada data staf kasir yang sesuai dengan filter."}
+                          </p>
+                          {!isLoading && (
+                            <button
+                              type="button"
+                              onClick={handleResetFilters}
+                              className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-xs font-extrabold text-gray-700 transition cursor-pointer"
+                            >
+                              <RotateCcw size={13} />
+                              <span>Reset Semua Filter</span>
+                            </button>
+                          )}
                         </td>
                       </tr>
                     )}
@@ -1015,42 +2056,40 @@ export default function KasirShiftPage() {
               </div>
 
               {/* Catatan Bawah Tabel */}
-              <div className="flex flex-col sm:flex-row items-center justify-between text-xs text-gray-600 pt-3 border-t border-gray-200 gap-2 font-medium">
+              <div className="print:hidden flex flex-col sm:flex-row items-center justify-between text-xs text-gray-600 pt-4 border-t border-gray-200 gap-2 font-medium">
                 <div className="flex items-center gap-1.5 text-emerald-700 font-bold">
-                  <svg className="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  <span>Perubahan saklar status kasir tersinkron otomatis ke database MariaDB &amp; Flutter POS.</span>
+                  <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                  <span>
+                    Perubahan saklar status kasir tersinkron otomatis ke
+                    database MariaDB &amp; Flutter POS.
+                  </span>
                 </div>
-                <div className="font-semibold">Halaman 1 dari 1</div>
+                <div className="font-semibold">
+                  Menampilkan {filteredKasir.length} dari {branchScopedKasir.length} Kasir
+                </div>
               </div>
             </div>
 
             {/* BOX KEBIJAKAN KEAMANAN POS */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="print:hidden bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0">
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  </svg>
+                  <ShieldCheck size={20} />
                 </div>
                 <div>
                   <h4 className="font-extrabold text-gray-900 text-xs sm:text-sm">
                     Kebijakan Keamanan Kasir POS PrekDuaDara
                   </h4>
-                  <p className="text-xs text-gray-600 mt-0.5 font-medium">
-                    Setiap pergantian operator wajib cetak struk rekap &apos;Shift X-Report&apos; sebelum serah terima laci tunai.
+                  <p className="text-xs text-gray-600 mt-1.5 font-medium">
+                    Setiap pergantian operator wajib cetak struk rekap &apos;Shift
+                    X-Report&apos; sebelum serah terima laci tunai.
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() =>
-                  alert(
-                    "SOP PERGANTIAN SHIFT PREKDUADARA:\n\n1. Hitung total uang tunai fisik di dalam laci kasir.\n2. Lakukan klik 'Tutup Shift' atau cetak 'Shift X-Report'.\n3. Cocokkan nominal fisik dengan rekap sistem.\n4. Tanda tangani lembar serah terima bersama supervisor.\n5. Operator baru login menggunakan akun staf masing-masing."
-                  )
-                }
-                className="px-4 py-2 border border-gray-300 hover:bg-gray-50 rounded-xl text-xs sm:text-sm font-bold text-gray-800 transition whitespace-nowrap shadow-sm cursor-pointer"
+                onClick={() => setShowSopModal(true)}
+                className="px-4 py-2.5 border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-800 transition whitespace-nowrap shadow-2xs cursor-pointer"
               >
                 Lihat Panduan SOP
               </button>
@@ -1058,47 +2097,74 @@ export default function KasirShiftPage() {
           </div>
 
           {/* KOLOM KANAN: FORM KASIR SESUAI DATABASE & HARDWARE (4 cols) */}
-          <div id="form-kasir-container" className="lg:col-span-4 flex flex-col gap-5">
+          <div
+            id="form-kasir-container"
+            className="print:hidden xl:col-span-4 flex flex-col gap-6"
+          >
             {/* CARD 1: FORM KASIR */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col gap-4">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col gap-4">
               {/* Header Form */}
-              <div className="flex items-center justify-between border-b border-gray-200 pb-3">
-                <div>
+              <div className="flex items-start justify-between gap-3 border-b border-gray-200 pb-4">
+                <div className="min-w-0 flex-1">
                   <h3 className="font-black text-gray-900 text-sm sm:text-base flex items-center gap-2">
-                    <svg className="w-4 h-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-                      <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-                    </svg>
-                    Form Kasir
+                    <ClipboardList size={17} className="text-amber-600 shrink-0" />
+                    <span className="truncate">
+                      {editingId ? "Edit Profil Kasir" : "Form Kasir"}
+                    </span>
                   </h3>
-                  <p className="text-xs text-gray-600 mt-0.5 font-medium">
-                    {editingId ? 'Edit data staf kasir terpilih' : 'Tambah atau perbarui profil staf kasir ke database.'}
+                  <p className="text-xs text-gray-600 mt-1.5 font-medium truncate">
+                    {editingId
+                      ? `Memperbarui data staf ${editingId}`
+                      : "Tambah atau perbarui profil staf kasir ke database."}
                   </p>
                 </div>
-                <span className="px-2.5 py-0.5 rounded bg-amber-50 border border-amber-300 text-amber-800 text-xs font-extrabold">
-                  Input Cepat
+                <span className="w-[92px] py-1 rounded bg-amber-50 border border-amber-300 text-amber-800 text-xs font-extrabold text-center shrink-0 whitespace-nowrap">
+                  {editingId ? "Mode Edit" : "Input Cepat"}
                 </span>
               </div>
 
               {/* Form Input */}
-              <form onSubmit={handleSaveKasir} className="flex flex-col gap-3.5">
+              <form
+                onSubmit={handleSaveKasir}
+                className="flex flex-col gap-3.5"
+              >
+                {/* Cabang Penugasan */}
+                <div>
+                  <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1">
+                    CABANG PENUGASAN *
+                  </label>
+                  <select
+                    value={formBranch}
+                    onChange={(e) =>
+                      setFormBranch(e.target.value as SingleBranchName)
+                    }
+                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-bold text-gray-900 bg-white focus:outline-none focus:border-[#EA8E18] cursor-pointer"
+                  >
+                    {SINGLE_BRANCHES.map((bName) => (
+                      <option key={bName} value={bName}>
+                        {bName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* 1. Nama Lengkap Kasir */}
                 <div>
                   <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1">
                     NAMA KASIR *
                   </label>
                   <div className="relative">
-                    <svg className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
+                    <User
+                      size={15}
+                      className="text-gray-500 absolute left-3 top-1/2 -translate-y-1/2"
+                    />
                     <input
                       type="text"
                       required
                       placeholder="Contoh: Rian, Siti, Budi..."
                       value={formName}
                       onChange={(e) => setFormName(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#EA8E18]/40 focus:border-[#EA8E18]"
+                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#EA8E18]"
                     />
                   </div>
                 </div>
@@ -1108,15 +2174,20 @@ export default function KasirShiftPage() {
                   <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1">
                     PERAN (ROLE TITLE) *
                   </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      value={formRole}
-                      onChange={(e) => setFormRole(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#EA8E18]/40 focus:border-[#EA8E18]"
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    required
+                    list="role-title-options"
+                    value={formRole}
+                    onChange={(e) => setFormRole(e.target.value)}
+                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold text-gray-900 focus:outline-none focus:border-[#EA8E18]"
+                  />
+                  <datalist id="role-title-options">
+                    <option value="Kasir" />
+                    <option value="Kepala Kasir" />
+                    <option value="Supervisor Kasir" />
+                    <option value="Kasir Trainee" />
+                  </datalist>
                 </div>
 
                 {/* 3. ID Kasir (cashier_code) */}
@@ -1124,70 +2195,51 @@ export default function KasirShiftPage() {
                   <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1">
                     KODE KASIR (CASHIER CODE) *
                   </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xs sm:text-sm">
-                      #
-                    </span>
-                    <input
-                      type="text"
-                      required
-                      value={formId}
-                      onChange={(e) => setFormId(e.target.value)}
-                      className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#EA8E18]/40 focus:border-[#EA8E18]"
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    required
+                    disabled={Boolean(editingId)}
+                    value={formId}
+                    onChange={(e) => setFormId(e.target.value)}
+                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-bold text-gray-900 disabled:bg-gray-100 disabled:text-gray-500 focus:outline-none focus:border-[#EA8E18]"
+                  />
                 </div>
 
-                {/* 4. Shift Kerja Reguler (Sesuai database MariaDB) */}
+                {/* 4. Shift Kerja Reguler */}
                 <div>
                   <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1.5">
                     SHIFT KERJA REGULER (DATABASE)
                   </label>
                   <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFormShift('Pagi')}
-                      className={`p-2 rounded-xl text-center border transition cursor-pointer flex flex-col items-center justify-center ${
-                        formShift === 'Pagi'
-                          ? 'bg-gradient-to-r from-[#EA8E18] to-[#F59E0B] text-white border-transparent shadow-sm'
-                          : 'bg-white border-gray-300 text-gray-800 hover:bg-gray-50'
-                      }`}
-                    >
-                      <span className="font-black text-xs">Pagi</span>
-                      <span className={`text-[10px] font-semibold ${formShift === 'Pagi' ? 'text-amber-100' : 'text-gray-500'}`}>
-                        08:00-12:00
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setFormShift('Siang')}
-                      className={`p-2 rounded-xl text-center border transition cursor-pointer flex flex-col items-center justify-center ${
-                        formShift === 'Siang'
-                          ? 'bg-gradient-to-r from-[#EA8E18] to-[#F59E0B] text-white border-transparent shadow-sm'
-                          : 'bg-white border-gray-300 text-gray-800 hover:bg-gray-50'
-                      }`}
-                    >
-                      <span className="font-black text-xs">Siang</span>
-                      <span className={`text-[10px] font-semibold ${formShift === 'Siang' ? 'text-amber-100' : 'text-gray-500'}`}>
-                        12:00-17:00
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setFormShift('Malam')}
-                      className={`p-2 rounded-xl text-center border transition cursor-pointer flex flex-col items-center justify-center ${
-                        formShift === 'Malam'
-                          ? 'bg-gradient-to-r from-[#EA8E18] to-[#F59E0B] text-white border-transparent shadow-sm'
-                          : 'bg-white border-gray-300 text-gray-800 hover:bg-gray-50'
-                      }`}
-                    >
-                      <span className="font-black text-xs">Malam</span>
-                      <span className={`text-[10px] font-semibold ${formShift === 'Malam' ? 'text-amber-100' : 'text-gray-500'}`}>
-                        17:00-22:00
-                      </span>
-                    </button>
+                    {(
+                      [
+                        { key: "Pagi", hours: "08:00-12:00" },
+                        { key: "Siang", hours: "12:00-17:00" },
+                        { key: "Malam", hours: "17:00-22:00" },
+                      ] as const
+                    ).map((s) => (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => setFormShift(s.key)}
+                        className={`p-2 rounded-xl text-center border transition cursor-pointer flex flex-col items-center justify-center ${
+                          formShift === s.key
+                            ? "bg-gradient-to-r from-[#EA8E18] to-[#F59E0B] text-white border-transparent shadow-xs"
+                            : "bg-white border-gray-300 text-gray-800 hover:bg-gray-50"
+                        }`}
+                      >
+                        <span className="font-black text-xs">{s.key}</span>
+                        <span
+                          className={`text-[10px] font-semibold ${
+                            formShift === s.key
+                              ? "text-amber-100"
+                              : "text-gray-500"
+                          }`}
+                        >
+                          {s.hours}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -1197,7 +2249,7 @@ export default function KasirShiftPage() {
                     <div className="text-xs font-extrabold text-gray-900">
                       Status Akun Kasir Aktif (is_active)
                     </div>
-                    <div className="text-xs text-gray-600 font-medium">
+                    <div className="text-xs text-gray-600 font-medium mt-0.5">
                       Kasir dapat login ke sistem kasir
                     </div>
                   </div>
@@ -1205,12 +2257,12 @@ export default function KasirShiftPage() {
                     type="button"
                     onClick={() => setFormIsActive(!formIsActive)}
                     className={`w-11 h-6 inline-flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 ${
-                      formIsActive ? 'bg-[#1E562F]' : 'bg-gray-300'
+                      formIsActive ? "bg-[#1E562F]" : "bg-gray-300"
                     }`}
                   >
                     <span
                       className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
-                        formIsActive ? 'translate-x-5' : 'translate-x-0'
+                        formIsActive ? "translate-x-5" : "translate-x-0"
                       }`}
                     />
                   </button>
@@ -1221,30 +2273,26 @@ export default function KasirShiftPage() {
                   <button
                     type="button"
                     onClick={handleResetForm}
-                    className="py-2.5 px-3 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs sm:text-sm font-bold transition text-center cursor-pointer"
+                    className="h-10 px-3 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center whitespace-nowrap cursor-pointer"
                   >
                     Batal / Bersihkan
                   </button>
                   <button
                     type="submit"
-                    className="py-2.5 px-3 bg-[#1E562F] hover:bg-[#164223] text-white rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                    className="h-10 px-3 bg-[#1E562F] hover:bg-[#164223] text-white rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 shadow-xs whitespace-nowrap cursor-pointer"
                   >
-                    <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                      <polyline points="17 21 17 13 7 13 7 21" />
-                      <polyline points="7 3 7 8 15 8" />
-                    </svg>
-                    <span>Simpan Kasir</span>
+                    <Save size={15} className="shrink-0" />
+                    <span>{editingId ? "Perbarui Kasir" : "Simpan Kasir"}</span>
                   </button>
                 </div>
               </form>
             </div>
 
             {/* CARD 2: KONEKSI HARDWARE KASIR */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col gap-3">
-              <div className="flex items-center justify-between border-b border-gray-200 pb-2.5">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col gap-3">
+              <div className="flex items-center justify-between border-b border-gray-200 pb-3">
                 <span className="text-xs font-extrabold text-gray-600 tracking-wider uppercase">
-                  KONEKSI HARDWARE KASIR
+                  KONEKSI HARDWARE KASIR ({activeDrawer.counter})
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -1253,44 +2301,27 @@ export default function KasirShiftPage() {
               </div>
 
               <div className="flex flex-col gap-2.5 text-xs sm:text-sm">
-                {/* Printer Thermal */}
                 <div className="flex items-center justify-between py-1">
-                  <div className="flex items-center gap-2 text-gray-800 font-semibold">
-                    <svg className="w-4 h-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="6 9 6 2 18 2 18 9" />
-                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                      <rect x="6" y="14" width="12" height="8" />
-                    </svg>
-                    <span>Printer Thermal Struk #01</span>
+                  <div className="flex items-center gap-2.5 text-gray-800 font-semibold">
+                    <Printer size={15} className="text-gray-600" />
+                    <span>Printer Thermal Struk {activeDrawer.counter}</span>
                   </div>
                   <span className="font-extrabold text-emerald-700">Ready</span>
                 </div>
 
-                {/* Cash Drawer */}
-                <div className="flex items-center justify-between py-1 border-t border-gray-100">
-                  <div className="flex items-center gap-2 text-gray-800 font-semibold">
-                    <svg className="w-4 h-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="2" y="4" width="20" height="16" rx="2" />
-                      <path d="M7 15h0.01" />
-                      <path d="M12 15h0.01" />
-                      <path d="M17 15h0.01" />
-                      <path d="M2 10h20" />
-                    </svg>
+                <div className="flex items-center justify-between py-1.5 border-t border-gray-100">
+                  <div className="flex items-center gap-2.5 text-gray-800 font-semibold">
+                    <CreditCard size={15} className="text-gray-600" />
                     <span>Cash Drawer RJ11</span>
                   </div>
-                  <span className="font-extrabold text-gray-900">Tersambung</span>
+                  <span className="font-extrabold text-gray-900">
+                    {activeDrawer.isOpen ? "Terbuka / Aktif" : "Terkunci"}
+                  </span>
                 </div>
 
-                {/* Barcode / QRIS Scanner */}
-                <div className="flex items-center justify-between py-1 border-t border-gray-100">
-                  <div className="flex items-center gap-2 text-gray-800 font-semibold">
-                    <svg className="w-4 h-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-                      <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-                      <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-                      <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-                      <line x1="7" y1="12" x2="17" y2="12" />
-                    </svg>
+                <div className="flex items-center justify-between py-1.5 border-t border-gray-100">
+                  <div className="flex items-center gap-2.5 text-gray-800 font-semibold">
+                    <ScanBarcode size={15} className="text-gray-600" />
                     <span>Barcode / QRIS Scanner</span>
                   </div>
                   <span className="font-extrabold text-gray-900">Aktif</span>
@@ -1303,17 +2334,23 @@ export default function KasirShiftPage() {
         {/* FOOTER SYSTEM */}
         <footer className="pt-2 pb-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-2 font-medium">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-extrabold text-[#EA8E18]">PrekDuaDara POS v2.4</span>
+            <span className="font-extrabold text-[#EA8E18]">
+              PrekDuaDara POS v2.4
+            </span>
             <span>•</span>
-            <span>Terminal Counter #02</span>
+            <span>
+              Terminal {activeDrawer.counter} ({activeDrawerBranch})
+            </span>
             <span>•</span>
             <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              MariaDB `prekduadara_db` Terhubung
+              {dbConnected
+                ? "MariaDB `prekduadara_db` Terhubung"
+                : "Mode Sinkronisasi Lokal & MariaDB"}
             </span>
           </div>
           <div>
-            &copy; 2024 PrekDuaDara Quick-Service Culinary. All rights reserved.
+            &copy; 2026 PrekDuaDara Quick-Service Culinary. All rights reserved.
           </div>
         </footer>
       </main>
