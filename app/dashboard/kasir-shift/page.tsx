@@ -1428,17 +1428,15 @@ export default function KasirShiftPage() {
               <button
                 type="button"
                 onClick={() => setShowBranchMenu((prev) => !prev)}
-                className="h-9 w-[225px] justify-between shrink-0 flex items-center gap-2 px-3.5 bg-[#F8F9FA] border border-gray-200 rounded-xl text-xs font-bold text-gray-800 cursor-pointer hover:bg-gray-100 transition"
+                className="h-9 shrink-0 whitespace-nowrap flex items-center gap-2 px-3.5 bg-[#F8F9FA] border border-gray-200 rounded-xl text-xs font-bold text-gray-800 cursor-pointer hover:bg-gray-100 transition"
               >
-                <span className="flex items-center gap-2 min-w-0">
-                  <Store size={14} className="text-[#EA8E18] shrink-0" />
-                  <span className="truncate">{selectedBranch}</span>
-                </span>
+                <Store size={14} className="text-[#EA8E18] shrink-0" />
+                <span>{selectedBranch}</span>
                 <ChevronDown size={14} className="text-gray-500 shrink-0" />
               </button>
 
               {showBranchMenu && (
-                <div className="absolute right-0 mt-1.5 w-[225px] bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-30 text-xs">
+                <div className="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-30 text-xs">
                   {BRANCH_OPTIONS.map((branch) => (
                     <button
                       key={branch}
@@ -1833,9 +1831,9 @@ export default function KasirShiftPage() {
                   </span>
                 </div>
 
-                {/* Search Input + Reset (Selalu Tampil & Statis) */}
+                {/* Search Input */}
                 <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                  <div className="relative h-9 flex-1 sm:w-[250px] sm:flex-none shrink-0">
+                  <div className="relative h-9 flex-1 sm:w-[270px] sm:flex-none shrink-0">
                     <Search
                       size={15}
                       className="text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -1859,21 +1857,6 @@ export default function KasirShiftPage() {
                       </button>
                     )}
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={handleResetFilters}
-                    disabled={
-                      searchQuery === "" &&
-                      selectedShiftFilter === "Semua" &&
-                      selectedBranch === "Semua Cabang"
-                    }
-                    title="Reset Filter"
-                    className="h-9 w-[86px] shrink-0 justify-center whitespace-nowrap border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none rounded-xl text-xs font-bold text-gray-700 flex items-center gap-1.5 transition cursor-pointer"
-                  >
-                    <RotateCcw size={13} className="shrink-0" />
-                    <span>Reset</span>
-                  </button>
                 </div>
               </div>
 
