@@ -1,120 +1,488 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 import {
-  Upload,
+  AlertTriangle,
+  Banknote,
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  CreditCard,
+  Info,
+  Mail,
+  MapPin,
+  Phone,
+  Printer,
+  QrCode,
   RefreshCw,
   RotateCcw,
   Save,
-  CreditCard,
-  Banknote,
-  QrCode,
-  UtensilsCrossed,
-  Phone,
-  Mail,
-  Store,
-  MapPin,
-  Printer,
   Scissors,
-  Info,
-  ChevronDown,
+  Store,
+  Upload,
   User,
+  UtensilsCrossed,
   Wallet,
+  X,
 } from "lucide-react";
+
+type SingleBranchName =
+  | "Cabang Sudirman Utama"
+  | "Cabang Tebet Eco Park"
+  | "Cabang Dago Heritage";
+
+type BranchOption = "Semua Cabang" | SingleBranchName;
+
+type RoundingOption =
+  | "Tanpa Pembulatan"
+  | "Kelipatan Rp 100 terdekat"
+  | "Kelipatan Rp 500 terdekat"
+  | "Kelipatan Rp 1.000 terdekat";
+
+interface BranchStoreSettings {
+  outletId: string;
+  namaWarung: string;
+  slogan: string;
+  alamat: string;
+  whatsapp: string;
+  emailResto: string;
+  nib: string;
+  logoUrl: string;
+  jamBukaWeekday: string;
+  jamTutupWeekday: string;
+  jamBukaWeekend: string;
+  jamTutupWeekend: string;
+  autoCloseKasir: boolean;
+  istirahatSore: boolean;
+  pajakPersen: string;
+  pajakTipe: "termasuk" | "akhir";
+  biayaKemasan: string;
+  aturanPembulatan: RoundingOption;
+  cetakLogo: boolean;
+  cetakAlamat: boolean;
+  nomorAntrianBesar: boolean;
+  kodeQrisDinamis: boolean;
+  pesanFooter: string;
+  autoPrintLunas: boolean;
+  channelTunai: boolean;
+  channelQris: boolean;
+  channelEdc: boolean;
+  channelOjol: boolean;
+  kapasitasMeja: number;
+}
+
+const BRANCH_OPTIONS: BranchOption[] = [
+  "Semua Cabang",
+  "Cabang Sudirman Utama",
+  "Cabang Tebet Eco Park",
+  "Cabang Dago Heritage",
+];
+
+const SINGLE_BRANCHES: SingleBranchName[] = [
+  "Cabang Sudirman Utama",
+  "Cabang Tebet Eco Park",
+  "Cabang Dago Heritage",
+];
+
+const ROUNDING_OPTIONS: RoundingOption[] = [
+  "Tanpa Pembulatan",
+  "Kelipatan Rp 100 terdekat",
+  "Kelipatan Rp 500 terdekat",
+  "Kelipatan Rp 1.000 terdekat",
+];
+
+const STORAGE_KEY = "prekduadara_store_settings_v1";
+
+const DEFAULT_BRANCH_SETTINGS: Record<SingleBranchName, BranchStoreSettings> = {
+  "Cabang Sudirman Utama": {
+    outletId: "OUT-SUD-001",
+    namaWarung: "Ayam Geprek PrekDuaDara - Cabang Sudirman",
+    slogan: "Spesial Ayam Geprek Cobek & Sambal Uleg Asli",
+    alamat: "Jl. Jend. Sudirman No. 45 (Samping Gerbang UM/Matos)",
+    whatsapp: "0812-8899-7766",
+    emailResto: "halo.cabang@prekduadara.id",
+    nib: "9120003491824",
+    logoUrl: "/logo.png",
+    jamBukaWeekday: "09:00 WIB",
+    jamTutupWeekday: "22:00 WIB",
+    jamBukaWeekend: "09:00 WIB",
+    jamTutupWeekend: "23:00 WIB",
+    autoCloseKasir: true,
+    istirahatSore: false,
+    pajakPersen: "10",
+    pajakTipe: "akhir",
+    biayaKemasan: "2.000",
+    aturanPembulatan: "Kelipatan Rp 500 terdekat",
+    cetakLogo: true,
+    cetakAlamat: true,
+    nomorAntrianBesar: true,
+    kodeQrisDinamis: true,
+    pesanFooter:
+      "Matur nuwun sampun mampir! Pedasnya bikin nagih. Follow IG @prekduadara.id",
+    autoPrintLunas: true,
+    channelTunai: true,
+    channelQris: true,
+    channelEdc: true,
+    channelOjol: true,
+    kapasitasMeja: 24,
+  },
+  "Cabang Tebet Eco Park": {
+    outletId: "OUT-TBT-002",
+    namaWarung: "Ayam Geprek PrekDuaDara - Cabang Tebet",
+    slogan: "Spesial Ayam Geprek Cobek & Sambal Uleg Asli",
+    alamat: "Jl. Tebet Barat Dalam Raya No. 18, Jakarta Selatan",
+    whatsapp: "0812-9000-4455",
+    emailResto: "halo.tebet@prekduadara.id",
+    nib: "9120003491825",
+    logoUrl: "/logo.png",
+    jamBukaWeekday: "09:00 WIB",
+    jamTutupWeekday: "22:00 WIB",
+    jamBukaWeekend: "08:30 WIB",
+    jamTutupWeekend: "23:00 WIB",
+    autoCloseKasir: true,
+    istirahatSore: false,
+    pajakPersen: "10",
+    pajakTipe: "akhir",
+    biayaKemasan: "2.000",
+    aturanPembulatan: "Kelipatan Rp 500 terdekat",
+    cetakLogo: true,
+    cetakAlamat: true,
+    nomorAntrianBesar: true,
+    kodeQrisDinamis: true,
+    pesanFooter:
+      "Matur nuwun sampun mampir di Cabang Tebet! Follow IG @prekduadara.id",
+    autoPrintLunas: true,
+    channelTunai: true,
+    channelQris: true,
+    channelEdc: true,
+    channelOjol: true,
+    kapasitasMeja: 30,
+  },
+  "Cabang Dago Heritage": {
+    outletId: "OUT-DGO-003",
+    namaWarung: "Ayam Geprek PrekDuaDara - Cabang Dago",
+    slogan: "Spesial Ayam Geprek Cobek & Sambal Uleg Asli",
+    alamat: "Jl. Ir. H. Juanda No. 112, Dago, Bandung",
+    whatsapp: "0812-2233-8899",
+    emailResto: "halo.dago@prekduadara.id",
+    nib: "9120003491826",
+    logoUrl: "/logo.png",
+    jamBukaWeekday: "09:30 WIB",
+    jamTutupWeekday: "22:00 WIB",
+    jamBukaWeekend: "09:00 WIB",
+    jamTutupWeekend: "23:30 WIB",
+    autoCloseKasir: true,
+    istirahatSore: true,
+    pajakPersen: "10",
+    pajakTipe: "akhir",
+    biayaKemasan: "2.000",
+    aturanPembulatan: "Kelipatan Rp 500 terdekat",
+    cetakLogo: true,
+    cetakAlamat: true,
+    nomorAntrianBesar: true,
+    kodeQrisDinamis: true,
+    pesanFooter:
+      "Hatur nuhun tos mampir di Cabang Dago! Follow IG @prekduadara.id",
+    autoPrintLunas: true,
+    channelTunai: true,
+    channelQris: true,
+    channelEdc: true,
+    channelOjol: true,
+    kapasitasMeja: 28,
+  },
+};
 
 export default function PengaturanTokoPage() {
   const router = useRouter();
   const { logout } = useAuth();
 
-  // State Profil Gerai (Section A)
-  const [namaWarung, setNamaWarung] = useState(
-    "Ayam Geprek PrekDuaDara - Cabang"
+  // State Pemilih Cabang di Header Atas
+  const [selectedBranch, setSelectedBranch] =
+    useState<BranchOption>("Semua Cabang");
+  const [showBranchMenu, setShowBranchMenu] = useState(false);
+  const branchDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Cabang aktif yang sedang dikonfigurasi
+  const activeBranchKey: SingleBranchName =
+    selectedBranch === "Semua Cabang"
+      ? "Cabang Sudirman Utama"
+      : selectedBranch;
+
+  // State Konfigurasi Semua Cabang & Snapshot Tersimpan
+  const [configsByBranch, setConfigsByBranch] = useState<
+    Record<SingleBranchName, BranchStoreSettings>
+  >(DEFAULT_BRANCH_SETTINGS);
+  const [savedConfigsByBranch, setSavedConfigsByBranch] = useState<
+    Record<SingleBranchName, BranchStoreSettings>
+  >(DEFAULT_BRANCH_SETTINGS);
+
+  // Ref Input File Logo & State UI Interaktif
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [isScanningDevices, setIsScanningDevices] = useState(false);
+  const [toastMsg, setToastMsg] = useState<{
+    text: string;
+    type: "success" | "info" | "warning";
+  } | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback(
+    (text: string, type: "success" | "info" | "warning" = "success") => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+      setToastMsg({ text, type });
+      toastTimerRef.current = setTimeout(() => {
+        setToastMsg(null);
+      }, 3400);
+    },
+    []
   );
-  const [slogan, setSlogan] = useState(
-    "Spesial Ayam Geprek Cobek & Sambal Uleg Asli"
-  );
-  const [alamat, setAlamat] = useState("samping gerbang um/matos");
-  const [whatsapp, setWhatsapp] = useState("0812*********");
-  const [emailResto, setEmailResto] = useState("halo.cabang@prekduadara.id");
-  const [nib, setNib] = useState("9120003491824");
 
-  // State Jam Operasional (Section B)
-  const [jamBukaWeekday, setJamBukaWeekday] = useState("09:00 WIB");
-  const [jamTutupWeekday, setJamTutupWeekday] = useState("22:00 WIB");
-  const [jamBukaWeekend, setJamBukaWeekend] = useState("09:00 WIB");
-  const [jamTutupWeekend, setJamTutupWeekend] = useState("23:00 WIB");
-  const [autoCloseKasir, setAutoCloseKasir] = useState(true);
-  const [istirahatSore, setIstirahatSore] = useState(false);
+  // Bersihkan timer toast saat komponen unmount
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
 
-  // State Finansial & Pajak (Section C)
-  const [pajakPersen, setPajakPersen] = useState("10");
-  const [pajakTipe, setPajakTipe] = useState<"termasuk" | "akhir">("akhir");
-  const [biayaKemasan, setBiayaKemasan] = useState("2.000");
-  const [aturanPembulatan, setAturanPembulatan] = useState(
-    "Kelipatan Rp 500 terdekat"
-  );
+  // Muat dari localStorage saat halaman pertama kali dibuka
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") {
+          const merged: Record<SingleBranchName, BranchStoreSettings> = {
+            "Cabang Sudirman Utama": {
+              ...DEFAULT_BRANCH_SETTINGS["Cabang Sudirman Utama"],
+              ...(parsed["Cabang Sudirman Utama"] || {}),
+            },
+            "Cabang Tebet Eco Park": {
+              ...DEFAULT_BRANCH_SETTINGS["Cabang Tebet Eco Park"],
+              ...(parsed["Cabang Tebet Eco Park"] || {}),
+            },
+            "Cabang Dago Heritage": {
+              ...DEFAULT_BRANCH_SETTINGS["Cabang Dago Heritage"],
+              ...(parsed["Cabang Dago Heritage"] || {}),
+            },
+          };
+          setConfigsByBranch(merged);
+          setSavedConfigsByBranch(merged);
+        }
+      }
+    } catch {
+      // Gunakan default jika localStorage tidak tersedia / korup
+    }
+  }, []);
 
-  // State Template Struk (Section D)
-  const [cetakLogo, setCetakLogo] = useState(true);
-  const [cetakAlamat, setCetakAlamat] = useState(true);
-  const [nomorAntrianBesar, setNomorAntrianBesar] = useState(true);
-  const [kodeQrisDinamis, setKodeQrisDinamis] = useState(true);
-  const [pesanFooter, setPesanFooter] = useState(
-    "Matur nuwun sampun mampir! Pedasnya bikin nagih. Follow IG @prekduadara.id"
-  );
-  const [autoPrintLunas, setAutoPrintLunas] = useState(true);
+  // Tutup dropdown cabang saat klik di luar
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        branchDropdownRef.current &&
+        !branchDropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowBranchMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  // State Metode Pembayaran (Section E)
-  const [channelTunai, setChannelTunai] = useState(true);
-  const [channelQris, setChannelQris] = useState(true);
-  const [channelEdc, setChannelEdc] = useState(true);
-  const [channelOjol, setChannelOjol] = useState(true);
+  // Konfigurasi cabang aktif saat ini
+  const currentConfig = configsByBranch[activeBranchKey];
 
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
-
-  const showToast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3000);
+  // Helper update field pada cabang aktif
+  const updateField = <K extends keyof BranchStoreSettings>(
+    field: K,
+    value: BranchStoreSettings[K]
+  ) => {
+    setConfigsByBranch((prev) => ({
+      ...prev,
+      [activeBranchKey]: {
+        ...prev[activeBranchKey],
+        [field]: value,
+      },
+    }));
   };
 
-  const handleResetDefault = () => {
-    setNamaWarung("Ayam Geprek PrekDuaDara - Cabang");
-    setSlogan("Spesial Ayam Geprek Cobek & Sambal Uleg Asli");
-    setAlamat("samping gerbang um/matos");
-    setWhatsapp("0812*********");
-    setEmailResto("halo.cabang@prekduadara.id");
-    setNib("9120003491824");
-    setJamBukaWeekday("09:00 WIB");
-    setJamTutupWeekday("22:00 WIB");
-    setJamBukaWeekend("09:00 WIB");
-    setJamTutupWeekend("23:00 WIB");
-    setAutoCloseKasir(true);
-    setIstirahatSore(false);
-    setPajakPersen("10");
-    setPajakTipe("akhir");
-    setBiayaKemasan("2.000");
-    setAturanPembulatan("Kelipatan Rp 500 terdekat");
-    setCetakLogo(true);
-    setCetakAlamat(true);
-    setNomorAntrianBesar(true);
-    setKodeQrisDinamis(true);
-    setPesanFooter(
-      "Matur nuwun sampun mampir! Pedasnya bikin nagih. Follow IG @prekduadara.id"
+  // Deteksi apakah ada perubahan yang belum disimpan
+  const hasUnsavedChanges = useMemo(() => {
+    return (
+      JSON.stringify(configsByBranch[activeBranchKey]) !==
+      JSON.stringify(savedConfigsByBranch[activeBranchKey])
     );
-    setAutoPrintLunas(true);
-    setChannelTunai(true);
-    setChannelQris(true);
-    setChannelEdc(true);
-    setChannelOjol(true);
-    showToast("Konfigurasi dikembalikan ke pengaturan awal (Default).");
+  }, [configsByBranch, savedConfigsByBranch, activeBranchKey]);
+
+  // Hitung jumlah channel pembayaran yang aktif di Section E
+  const activeChannelCount = useMemo(() => {
+    return [
+      currentConfig.channelTunai,
+      currentConfig.channelQris,
+      currentConfig.channelEdc,
+      currentConfig.channelOjol,
+    ].filter(Boolean).length;
+  }, [
+    currentConfig.channelTunai,
+    currentConfig.channelQris,
+    currentConfig.channelEdc,
+    currentConfig.channelOjol,
+  ]);
+
+  // Kalkulasi Dinamis Struk Thermal 80mm (Section D)
+  const receiptSimulation = useMemo(() => {
+    const subtotal = 60000; // 38.000 + 12.000 + 10.000
+    const parsedTax = Math.max(
+      0,
+      parseFloat(currentConfig.pajakPersen.replace(",", ".")) || 0
+    );
+
+    let taxNominal = 0;
+    let rawTotal = subtotal;
+
+    if (currentConfig.pajakTipe === "akhir") {
+      taxNominal = Math.round((subtotal * parsedTax) / 100);
+      rawTotal = subtotal + taxNominal;
+    } else {
+      // Harga menu sudah termasuk pajak
+      taxNominal = Math.round(subtotal - subtotal / (1 + parsedTax / 100));
+      rawTotal = subtotal;
+    }
+
+    let finalTotal = rawTotal;
+    if (currentConfig.aturanPembulatan === "Kelipatan Rp 100 terdekat") {
+      finalTotal = Math.round(rawTotal / 100) * 100;
+    } else if (currentConfig.aturanPembulatan === "Kelipatan Rp 500 terdekat") {
+      finalTotal = Math.round(rawTotal / 500) * 500;
+    } else if (
+      currentConfig.aturanPembulatan === "Kelipatan Rp 1.000 terdekat"
+    ) {
+      finalTotal = Math.round(rawTotal / 1000) * 1000;
+    }
+
+    return {
+      subtotal,
+      parsedTax,
+      taxNominal,
+      finalTotal,
+    };
+  }, [
+    currentConfig.pajakPersen,
+    currentConfig.pajakTipe,
+    currentConfig.aturanPembulatan,
+  ]);
+
+  // Handler Unggah Logo Baru (Section A)
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("Ukuran file logo maksimal 2MB!", "warning");
+      e.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        updateField("logoUrl", reader.result);
+        showToast(`Logo "${file.name}" berhasil dimuat ke pratinjau.`);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
+  // Handler Simpan Konfigurasi ke localStorage
   const handleSave = () => {
-    showToast("Perubahan konfigurasi toko berhasil disimpan!");
+    try {
+      if (selectedBranch === "Semua Cabang") {
+        const globalSource = configsByBranch["Cabang Sudirman Utama"];
+        const syncedAll: Record<SingleBranchName, BranchStoreSettings> = {
+          "Cabang Sudirman Utama": globalSource,
+          "Cabang Tebet Eco Park": {
+            ...globalSource,
+            outletId: configsByBranch["Cabang Tebet Eco Park"].outletId,
+            namaWarung: configsByBranch["Cabang Tebet Eco Park"].namaWarung,
+            alamat: configsByBranch["Cabang Tebet Eco Park"].alamat,
+            whatsapp: configsByBranch["Cabang Tebet Eco Park"].whatsapp,
+            emailResto: configsByBranch["Cabang Tebet Eco Park"].emailResto,
+            nib: configsByBranch["Cabang Tebet Eco Park"].nib,
+          },
+          "Cabang Dago Heritage": {
+            ...globalSource,
+            outletId: configsByBranch["Cabang Dago Heritage"].outletId,
+            namaWarung: configsByBranch["Cabang Dago Heritage"].namaWarung,
+            alamat: configsByBranch["Cabang Dago Heritage"].alamat,
+            whatsapp: configsByBranch["Cabang Dago Heritage"].whatsapp,
+            emailResto: configsByBranch["Cabang Dago Heritage"].emailResto,
+            nib: configsByBranch["Cabang Dago Heritage"].nib,
+          },
+        };
+        setConfigsByBranch(syncedAll);
+        setSavedConfigsByBranch(syncedAll);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(syncedAll));
+        showToast("Konfigurasi global berhasil diterapkan ke seluruh cabang!");
+      } else {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(configsByBranch));
+        setSavedConfigsByBranch(configsByBranch);
+        showToast(
+          `Perubahan konfigurasi ${activeBranchKey} berhasil disimpan!`
+        );
+      }
+    } catch {
+      showToast("Gagal menyimpan ke penyimpanan lokal browser.", "warning");
+    }
+  };
+
+  // Handler Konfirmasi Reset ke Default
+  const handleConfirmResetDefault = () => {
+    const updatedAll =
+      selectedBranch === "Semua Cabang"
+        ? DEFAULT_BRANCH_SETTINGS
+        : {
+            ...configsByBranch,
+            [activeBranchKey]: DEFAULT_BRANCH_SETTINGS[activeBranchKey],
+          };
+    setConfigsByBranch(updatedAll);
+    setSavedConfigsByBranch(updatedAll);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedAll));
+    } catch {
+      // Abaikan jika gagal tulis storage
+    }
+    setShowResetModal(false);
+    showToast(
+      selectedBranch === "Semua Cabang"
+        ? "Konfigurasi seluruh cabang dikembalikan ke pengaturan awal (Default)."
+        : `Konfigurasi ${activeBranchKey} dikembalikan ke pengaturan awal (Default).`
+    );
+  };
+
+  // Handler Pindai Ulang Perangkat (Section F)
+  const handleRescanDevices = () => {
+    if (isScanningDevices) return;
+    setIsScanningDevices(true);
+    showToast("Memindai ulang perangkat di jaringan lokal...");
+    setTimeout(() => {
+      setIsScanningDevices(false);
+      showToast(
+        "Pemindaian selesai: 2 Printer Thermal & 1 Cash Drawer terhubung."
+      );
+    }, 1000);
   };
 
   const handleLogout = () => {
@@ -129,8 +497,84 @@ export default function PengaturanTokoPage() {
     <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans items-start text-gray-900">
       {/* Toast Notification */}
       {toastMsg && (
-        <div className="fixed top-5 right-5 z-50 bg-[#2D452B] text-white text-xs sm:text-sm font-bold px-5 py-3 rounded-xl shadow-lg border border-[#415C3E]">
-          {toastMsg}
+        <div
+          className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-xs sm:text-sm font-bold text-white border transition-all ${
+            toastMsg.type === "success"
+              ? "bg-[#2D452B] border-[#415C3E]"
+              : toastMsg.type === "warning"
+                ? "bg-amber-600 border-amber-500"
+                : "bg-slate-800 border-slate-700"
+          }`}
+        >
+          <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center shrink-0">
+            {toastMsg.type === "warning" ? (
+              <AlertTriangle size={14} />
+            ) : (
+              <CheckCircle2 size={15} className="text-emerald-300" />
+            )}
+          </div>
+          <span>{toastMsg.text}</span>
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Reset ke Default */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 text-amber-800 flex items-center justify-center shrink-0">
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-gray-900">
+                    Reset Konfigurasi ke Default?
+                  </h3>
+                  <p className="text-xs text-gray-500 font-semibold mt-0.5">
+                    {selectedBranch === "Semua Cabang"
+                      ? "Semua Cabang (OUT-SUD-001, OUT-TBT-002, OUT-DGO-003)"
+                      : `${activeBranchKey} (${currentConfig.outletId})`}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowResetModal(false)}
+                className="text-gray-400 hover:text-gray-700 p-1 rounded-lg cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed font-medium mb-6">
+              Seluruh perubahan profil gerai, jam operasional, pajak PB1,
+              template struk 80mm, dan kapasitas meja untuk{" "}
+              <strong className="text-gray-900">
+                {selectedBranch === "Semua Cabang"
+                  ? "Seluruh Cabang PrekDuaDara"
+                  : activeBranchKey}
+              </strong>{" "}
+              akan dikembalikan ke pengaturan standar pabrik.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowResetModal(false)}
+                className="px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-xs font-bold text-gray-700 transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmResetDefault}
+                className="px-4 py-2.5 rounded-xl bg-[#EF4444] hover:bg-[#DC2626] text-xs font-extrabold text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                <RotateCcw size={14} />
+                <span>Ya, Reset ke Default</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -139,78 +583,81 @@ export default function PengaturanTokoPage() {
 
       {/* 2. AREA KONTEN UTAMA */}
       <main className="flex-1 flex flex-col gap-5 overflow-x-hidden max-w-full">
-        {/* TOP NAVBAR HEADER (BERSIH, KONTRAS, DAN TIDAK TERPOTONG) */}
-        <header className="bg-white rounded-2xl px-5 py-3.5 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
+        {/* TOP NAVBAR HEADER (SERAGAM DENGAN MANAJEMEN KASIR & STOK) */}
+        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
           {/* Brand */}
           <div className="flex items-center gap-3">
             <img
               src="/logo.png"
               alt="Logo PrekDuaDara"
-              className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm shrink-0"
+              className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-xs shrink-0"
             />
             <div>
               <div className="font-extrabold text-base text-[#EA8E18] tracking-tight leading-tight">
                 PrekDuaDara
               </div>
-              <div className="text-xs text-gray-600 font-medium leading-tight">
+              <div className="text-xs text-gray-600 font-medium leading-tight mt-0.5">
                 Pengaturan Staf &amp; Gerai
               </div>
             </div>
           </div>
 
-          {/* Branch Pill & Center Nav Links */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            <div className="flex items-center gap-2 px-3.5 py-2 bg-[#F8F9FA] border border-gray-200 rounded-xl text-xs font-bold text-gray-800 cursor-pointer hover:bg-gray-100 transition">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#EA8E18] shrink-0"></span>
-              <span>Cabang Sudirman Utama</span>
-              <ChevronDown size={14} className="text-gray-500" />
+          {/* Right Controls: Branch Selector, Online Sync & User Profile */}
+          <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
+            {/* Interactive Branch Selector */}
+            <div ref={branchDropdownRef} className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowBranchMenu((prev) => !prev)}
+                className="h-9 shrink-0 whitespace-nowrap flex items-center gap-2 px-3.5 bg-[#F8F9FA] border border-gray-200 rounded-xl text-xs font-bold text-gray-800 cursor-pointer hover:bg-gray-100 transition"
+              >
+                <Store size={14} className="text-[#EA8E18] shrink-0" />
+                <span>{selectedBranch}</span>
+                <ChevronDown size={14} className="text-gray-500 shrink-0" />
+              </button>
+
+              {showBranchMenu && (
+                <div className="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-30 text-xs">
+                  {BRANCH_OPTIONS.map((branch) => (
+                    <button
+                      key={branch}
+                      type="button"
+                      onClick={() => {
+                        setSelectedBranch(branch);
+                        setShowBranchMenu(false);
+                        showToast(`Menampilkan pengaturan: ${branch}`);
+                      }}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-2 hover:bg-amber-50/60 transition cursor-pointer ${
+                        selectedBranch === branch
+                          ? "font-extrabold text-[#EA8E18] bg-amber-50/40"
+                          : "font-semibold text-gray-700"
+                      }`}
+                    >
+                      <Store size={13} className="shrink-0" />
+                      <span className="truncate">{branch}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <nav className="hidden xl:flex items-center gap-2 text-xs font-bold text-gray-700">
-              <Link
-                href="/dashboard"
-                className="px-3 py-1.5 hover:text-[#EA8E18] hover:bg-orange-50 rounded-lg transition"
-              >
-                Dashboard POS
-              </Link>
-              <Link
-                href="/dashboard/transaksi"
-                className="px-3 py-1.5 hover:text-[#EA8E18] hover:bg-orange-50 rounded-lg transition"
-              >
-                Riwayat Transaksi
-              </Link>
-              <Link
-                href="/dashboard/kasir-shift"
-                className="px-3 py-1.5 hover:text-[#EA8E18] hover:bg-orange-50 rounded-lg transition"
-              >
-                Shift &amp; Laci
-              </Link>
-              <Link
-                href="/dashboard/pengaturan"
-                className="px-3.5 py-1.5 bg-[#EA8E18] text-white font-bold rounded-lg shadow-sm transition"
-              >
-                Pengaturan Toko
-              </Link>
-            </nav>
-          </div>
-
-          {/* Right Status & Profile */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3.5 py-1.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full">
+            {/* Online Sync Pill */}
+            <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
-            <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200">
+            {/* User Profile */}
+            <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
               <div className="text-right">
-                <div className="text-xs font-extrabold text-gray-900 leading-tight">
+                <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
                   Rian Pratama
                 </div>
-                <div className="text-[11px] text-[#EA8E18] font-bold leading-tight">
+                <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
                   Supervisor Kasir
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-sm shrink-0">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
                 <User size={16} />
               </div>
             </div>
@@ -232,7 +679,13 @@ export default function PengaturanTokoPage() {
 
             <div className="flex items-center gap-1.5 mt-2 text-xs sm:text-sm font-extrabold text-gray-800">
               <MapPin size={15} className="text-[#D97706] shrink-0" />
-              <span>Cabang Sudirman Utama (Pusat)</span>
+              <span>
+                {selectedBranch === "Semua Cabang"
+                  ? "Semua Cabang • Konfigurasi Utama (Cabang Sudirman Utama)"
+                  : activeBranchKey === "Cabang Sudirman Utama"
+                    ? "Cabang Sudirman Utama (Pusat)"
+                    : activeBranchKey}
+              </span>
             </div>
 
             <p className="text-xs sm:text-sm text-gray-600 mt-1 max-w-2xl leading-relaxed font-medium">
@@ -242,10 +695,23 @@ export default function PengaturanTokoPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0 self-end lg:self-center">
+          <div className="flex flex-wrap items-center gap-3 shrink-0 self-end lg:self-center">
+            {/* Indikator Status Simpan */}
+            {hasUnsavedChanges ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-xs font-extrabold whitespace-nowrap">
+                <Clock size={13} className="shrink-0" />
+                <span>Ada Perubahan Belum Disimpan</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-extrabold whitespace-nowrap">
+                <CheckCircle2 size={13} className="shrink-0" />
+                <span>Tersimpan</span>
+              </span>
+            )}
+
             <button
               type="button"
-              onClick={handleResetDefault}
+              onClick={() => setShowResetModal(true)}
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 transition shadow-2xs cursor-pointer"
             >
               <RotateCcw size={14} />
@@ -261,6 +727,25 @@ export default function PengaturanTokoPage() {
             </button>
           </div>
         </section>
+
+        {/* Banner Mode Konfigurasi Global (Semua Cabang) */}
+        {selectedBranch === "Semua Cabang" && (
+          <div className="bg-amber-50/90 border border-amber-300 rounded-2xl px-5 py-3.5 flex items-start sm:items-center gap-3 shadow-2xs">
+            <Info size={18} className="text-[#D97706] shrink-0 mt-0.5 sm:mt-0" />
+            <p className="text-xs sm:text-sm text-amber-950 font-medium leading-relaxed">
+              <strong className="font-extrabold">
+                Mode Konfigurasi Global (Berlaku untuk Semua Cabang):
+              </strong>{" "}
+              Perubahan kebijakan operasional, pajak PB1, biaya kemasan,
+              template struk, dan metode pembayaran akan diterapkan ke seluruh
+              gerai saat disimpan, sementara identitas masing-masing outlet (
+              <span className="font-bold">
+                ID Outlet, Nama Warung, Alamat, WhatsApp, Email, NIB
+              </span>
+              ) tetap terjaga per cabang.
+            </p>
+          </div>
+        )}
 
         {/* A. Profil Gerai & Identitas Restoran */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
@@ -280,16 +765,16 @@ export default function PengaturanTokoPage() {
               </div>
             </div>
             <span className="text-xs font-extrabold text-gray-700 bg-gray-100 px-3.5 py-1.5 rounded-lg border border-gray-200">
-              ID: OUT-SUD-001
+              ID: {currentConfig.outletId}
             </span>
           </div>
 
           <div className="flex flex-col md:flex-row gap-8 items-stretch">
             {/* Logo Upload Box */}
             <div className="w-full md:w-64 shrink-0 bg-[#F8F9FA] border-2 border-dashed border-gray-300 rounded-2xl p-6 flex flex-col items-center justify-center">
-              <div className="w-28 h-28 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center p-2.5 mb-3.5">
+              <div className="w-28 h-28 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center p-2.5 mb-3.5 overflow-hidden">
                 <img
-                  src="/logo.png"
+                  src={currentConfig.logoUrl || "/logo.png"}
                   alt="Logo PrekDuaDara"
                   className="w-full h-full object-contain rounded-full"
                 />
@@ -300,9 +785,16 @@ export default function PengaturanTokoPage() {
               <p className="text-xs text-gray-500 font-medium text-center mt-1 mb-4">
                 Format PNG / SVG (maks. 2MB)
               </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml"
+                onChange={handleLogoUpload}
+                className="hidden"
+              />
               <button
                 type="button"
-                onClick={() => showToast("Dialog unggah logo siap digunakan.")}
+                onClick={() => fileInputRef.current?.click()}
                 className="bg-[#0D8A52] hover:bg-[#097343] text-white text-xs font-extrabold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition cursor-pointer"
               >
                 <Upload size={14} />
@@ -318,8 +810,8 @@ export default function PengaturanTokoPage() {
                 </label>
                 <input
                   type="text"
-                  value={namaWarung}
-                  onChange={(e) => setNamaWarung(e.target.value)}
+                  value={currentConfig.namaWarung}
+                  onChange={(e) => updateField("namaWarung", e.target.value)}
                   className="w-full border border-gray-300 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-900 bg-white focus:outline-none focus:border-[#D97706]"
                 />
               </div>
@@ -330,8 +822,8 @@ export default function PengaturanTokoPage() {
                 </label>
                 <input
                   type="text"
-                  value={slogan}
-                  onChange={(e) => setSlogan(e.target.value)}
+                  value={currentConfig.slogan}
+                  onChange={(e) => updateField("slogan", e.target.value)}
                   className="w-full border border-gray-300 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-900 bg-white focus:outline-none focus:border-[#D97706]"
                 />
               </div>
@@ -342,8 +834,8 @@ export default function PengaturanTokoPage() {
                 </label>
                 <textarea
                   rows={2}
-                  value={alamat}
-                  onChange={(e) => setAlamat(e.target.value)}
+                  value={currentConfig.alamat}
+                  onChange={(e) => updateField("alamat", e.target.value)}
                   className="w-full border border-gray-300 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-900 bg-white resize-none focus:outline-none focus:border-[#D97706]"
                 />
               </div>
@@ -357,8 +849,8 @@ export default function PengaturanTokoPage() {
                     <Phone size={15} className="text-gray-500 shrink-0" />
                     <input
                       type="text"
-                      value={whatsapp}
-                      onChange={(e) => setWhatsapp(e.target.value)}
+                      value={currentConfig.whatsapp}
+                      onChange={(e) => updateField("whatsapp", e.target.value)}
                       className="w-full text-sm font-semibold text-gray-900 outline-none bg-transparent"
                     />
                   </div>
@@ -372,8 +864,10 @@ export default function PengaturanTokoPage() {
                     <Mail size={15} className="text-gray-500 shrink-0" />
                     <input
                       type="text"
-                      value={emailResto}
-                      onChange={(e) => setEmailResto(e.target.value)}
+                      value={currentConfig.emailResto}
+                      onChange={(e) =>
+                        updateField("emailResto", e.target.value)
+                      }
                       className="w-full text-sm font-semibold text-gray-900 outline-none bg-transparent"
                     />
                   </div>
@@ -386,8 +880,8 @@ export default function PengaturanTokoPage() {
                 </label>
                 <input
                   type="text"
-                  value={nib}
-                  onChange={(e) => setNib(e.target.value)}
+                  value={currentConfig.nib}
+                  onChange={(e) => updateField("nib", e.target.value)}
                   className="w-full border border-gray-300 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-900 bg-white focus:outline-none focus:border-[#D97706]"
                 />
               </div>
@@ -435,8 +929,10 @@ export default function PengaturanTokoPage() {
                   </span>
                   <input
                     type="text"
-                    value={jamBukaWeekday}
-                    onChange={(e) => setJamBukaWeekday(e.target.value)}
+                    value={currentConfig.jamBukaWeekday}
+                    onChange={(e) =>
+                      updateField("jamBukaWeekday", e.target.value)
+                    }
                     className="w-full border border-gray-300 px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-900 bg-white"
                   />
                 </div>
@@ -446,8 +942,10 @@ export default function PengaturanTokoPage() {
                   </span>
                   <input
                     type="text"
-                    value={jamTutupWeekday}
-                    onChange={(e) => setJamTutupWeekday(e.target.value)}
+                    value={currentConfig.jamTutupWeekday}
+                    onChange={(e) =>
+                      updateField("jamTutupWeekday", e.target.value)
+                    }
                     className="w-full border border-gray-300 px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-900 bg-white"
                   />
                 </div>
@@ -471,8 +969,10 @@ export default function PengaturanTokoPage() {
                   </span>
                   <input
                     type="text"
-                    value={jamBukaWeekend}
-                    onChange={(e) => setJamBukaWeekend(e.target.value)}
+                    value={currentConfig.jamBukaWeekend}
+                    onChange={(e) =>
+                      updateField("jamBukaWeekend", e.target.value)
+                    }
                     className="w-full border border-gray-300 px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-900 bg-white"
                   />
                 </div>
@@ -482,8 +982,10 @@ export default function PengaturanTokoPage() {
                   </span>
                   <input
                     type="text"
-                    value={jamTutupWeekend}
-                    onChange={(e) => setJamTutupWeekend(e.target.value)}
+                    value={currentConfig.jamTutupWeekend}
+                    onChange={(e) =>
+                      updateField("jamTutupWeekend", e.target.value)
+                    }
                     className="w-full border border-gray-300 px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-900 bg-white"
                   />
                 </div>
@@ -504,14 +1006,18 @@ export default function PengaturanTokoPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setAutoCloseKasir(!autoCloseKasir)}
+                onClick={() =>
+                  updateField("autoCloseKasir", !currentConfig.autoCloseKasir)
+                }
                 className={`w-11 h-6 inline-flex items-center rounded-full p-1 cursor-pointer transition-colors shrink-0 ${
-                  autoCloseKasir ? "bg-[#0D8A52]" : "bg-gray-300"
+                  currentConfig.autoCloseKasir ? "bg-[#0D8A52]" : "bg-gray-300"
                 }`}
               >
                 <span
                   className={`bg-white w-4 h-4 rounded-full shadow-xs transform transition-transform ${
-                    autoCloseKasir ? "translate-x-5" : "translate-x-0"
+                    currentConfig.autoCloseKasir
+                      ? "translate-x-5"
+                      : "translate-x-0"
                   }`}
                 />
               </button>
@@ -521,8 +1027,10 @@ export default function PengaturanTokoPage() {
               <div className="flex items-start gap-3">
                 <input
                   type="checkbox"
-                  checked={istirahatSore}
-                  onChange={(e) => setIstirahatSore(e.target.checked)}
+                  checked={currentConfig.istirahatSore}
+                  onChange={(e) =>
+                    updateField("istirahatSore", e.target.checked)
+                  }
                   className="mt-1 w-4 h-4 accent-[#0D8A52] rounded cursor-pointer"
                 />
                 <div>
@@ -571,8 +1079,17 @@ export default function PengaturanTokoPage() {
               <div className="flex items-center gap-2.5">
                 <input
                   type="text"
-                  value={pajakPersen}
-                  onChange={(e) => setPajakPersen(e.target.value)}
+                  value={currentConfig.pajakPersen}
+                  onChange={(e) => {
+                    const cleaned = e.target.value.replace(/[^0-9.,]/g, "");
+                    const normalized = cleaned.replace(",", ".");
+                    const num = parseFloat(normalized);
+                    if (!Number.isNaN(num) && num > 100) {
+                      updateField("pajakPersen", "100");
+                    } else {
+                      updateField("pajakPersen", cleaned);
+                    }
+                  }}
                   className="w-20 border border-gray-300 py-2.5 px-3 rounded-xl text-sm font-extrabold bg-white text-gray-900 text-center"
                 />
                 <span className="text-sm font-extrabold text-gray-900">%</span>
@@ -588,8 +1105,8 @@ export default function PengaturanTokoPage() {
                   <input
                     type="radio"
                     name="pajak_tipe"
-                    checked={pajakTipe === "termasuk"}
-                    onChange={() => setPajakTipe("termasuk")}
+                    checked={currentConfig.pajakTipe === "termasuk"}
+                    onChange={() => updateField("pajakTipe", "termasuk")}
                     className="w-4 h-4 accent-blue-600"
                   />
                   <span>Harga menu sudah termasuk pajak</span>
@@ -598,8 +1115,8 @@ export default function PengaturanTokoPage() {
                   <input
                     type="radio"
                     name="pajak_tipe"
-                    checked={pajakTipe === "akhir"}
-                    onChange={() => setPajakTipe("akhir")}
+                    checked={currentConfig.pajakTipe === "akhir"}
+                    onChange={() => updateField("pajakTipe", "akhir")}
                     className="w-4 h-4 accent-blue-600"
                   />
                   <span>Pajak ditambahkan di akhir nota</span>
@@ -624,8 +1141,18 @@ export default function PengaturanTokoPage() {
                 <span className="text-sm font-extrabold text-gray-600">Rp</span>
                 <input
                   type="text"
-                  value={biayaKemasan}
-                  onChange={(e) => setBiayaKemasan(e.target.value)}
+                  value={currentConfig.biayaKemasan}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "");
+                    if (!digits) {
+                      updateField("biayaKemasan", "");
+                    } else {
+                      const formatted = parseInt(digits, 10).toLocaleString(
+                        "id-ID"
+                      );
+                      updateField("biayaKemasan", formatted);
+                    }
+                  }}
                   className="w-full text-sm font-bold text-gray-900 outline-none bg-transparent"
                 />
               </div>
@@ -647,12 +1174,22 @@ export default function PengaturanTokoPage() {
               <span className="block text-xs text-gray-600 font-medium mb-2">
                 Aturan pembulatan kembalian kasir
               </span>
-              <input
-                type="text"
-                value={aturanPembulatan}
-                onChange={(e) => setAturanPembulatan(e.target.value)}
-                className="w-full border border-gray-300 px-3.5 py-2.5 rounded-xl text-sm font-bold bg-white text-gray-900 outline-none"
-              />
+              <select
+                value={currentConfig.aturanPembulatan}
+                onChange={(e) =>
+                  updateField(
+                    "aturanPembulatan",
+                    e.target.value as RoundingOption
+                  )
+                }
+                className="w-full border border-gray-300 px-3.5 py-2.5 rounded-xl text-sm font-bold bg-white text-gray-900 outline-none focus:border-[#D97706] cursor-pointer"
+              >
+                {ROUNDING_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
               <div className="flex items-start gap-2 mt-3 text-xs text-gray-600 font-medium">
                 <Info size={14} className="text-gray-500 shrink-0 mt-0.5" />
                 <span>Mencegah selisih koin receh saat jam ramai.</span>
@@ -694,8 +1231,10 @@ export default function PengaturanTokoPage() {
                   <label className="flex items-center gap-3 p-3.5 rounded-xl bg-[#F8F9FA] border border-gray-200 text-xs sm:text-sm text-gray-800 cursor-pointer hover:bg-gray-100/70 transition">
                     <input
                       type="checkbox"
-                      checked={cetakLogo}
-                      onChange={(e) => setCetakLogo(e.target.checked)}
+                      checked={currentConfig.cetakLogo}
+                      onChange={(e) =>
+                        updateField("cetakLogo", e.target.checked)
+                      }
                       className="w-4 h-4 accent-blue-600 rounded"
                     />
                     <span className="font-bold">Cetak Logo PrekDuaDara</span>
@@ -704,8 +1243,10 @@ export default function PengaturanTokoPage() {
                   <label className="flex items-center gap-3 p-3.5 rounded-xl bg-[#F8F9FA] border border-gray-200 text-xs sm:text-sm text-gray-800 cursor-pointer hover:bg-gray-100/70 transition">
                     <input
                       type="checkbox"
-                      checked={cetakAlamat}
-                      onChange={(e) => setCetakAlamat(e.target.checked)}
+                      checked={currentConfig.cetakAlamat}
+                      onChange={(e) =>
+                        updateField("cetakAlamat", e.target.checked)
+                      }
                       className="w-4 h-4 accent-blue-600 rounded"
                     />
                     <span className="font-bold">
@@ -716,8 +1257,10 @@ export default function PengaturanTokoPage() {
                   <label className="flex items-center gap-3 p-3.5 rounded-xl bg-[#F8F9FA] border border-gray-200 text-xs sm:text-sm text-gray-800 cursor-pointer hover:bg-gray-100/70 transition">
                     <input
                       type="checkbox"
-                      checked={nomorAntrianBesar}
-                      onChange={(e) => setNomorAntrianBesar(e.target.checked)}
+                      checked={currentConfig.nomorAntrianBesar}
+                      onChange={(e) =>
+                        updateField("nomorAntrianBesar", e.target.checked)
+                      }
                       className="w-4 h-4 accent-blue-600 rounded"
                     />
                     <span className="font-bold">
@@ -728,8 +1271,10 @@ export default function PengaturanTokoPage() {
                   <label className="flex items-center gap-3 p-3.5 rounded-xl bg-[#F8F9FA] border border-gray-200 text-xs sm:text-sm text-gray-800 cursor-pointer hover:bg-gray-100/70 transition">
                     <input
                       type="checkbox"
-                      checked={kodeQrisDinamis}
-                      onChange={(e) => setKodeQrisDinamis(e.target.checked)}
+                      checked={currentConfig.kodeQrisDinamis}
+                      onChange={(e) =>
+                        updateField("kodeQrisDinamis", e.target.checked)
+                      }
                       className="w-4 h-4 accent-blue-600 rounded"
                     />
                     <span className="font-bold">Kode QRIS Dinamis</span>
@@ -743,8 +1288,8 @@ export default function PengaturanTokoPage() {
                 </label>
                 <textarea
                   rows={2}
-                  value={pesanFooter}
-                  onChange={(e) => setPesanFooter(e.target.value)}
+                  value={currentConfig.pesanFooter}
+                  onChange={(e) => updateField("pesanFooter", e.target.value)}
                   className="w-full border border-gray-300 p-3.5 rounded-xl text-sm font-semibold text-gray-900 bg-white resize-none focus:outline-none focus:border-[#D97706]"
                 />
                 <p className="text-xs text-gray-600 font-medium mt-1.5">
@@ -764,14 +1309,20 @@ export default function PengaturanTokoPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setAutoPrintLunas(!autoPrintLunas)}
+                  onClick={() =>
+                    updateField("autoPrintLunas", !currentConfig.autoPrintLunas)
+                  }
                   className={`w-11 h-6 inline-flex items-center rounded-full p-1 cursor-pointer transition-colors shrink-0 ${
-                    autoPrintLunas ? "bg-[#0D8A52]" : "bg-gray-300"
+                    currentConfig.autoPrintLunas
+                      ? "bg-[#0D8A52]"
+                      : "bg-gray-300"
                   }`}
                 >
                   <span
                     className={`bg-white w-4 h-4 rounded-full shadow-xs transform transition-transform ${
-                      autoPrintLunas ? "translate-x-5" : "translate-x-0"
+                      currentConfig.autoPrintLunas
+                        ? "translate-x-5"
+                        : "translate-x-0"
                     }`}
                   />
                 </button>
@@ -781,7 +1332,9 @@ export default function PengaturanTokoPage() {
                 <button
                   type="button"
                   onClick={() =>
-                    showToast("Mengirim sinyal Tes Cetak Thermal...")
+                    showToast(
+                      `Mengirim sinyal Tes Cetak Thermal (${activeBranchKey})...`
+                    )
                   }
                   className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-extrabold text-gray-800 hover:text-black transition cursor-pointer shadow-2xs"
                 >
@@ -817,30 +1370,39 @@ export default function PengaturanTokoPage() {
                 }}
               >
                 <div className="text-center mb-2.5">
-                  {cetakLogo && (
+                  {currentConfig.cetakLogo && (
                     <img
-                      src="/logo.png"
+                      src={currentConfig.logoUrl || "/logo.png"}
                       alt="Logo"
-                      className="w-7 h-7 rounded-full mx-auto mb-1 object-contain"
+                      className="w-8 h-8 rounded-full mx-auto mb-1.5 object-contain"
                     />
                   )}
-                  <h4 className="font-bold text-xs tracking-wide">
-                    PREKDUADARA
+                  <h4 className="font-bold text-xs tracking-wide uppercase leading-snug">
+                    {currentConfig.namaWarung || "PREKDUADARA"}
                   </h4>
-                  {cetakAlamat && (
+                  {currentConfig.cetakAlamat && (
                     <>
-                      <p className="text-[9.5px] text-gray-600">
-                        Cabang Sudirman Utama
+                      <p className="text-[9.5px] text-gray-600 mt-0.5 leading-snug">
+                        {currentConfig.alamat}
                       </p>
-                      <p className="text-[9.5px] text-gray-600">
-                        Jl. Jend. Sudirman No. 45
-                      </p>
-                      <p className="text-[9.5px] text-gray-600">
-                        WA: 0812-8899-7766
+                      <p className="text-[9.5px] text-gray-600 mt-0.5">
+                        WA: {currentConfig.whatsapp}
                       </p>
                     </>
                   )}
                 </div>
+
+                {/* Nomor Antrian Besar (Dapur) */}
+                {currentConfig.nomorAntrianBesar && (
+                  <div className="my-1.5 py-1.5 px-2 border-y-2 border-gray-900 text-center bg-gray-50">
+                    <div className="text-[8.5px] font-bold tracking-widest uppercase text-gray-500">
+                      NOMOR ANTRIAN DAPUR
+                    </div>
+                    <div className="text-base font-black tracking-wider text-gray-900 leading-tight">
+                      ANTRIAN #014
+                    </div>
+                  </div>
+                )}
 
                 <div className="border-t border-dashed border-gray-300 my-2"></div>
 
@@ -879,30 +1441,53 @@ export default function PengaturanTokoPage() {
 
                 <div className="flex justify-between text-[10px] text-gray-700 mb-0.5">
                   <span>Subtotal</span>
-                  <span>60.000</span>
+                  <span>
+                    {receiptSimulation.subtotal.toLocaleString("id-ID")}
+                  </span>
                 </div>
                 <div className="flex justify-between text-[10px] text-gray-700 mb-1">
-                  <span>PB1 ({pajakPersen}%)</span>
-                  <span>6.000</span>
+                  <span>
+                    PB1 ({currentConfig.pajakPersen || "0"}%
+                    {currentConfig.pajakTipe === "termasuk" ? " Incl." : ""})
+                  </span>
+                  <span>
+                    {receiptSimulation.taxNominal.toLocaleString("id-ID")}
+                  </span>
                 </div>
 
                 <div className="flex justify-between font-extrabold text-xs mt-1 pt-1 border-t border-gray-300">
                   <span>TOTAL BAYAR</span>
-                  <span>Rp 66.000</span>
+                  <span>
+                    Rp {receiptSimulation.finalTotal.toLocaleString("id-ID")}
+                  </span>
                 </div>
                 <div className="flex justify-between text-[9.5px] text-gray-600 mt-0.5">
                   <span>QRIS (ShopeePay)</span>
-                  <span>66.000</span>
+                  <span>
+                    {receiptSimulation.finalTotal.toLocaleString("id-ID")}
+                  </span>
                 </div>
                 <div className="flex justify-between text-[9.5px] text-gray-600">
                   <span>Kembali</span>
                   <span>0</span>
                 </div>
 
+                {/* Kode QRIS Dinamis */}
+                {currentConfig.kodeQrisDinamis && (
+                  <div className="mt-2.5 pt-2 border-t border-dashed border-gray-300 flex flex-col items-center text-center">
+                    <div className="p-1.5 bg-white border border-gray-300 rounded-md">
+                      <QrCode size={42} className="text-gray-900" />
+                    </div>
+                    <span className="text-[8.5px] font-bold text-gray-600 mt-1 uppercase tracking-wider">
+                      SCAN QRIS DINAMIS • LUNAS OTOMATIS
+                    </span>
+                  </div>
+                )}
+
                 <div className="border-t border-dashed border-gray-300 my-2.5"></div>
 
                 <div className="text-center text-[9px] text-gray-600 leading-snug">
-                  <p>{pesanFooter}</p>
+                  <p>{currentConfig.pesanFooter}</p>
                 </div>
               </div>
             </div>
@@ -926,15 +1511,26 @@ export default function PengaturanTokoPage() {
                 </p>
               </div>
             </div>
-            <span className="text-xs font-extrabold text-emerald-800 bg-emerald-50 px-3.5 py-1.5 rounded-lg border border-emerald-200">
-              Semua Channel Aktif
+            <span
+              className={`text-xs font-extrabold px-3.5 py-1.5 rounded-lg border ${
+                activeChannelCount === 4
+                  ? "text-emerald-800 bg-emerald-50 border-emerald-200"
+                  : "text-amber-800 bg-amber-50 border-amber-300"
+              }`}
+            >
+              {activeChannelCount === 4
+                ? "Semua Channel Aktif"
+                : `${activeChannelCount} dari 4 Channel Aktif`}
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="p-4 sm:p-5 rounded-xl bg-[#F8F9FA] border border-gray-200 flex items-center justify-between gap-4">
               <div className="flex items-start gap-3.5">
-                <Banknote size={20} className="text-emerald-700 mt-0.5 shrink-0" />
+                <Banknote
+                  size={20}
+                  className="text-emerald-700 mt-0.5 shrink-0"
+                />
                 <div>
                   <p className="font-extrabold text-sm text-gray-900">
                     Tunai / Uang Cash
@@ -946,14 +1542,18 @@ export default function PengaturanTokoPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setChannelTunai(!channelTunai)}
+                onClick={() =>
+                  updateField("channelTunai", !currentConfig.channelTunai)
+                }
                 className={`w-11 h-6 inline-flex items-center rounded-full p-1 cursor-pointer transition-colors shrink-0 ${
-                  channelTunai ? "bg-[#0D8A52]" : "bg-gray-300"
+                  currentConfig.channelTunai ? "bg-[#0D8A52]" : "bg-gray-300"
                 }`}
               >
                 <span
                   className={`bg-white w-4 h-4 rounded-full shadow-xs transform transition-transform ${
-                    channelTunai ? "translate-x-5" : "translate-x-0"
+                    currentConfig.channelTunai
+                      ? "translate-x-5"
+                      : "translate-x-0"
                   }`}
                 />
               </button>
@@ -973,14 +1573,18 @@ export default function PengaturanTokoPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setChannelQris(!channelQris)}
+                onClick={() =>
+                  updateField("channelQris", !currentConfig.channelQris)
+                }
                 className={`w-11 h-6 inline-flex items-center rounded-full p-1 cursor-pointer transition-colors shrink-0 ${
-                  channelQris ? "bg-[#0D8A52]" : "bg-gray-300"
+                  currentConfig.channelQris ? "bg-[#0D8A52]" : "bg-gray-300"
                 }`}
               >
                 <span
                   className={`bg-white w-4 h-4 rounded-full shadow-xs transform transition-transform ${
-                    channelQris ? "translate-x-5" : "translate-x-0"
+                    currentConfig.channelQris
+                      ? "translate-x-5"
+                      : "translate-x-0"
                   }`}
                 />
               </button>
@@ -1003,14 +1607,18 @@ export default function PengaturanTokoPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setChannelEdc(!channelEdc)}
+                onClick={() =>
+                  updateField("channelEdc", !currentConfig.channelEdc)
+                }
                 className={`w-11 h-6 inline-flex items-center rounded-full p-1 cursor-pointer transition-colors shrink-0 ${
-                  channelEdc ? "bg-[#0D8A52]" : "bg-gray-300"
+                  currentConfig.channelEdc ? "bg-[#0D8A52]" : "bg-gray-300"
                 }`}
               >
                 <span
                   className={`bg-white w-4 h-4 rounded-full shadow-xs transform transition-transform ${
-                    channelEdc ? "translate-x-5" : "translate-x-0"
+                    currentConfig.channelEdc
+                      ? "translate-x-5"
+                      : "translate-x-0"
                   }`}
                 />
               </button>
@@ -1033,14 +1641,18 @@ export default function PengaturanTokoPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setChannelOjol(!channelOjol)}
+                onClick={() =>
+                  updateField("channelOjol", !currentConfig.channelOjol)
+                }
                 className={`w-11 h-6 inline-flex items-center rounded-full p-1 cursor-pointer transition-colors shrink-0 ${
-                  channelOjol ? "bg-[#0D8A52]" : "bg-gray-300"
+                  currentConfig.channelOjol ? "bg-[#0D8A52]" : "bg-gray-300"
                 }`}
               >
                 <span
                   className={`bg-white w-4 h-4 rounded-full shadow-xs transform transition-transform ${
-                    channelOjol ? "translate-x-5" : "translate-x-0"
+                    currentConfig.channelOjol
+                      ? "translate-x-5"
+                      : "translate-x-0"
                   }`}
                 />
               </button>
@@ -1067,13 +1679,19 @@ export default function PengaturanTokoPage() {
             </div>
             <button
               type="button"
-              onClick={() =>
-                showToast("Memindai ulang perangkat di jaringan lokal...")
-              }
-              className="text-xs font-extrabold text-gray-800 hover:text-black bg-gray-50 hover:bg-gray-100 border border-gray-300 px-4 py-2 rounded-xl flex items-center gap-2 transition cursor-pointer"
+              onClick={handleRescanDevices}
+              disabled={isScanningDevices}
+              className="text-xs font-extrabold text-gray-800 hover:text-black bg-gray-50 hover:bg-gray-100 disabled:opacity-60 border border-gray-300 px-4 py-2 rounded-xl flex items-center gap-2 transition cursor-pointer"
             >
-              <RefreshCw size={13} />
-              <span>Pindai Ulang Perangkat</span>
+              <RefreshCw
+                size={13}
+                className={isScanningDevices ? "animate-spin text-[#EA8E18]" : ""}
+              />
+              <span>
+                {isScanningDevices
+                  ? "Memindai Perangkat..."
+                  : "Pindai Ulang Perangkat"}
+              </span>
             </button>
           </div>
 
@@ -1105,10 +1723,28 @@ export default function PengaturanTokoPage() {
             </div>
 
             <div className="p-5 rounded-xl bg-[#F8F9FA] border border-gray-200">
-              <p className="text-xs font-bold text-gray-500 mb-1">
+              <p className="text-xs font-bold text-gray-500 mb-1.5">
                 Kapasitas Meja Dine-In
               </p>
-              <p className="font-extrabold text-sm text-gray-900">24 Meja</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={200}
+                  value={currentConfig.kapasitasMeja}
+                  onChange={(e) => {
+                    const num = Math.max(
+                      1,
+                      Math.min(200, parseInt(e.target.value, 10) || 1)
+                    );
+                    updateField("kapasitasMeja", num);
+                  }}
+                  className="w-20 border border-gray-300 bg-white px-2.5 py-1 rounded-lg font-extrabold text-sm text-gray-900 text-center focus:outline-none focus:border-[#D97706]"
+                />
+                <span className="font-extrabold text-sm text-gray-900">
+                  Meja
+                </span>
+              </div>
               <p className="text-xs font-medium text-gray-600 mt-1.5">
                 Zona Dalam AC &amp; Area Luar Terbuka
               </p>
@@ -1122,18 +1758,32 @@ export default function PengaturanTokoPage() {
             <Info size={18} className="text-[#2D452B] shrink-0" />
             <span>
               Perubahan konfigurasi tersimpan otomatis di perangkat lokal
-              server.
+              server ({activeBranchKey}).
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={handleSave}
-            className="flex items-center gap-2.5 text-xs sm:text-sm font-extrabold text-white bg-[#2D452B] hover:bg-[#223520] px-6 py-3 rounded-xl transition cursor-pointer shadow-xs"
-          >
-            <Save size={16} />
-            <span>Simpan Konfigurasi Lengkap</span>
-          </button>
+          <div className="flex items-center gap-3 self-end sm:self-center">
+            {hasUnsavedChanges ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-xs font-extrabold whitespace-nowrap">
+                <Clock size={13} className="shrink-0" />
+                <span>Ada Perubahan Belum Disimpan</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-extrabold whitespace-nowrap">
+                <CheckCircle2 size={13} className="shrink-0" />
+                <span>Tersimpan</span>
+              </span>
+            )}
+
+            <button
+              type="button"
+              onClick={handleSave}
+              className="flex items-center gap-2.5 text-xs sm:text-sm font-extrabold text-white bg-[#2D452B] hover:bg-[#223520] px-6 py-3 rounded-xl transition cursor-pointer shadow-xs"
+            >
+              <Save size={16} />
+              <span>Simpan Konfigurasi Lengkap</span>
+            </button>
+          </div>
         </section>
 
         {/* LOG OUT BUTTON */}
@@ -1154,7 +1804,9 @@ export default function PengaturanTokoPage() {
               PrekDuaDara POS v2.4
             </span>
             <span>•</span>
-            <span>Terminal Counter #01</span>
+            <span>
+              Terminal Counter #01 ({activeBranchKey})
+            </span>
             <span>•</span>
             <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -1162,7 +1814,7 @@ export default function PengaturanTokoPage() {
             </span>
           </div>
           <div>
-            &copy; 2024 PrekDuaDara Quick-Service Culinary. All rights reserved.
+            &copy; 2026 PrekDuaDara Quick-Service Culinary. All rights reserved.
           </div>
         </footer>
       </main>
