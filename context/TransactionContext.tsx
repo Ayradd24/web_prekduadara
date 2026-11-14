@@ -15,6 +15,10 @@ export interface Transaction {
   total: number;
   paymentMethod: 'Tunai' | 'QRIS';
   status: 'Berhasil' | 'Batal';
+  branch?: string;
+  orderType?: 'Dine-In' | 'Takeaway' | 'Ojol Delivery';
+  addons?: string;
+  relativeTime?: string;
 }
 
 interface TransactionStats {
@@ -45,7 +49,7 @@ interface TransactionContextType {
   stats: TransactionStats;
 }
 
-// Data awal mock sesuai transaksi PrekDuaDara
+// Data awal mock sesuai transaksi PrekDuaDara (Single Source of Truth untuk Ringkasan & Transaksi)
 const initialTransactions: Transaction[] = [
   {
     id: '#TRX-202410-0192',
@@ -60,6 +64,10 @@ const initialTransactions: Transaction[] = [
     total: 36000,
     paymentMethod: 'QRIS',
     status: 'Berhasil',
+    branch: 'Cabang Sudirman Utama',
+    orderType: 'Dine-In',
+    addons: '+ Sambal Korek Lv 3, Lalapan Segar',
+    relativeTime: '12 Menit Lalu',
   },
   {
     id: '#TRX-202410-0191',
@@ -74,6 +82,10 @@ const initialTransactions: Transaction[] = [
     total: 17000,
     paymentMethod: 'Tunai',
     status: 'Berhasil',
+    branch: 'Cabang Tebet Eco Park',
+    orderType: 'Takeaway',
+    addons: '+ Sambal Bawang Lv 2, Kerupuk Kaleng',
+    relativeTime: '19 Menit Lalu',
   },
   {
     id: '#TRX-202410-0190',
@@ -88,6 +100,10 @@ const initialTransactions: Transaction[] = [
     total: 54000,
     paymentMethod: 'QRIS',
     status: 'Berhasil',
+    branch: 'Cabang Sudirman Utama',
+    orderType: 'Ojol Delivery',
+    addons: '+ Tahu/Tempe Crispy, Sambal Pisah',
+    relativeTime: '30 Menit Lalu',
   },
   {
     id: '#TRX-202410-0189',
@@ -102,6 +118,10 @@ const initialTransactions: Transaction[] = [
     total: 34000,
     paymentMethod: 'Tunai',
     status: 'Berhasil',
+    branch: 'Cabang Dago Heritage',
+    orderType: 'Dine-In',
+    addons: '+ Sambal Bawang Original Lv 4',
+    relativeTime: '45 Menit Lalu',
   },
   {
     id: '#TRX-202410-0188',
@@ -116,18 +136,36 @@ const initialTransactions: Transaction[] = [
     total: 18000,
     paymentMethod: 'Tunai',
     status: 'Berhasil',
+    branch: 'Cabang Tebet Eco Park',
+    orderType: 'Dine-In',
+    addons: '+ Sambal Matah Segar, Nasi Pulen',
+    relativeTime: '58 Menit Lalu',
   },
 ];
 
 const SIMULATED_CASHIERS = [
-  { cashier: 'Rian Pratama', terminal: 'Kasir Pos-01' },
-  { cashier: 'Siti Rahma', terminal: 'Kasir Pos-02' },
-  { cashier: 'Budi Santoso', terminal: 'Kasir Pos-03' },
+  {
+    cashier: 'Rian Pratama',
+    terminal: 'Kasir Pos-01',
+    branch: 'Cabang Sudirman Utama',
+  },
+  {
+    cashier: 'Siti Rahma',
+    terminal: 'Kasir Pos-02',
+    branch: 'Cabang Tebet Eco Park',
+  },
+  {
+    cashier: 'Budi Santoso',
+    terminal: 'Kasir Pos-03',
+    branch: 'Cabang Dago Heritage',
+  },
 ];
 
 const SIMULATED_MENUS = [
   {
     itemsSummary: '1x Ayam Geprek Bakar + Es Teh',
+    addons: '+ Sambal Korek Lv 3, Lalapan Segar',
+    orderType: 'Dine-In' as const,
     totalItems: 1,
     subtotal: 18000,
     diskon: 0,
@@ -135,6 +173,8 @@ const SIMULATED_MENUS = [
   },
   {
     itemsSummary: '2x Ayam Geprek Biasa + Es Teh',
+    addons: '+ Sambal Bawang Lv 2, Tahu Crispy',
+    orderType: 'Takeaway' as const,
     totalItems: 2,
     subtotal: 34000,
     diskon: 0,
@@ -142,6 +182,8 @@ const SIMULATED_MENUS = [
   },
   {
     itemsSummary: '2x Ayam Geprek Bakar + Es Teh',
+    addons: '+ Sambal Korek Lv 4, Tempe Mendoan',
+    orderType: 'Dine-In' as const,
     totalItems: 2,
     subtotal: 36000,
     diskon: 0,
@@ -149,6 +191,8 @@ const SIMULATED_MENUS = [
   },
   {
     itemsSummary: '1x Paket Geprek Mozarella + Es Jeruk',
+    addons: '+ Kulit Ayam Crispy, Sambal Pisah',
+    orderType: 'Ojol Delivery' as const,
     totalItems: 1,
     subtotal: 25000,
     diskon: 0,
@@ -156,6 +200,8 @@ const SIMULATED_MENUS = [
   },
   {
     itemsSummary: '3x Ayam Geprek Sambal Bawang + Es Teh',
+    addons: '+ Kol Goreng, Kerupuk Kaleng',
+    orderType: 'Dine-In' as const,
     totalItems: 3,
     subtotal: 51000,
     diskon: 2000,
@@ -163,12 +209,20 @@ const SIMULATED_MENUS = [
   },
   {
     itemsSummary: '2x Paket Komplit Geprek + Tahu Crispy',
+    addons: '+ 2 Es Teh Manis Jumbo, Sambal Uleg',
+    orderType: 'Ojol Delivery' as const,
     totalItems: 2,
     subtotal: 42000,
     diskon: 0,
     total: 42000,
   },
 ];
+
+const resolveBranchFromTerminal = (terminal: string): string => {
+  if (terminal.includes('Pos-02')) return 'Cabang Tebet Eco Park';
+  if (terminal.includes('Pos-03')) return 'Cabang Dago Heritage';
+  return 'Cabang Sudirman Utama';
+};
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
 
@@ -201,6 +255,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       id: idStr,
       time: timeStr,
       date: 'Hari ini',
+      branch: newTx.branch || resolveBranchFromTerminal(newTx.terminal),
+      orderType: newTx.orderType || 'Dine-In',
+      addons: newTx.addons || '+ Sambal Uleg Asli, Lalapan Segar',
+      relativeTime: newTx.relativeTime || 'Baru Saja',
     };
 
     setTransactions((prev) => [fullTx, ...prev]);
@@ -242,6 +300,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         total: chosenMenu.total,
         paymentMethod,
         status: 'Berhasil',
+        branch: chosenCashier.branch,
+        orderType: chosenMenu.orderType,
+        addons: chosenMenu.addons,
+        relativeTime: 'Baru Saja',
       };
 
       return [simulatedTx, ...prev];
