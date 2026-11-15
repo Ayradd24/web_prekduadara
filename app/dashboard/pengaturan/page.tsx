@@ -104,12 +104,12 @@ const STORAGE_KEY = "prekduadara_store_settings_v1";
 
 const DEFAULT_BRANCH_SETTINGS: Record<SingleBranchName, BranchStoreSettings> = {
   "Cabang Sudirman Utama": {
-    outletId: "OUT-SUD-001",
-    namaWarung: "Ayam Geprek PrekDuaDara - Cabang Sudirman",
+    outletId: "OUT-01",
+    namaWarung: "Ayam Geprek PrekDuaDara",
     slogan: "Spesial Ayam Geprek Cobek & Sambal Uleg Asli",
     alamat: "Jl. Jend. Sudirman No. 45 (Samping Gerbang UM/Matos)",
     whatsapp: "0812-8899-7766",
-    emailResto: "halo.cabang@prekduadara.id",
+    emailResto: "halo@prekduadara.id",
     nib: "9120003491824",
     logoUrl: "/logo.png",
     jamBukaWeekday: "09:00 WIB",
@@ -264,15 +264,17 @@ export default function PengaturanTokoPage() {
     };
   }, []);
 
-  // State Scroll untuk Sticky Floating Buttons
+  // State Scroll untuk Floating Buttons yang mengikuti layar saat scroll
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 100);
+      const scrollPos = window.scrollY || document.documentElement.scrollTop;
+      setIsScrolled(scrollPos > 40);
     };
-    window.addEventListener("scroll", handleScroll);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -690,7 +692,7 @@ export default function PengaturanTokoPage() {
       <Sidebar />
 
       {/* 2. AREA KONTEN UTAMA */}
-      <main className="flex-1 flex flex-col gap-5 overflow-x-hidden max-w-full">
+      <main className="flex-1 flex flex-col gap-5 overflow-x-clip min-w-0 max-w-full">
         {/* TOP NAVBAR HEADER (SERAGAM DENGAN MANAJEMEN KASIR & STOK) */}
         <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
           {/* Brand */}
@@ -734,6 +736,55 @@ export default function PengaturanTokoPage() {
             </div>
           </div>
         </header>
+
+        {/* FLOATING ACTION BAR (SELALU MENGIKUTI KE BAWAH SAAT SCROLL DI POSISI APAPUN) */}
+        <div
+          className={`fixed top-4 sm:top-6 right-4 sm:right-6 lg:right-10 z-50 flex items-center gap-2.5 p-2 bg-white/95 backdrop-blur-md rounded-2xl border border-gray-300 shadow-xl transition-all duration-300 ${
+            isScrolled
+              ? "translate-y-0 opacity-100 pointer-events-auto"
+              : "-translate-y-4 opacity-0 pointer-events-none"
+          }`}
+        >
+          {/* Indikator Status Simpan */}
+          {hasUnsavedChanges ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-xs font-extrabold whitespace-nowrap">
+              <Clock size={13} className="shrink-0" />
+              <span className="hidden sm:inline">Belum Disimpan</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-extrabold whitespace-nowrap">
+              <CheckCircle2 size={13} className="shrink-0" />
+              <span className="hidden sm:inline">Tersimpan</span>
+            </span>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowResetModal(true)}
+            className="flex items-center gap-2 px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 transition shadow-2xs cursor-pointer"
+          >
+            <RotateCcw size={14} />
+            <span>Reset</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-4 py-2 bg-[#2D452B] hover:bg-[#223520] disabled:opacity-60 rounded-xl text-xs font-extrabold text-white transition shadow-sm cursor-pointer"
+          >
+            {isSaving ? (
+              <>
+                <RefreshCw size={14} className="animate-spin" />
+                <span>Menyimpan...</span>
+              </>
+            ) : (
+              <>
+                <Save size={14} />
+                <span>Simpan Perubahan</span>
+              </>
+            )}
+          </button>
+        </div>
 
         {/* PAGE HEADER & ACTION BUTTONS */}
         <section className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-gray-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -803,60 +854,17 @@ export default function PengaturanTokoPage() {
           </div>
         </section>
 
-        {/* STICKY FLOATING BUTTONS (MENGIKUTI KE BAWAH SAAT SCROLL) */}
-        <div
-          className={`sticky top-4 sm:top-6 z-30 flex items-center justify-end gap-3 -mt-2 transition-opacity duration-200 ${
-            isScrolled
-              ? "opacity-100 pointer-events-auto"
-              : "opacity-0 pointer-events-none"
-          }`}
-        >
-          <button
-            type="button"
-            onClick={() => setShowResetModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-white/95 backdrop-blur-xs border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 transition shadow-md cursor-pointer"
-          >
-            <RotateCcw size={14} />
-            <span>Reset ke Default</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2 bg-[#2D452B]/95 backdrop-blur-xs hover:bg-[#223520] disabled:opacity-60 rounded-xl text-xs font-extrabold text-white transition shadow-md cursor-pointer"
-          >
-            {isSaving ? (
-              <>
-                <RefreshCw size={14} className="animate-spin" />
-                <span>Menyimpan...</span>
-              </>
-            ) : (
-              <>
-                <Save size={14} />
-                <span>Simpan Perubahan</span>
-              </>
-            )}
-          </button>
+        {/* Banner Informasi Konfigurasi Toko */}
+        <div className="bg-amber-50/90 border border-amber-300 rounded-2xl px-4 py-3 flex items-start sm:items-center gap-3 shadow-2xs">
+          <Info size={16} className="text-[#D97706] shrink-0 mt-0.5 sm:mt-0" />
+          <p className="text-xs text-amber-950 font-medium leading-relaxed">
+            <strong className="font-extrabold">
+              Konfigurasi Gerai PrekDuaDara:
+            </strong>{" "}
+            Perubahan kebijakan operasional warung, pajak PB1, biaya kemasan,
+            template struk kasir, serta integrasi QRIS &amp; pembayaran akan langsung tersimpan ke sistem database.
+          </p>
         </div>
-
-        {/* Banner Mode Konfigurasi Global (Semua Cabang) */}
-        {selectedBranch === "Semua Cabang" && (
-          <div className="bg-amber-50/90 border border-amber-300 rounded-2xl px-4 py-3 flex items-start sm:items-center gap-3 shadow-2xs">
-            <Info size={16} className="text-[#D97706] shrink-0 mt-0.5 sm:mt-0" />
-            <p className="text-xs text-amber-950 font-medium leading-relaxed">
-              <strong className="font-extrabold">
-                Mode Konfigurasi Global (Berlaku untuk Semua Cabang):
-              </strong>{" "}
-              Perubahan kebijakan operasional, pajak PB1, biaya kemasan,
-              template struk, dan metode pembayaran akan diterapkan ke seluruh
-              gerai saat disimpan, sementara identitas masing-masing outlet (
-              <span className="font-bold">
-                ID Outlet, Nama Warung, Alamat, WhatsApp, Email, NIB
-              </span>
-              ) tetap terjaga per cabang.
-            </p>
-          </div>
-        )}
 
         {/* A. Profil Gerai & Identitas Restoran */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
@@ -1923,8 +1931,7 @@ export default function PengaturanTokoPage() {
           <div className="flex items-center gap-3 text-xs font-semibold text-gray-700">
             <Info size={16} className="text-[#2D452B] shrink-0" />
             <span>
-              Perubahan konfigurasi tersimpan otomatis di perangkat lokal
-              server ({activeBranchKey}).
+              Perubahan konfigurasi tersimpan otomatis ke database server MariaDB.
             </span>
           </div>
 
@@ -1943,11 +1950,30 @@ export default function PengaturanTokoPage() {
 
             <button
               type="button"
-              onClick={handleSave}
-              className="flex items-center gap-2 text-xs font-extrabold text-white bg-[#2D452B] hover:bg-[#223520] px-5 py-2.5 rounded-xl transition cursor-pointer shadow-xs"
+              onClick={() => setShowResetModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 transition shadow-2xs cursor-pointer"
             >
-              <Save size={15} />
-              <span>Simpan Konfigurasi Lengkap</span>
+              <RotateCcw size={14} />
+              <span>Reset ke Default</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex items-center gap-2 text-xs font-extrabold text-white bg-[#2D452B] hover:bg-[#223520] disabled:opacity-60 px-5 py-2.5 rounded-xl transition cursor-pointer shadow-xs"
+            >
+              {isSaving ? (
+                <>
+                  <RefreshCw size={15} className="animate-spin" />
+                  <span>Menyimpan...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={15} />
+                  <span>Simpan Perubahan</span>
+                </>
+              )}
             </button>
           </div>
         </section>
