@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
-import { useStok } from "@/context/StokContext";
+import { useStok, type StokItem } from "@/context/StokContext";
 import {
   AlertTriangle,
   Bell,
@@ -146,7 +146,7 @@ const BASE_SUDIRMAN_ITEMS: InventoryDetailItem[] = [
     supplier: "Supplier: Tani Segar Jaya (Kramat)",
     category: "Bumbu & Sambal",
     filterTab: "Bumbu & Sambal",
-    stock: 3.5,
+    stock: 8.0,
     unit: "kg",
     safetyStock: 10,
     safetyUnit: "kg",
@@ -178,7 +178,7 @@ const BASE_SUDIRMAN_ITEMS: InventoryDetailItem[] = [
     supplier: "Supplier: Distribusi Pangan Makmur",
     category: "Tepung & Minyak",
     filterTab: "Tepung & Minyak",
-    stock: 12.0,
+    stock: 24.0,
     unit: "Liter",
     safetyStock: 25,
     safetyUnit: "Liter",
@@ -361,6 +361,30 @@ const INITIAL_BRANCH_INVENTORIES: Record<
   "Cabang Dago Heritage": BASE_DAGO_ITEMS,
 };
 
+function createInitialBranchInventories(
+  stokList: StokItem[]
+): Record<SingleBranchName, InventoryDetailItem[]> {
+  if (!stokList || stokList.length === 0) {
+    return INITIAL_BRANCH_INVENTORIES;
+  }
+  const contextMap = new Map(stokList.map((s) => [s.id, s.stock]));
+  return {
+    ...INITIAL_BRANCH_INVENTORIES,
+    "Cabang Sudirman Utama": INITIAL_BRANCH_INVENTORIES[
+      "Cabang Sudirman Utama"
+    ].map((item) => {
+      if (!item.contextId) return item;
+      const ctxStock = contextMap.get(item.contextId);
+      if (typeof ctxStock !== "number") return item;
+      return {
+        ...item,
+        stock: ctxStock,
+        ...computeStockMetrics(ctxStock, item.safetyStock),
+      };
+    }),
+  };
+}
+
 const INITIAL_BRANCH_LOGS: Record<SingleBranchName, MutationLog[]> = {
   "Cabang Sudirman Utama": [
     {
@@ -476,11 +500,11 @@ function mapCategoryToFilterTab(cat: InventoryCategory): FilterTabCategory {
 
 export default function StokPage() {
   // Pertahankan state global StokContext sesuai .cursorrules
-  const { updateStok, restockItem } = useStok();
+  const { stokList, updateStok, restockItem } = useStok();
 
   const [branchInventories, setBranchInventories] = useState<
     Record<SingleBranchName, InventoryDetailItem[]>
-  >(INITIAL_BRANCH_INVENTORIES);
+  >(() => createInitialBranchInventories(stokList));
 
   const [branchLogs, setBranchLogs] = useState<
     Record<SingleBranchName, MutationLog[]>
@@ -560,6 +584,14 @@ export default function StokPage() {
     }, 3200);
   };
 
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
   // Click-outside handler untuk menutup dropdown cabang
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -576,18 +608,19 @@ export default function StokPage() {
     };
   }, []);
 
-  // Sinkronisasi awal Cabang Sudirman Utama ke StokContext saat mount
+  // Sinkronisasi awal ke StokContext jika ada item contextId yang belum terisi saat mount
   const hasSyncedInitialContext = useRef(false);
   useEffect(() => {
     if (!hasSyncedInitialContext.current) {
       hasSyncedInitialContext.current = true;
+      const contextIds = new Set(stokList.map((s) => s.id));
       branchInventories["Cabang Sudirman Utama"].forEach((item) => {
-        if (item.contextId) {
+        if (item.contextId && !contextIds.has(item.contextId)) {
           updateStok(item.contextId, item.stock);
         }
       });
     }
-  }, [branchInventories, updateStok]);
+  }, [stokList, branchInventories, updateStok]);
 
   // Cabang target untuk aksi tulis (jika "Semua Cabang" aktif, gunakan mutationTargetBranch)
   const targetWriteBranch: SingleBranchName =
@@ -647,7 +680,7 @@ export default function StokPage() {
       ...branchLogs["Cabang Sudirman Utama"],
       ...branchLogs["Cabang Tebet Eco Park"],
       ...branchLogs["Cabang Dago Heritage"],
-    ];
+    ].sort((a, b) => b.time.localeCompare(a.time));
   }, [branchLogs, selectedBranch]);
 
   const reorderMarked = Boolean(reorderMarkedByBranch[selectedBranch]);
@@ -1944,15 +1977,15 @@ export default function StokPage() {
       </div>
 
       {/* 2. AREA KONTEN UTAMA MANAJEMEN STOK */}
-      <main className="flex-1 flex flex-col gap-6 overflow-x-hidden print:overflow-visible max-w-full">
-        {/* TOP NAVBAR HEADER (SERAGAM, RAPI 1 BARIS TANPA LINK REDUNDAN) */}
-        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm print:shadow-none border border-gray-200 flex flex-wrap items-center justify-between gap-4">
+      <main className="flex-1 flex flex-col gap-5 overflow-x-hidden max-w-full print:overflow-visible">
+        {/* TOP NAVBAR HEADER (SERAGAM DI SELURUH HALAMAN DASHBOARD) */}
+        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
           {/* Brand */}
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-3">
             <img
               src="/logo.png"
               alt="Logo PrekDuaDara"
-              className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm shrink-0"
+              className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-xs shrink-0"
             />
             <div>
               <div className="font-extrabold text-base text-[#EA8E18] tracking-tight leading-tight">
@@ -1976,17 +2009,17 @@ export default function StokPage() {
           </div>
 
           {/* Right Controls: Interactive Branch Selector, Online Sync & Profile */}
-          <div className="print:hidden flex items-center gap-3 flex-wrap">
+          <div className="print:hidden flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
             {/* Interactive Branch Dropdown with Click-Outside Ref */}
-            <div ref={branchDropdownRef} className="relative">
+            <div ref={branchDropdownRef} className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => setShowBranchMenu((prev) => !prev)}
-                className="flex items-center gap-2 px-3.5 py-2 bg-[#F8F9FA] border border-gray-200 rounded-xl text-xs font-bold text-gray-800 cursor-pointer hover:bg-gray-100 transition"
+                className="h-9 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 flex items-center gap-2 bg-[#F8F9FA] border border-gray-200 text-gray-800 cursor-pointer hover:bg-gray-100 transition"
               >
                 <Store size={14} className="text-[#EA8E18] shrink-0" />
-                <span className="whitespace-nowrap">{selectedBranch}</span>
-                <ChevronDown size={14} className="text-gray-500" />
+                <span>{selectedBranch}</span>
+                <ChevronDown size={14} className="text-gray-500 shrink-0" />
               </button>
 
               {showBranchMenu && (
@@ -2015,21 +2048,23 @@ export default function StokPage() {
               )}
             </div>
 
-            <div className="flex items-center gap-2 px-3.5 py-1.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full">
+            {/* Online Sync Pill */}
+            <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
-            <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200">
+            {/* User Profile */}
+            <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
               <div className="text-right">
-                <div className="text-xs font-extrabold text-gray-900 leading-tight">
+                <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
                   Rian Pratama
                 </div>
-                <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5">
+                <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
                   Supervisor Kasir
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-sm shrink-0">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
                 <User size={16} />
               </div>
             </div>
@@ -2037,38 +2072,29 @@ export default function StokPage() {
         </header>
 
         {/* PAGE TITLE & ACTION SECTION */}
-        <section className="print:hidden bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
-          <div className="flex items-start sm:items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#FAF8F3] border border-gray-200 p-1.5 flex items-center justify-center shrink-0 shadow-xs">
-              <img
-                src="/logo.png"
-                alt="PrekDuaDara"
-                className="w-full h-full object-contain rounded-full"
-              />
+        <section className="print:hidden bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+                Manajemen Stok &amp; Bahan Baku
+              </h2>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-[11px] font-extrabold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                Sinkronisasi POS &amp; Dapur Otomatis
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h2 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">
-                  Manajemen Stok &amp; Bahan Baku
-                </h2>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-extrabold">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  Sinkronisasi POS &amp; Dapur Otomatis
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-gray-600 mt-1.5 max-w-2xl leading-relaxed font-medium">
-                Pantau ketersediaan bahan utama ayam geprek, peringatan stok
-                menipis, pencatatan barang masuk (inflow), dan kalkulasi HPP
-                harian ({selectedBranch}).
-              </p>
-            </div>
+            <p className="text-xs text-gray-600 mt-1.5 max-w-2xl leading-relaxed font-medium">
+              Pantau ketersediaan bahan utama ayam geprek, peringatan stok
+              menipis, pencatatan barang masuk (inflow), dan kalkulasi HPP
+              harian ({selectedBranch}).
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end lg:self-center">
             <button
               type="button"
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 transition cursor-pointer whitespace-nowrap"
             >
               <Printer size={14} />
               <span>Cetak Laporan</span>
@@ -2077,7 +2103,7 @@ export default function StokPage() {
             <button
               type="button"
               onClick={handleExportExcel}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 rounded-xl text-xs font-bold text-emerald-800 transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 rounded-xl text-xs font-bold text-emerald-800 transition cursor-pointer whitespace-nowrap"
             >
               <Download size={14} />
               <span>Export Excel</span>
@@ -2086,40 +2112,40 @@ export default function StokPage() {
             <button
               type="button"
               onClick={handleOpenOpnameModal}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-800 transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-800 transition cursor-pointer whitespace-nowrap"
             >
-              <ClipboardCheck size={15} className="text-gray-700" />
+              <ClipboardCheck size={14} className="text-gray-700" />
               <span>Audit / Opname Fisik</span>
             </button>
 
             <button
               type="button"
               onClick={() => setShowAddModal(true)}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#F3A712] hover:bg-[#df980e] text-gray-950 font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer"
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#F3A712] hover:bg-[#df980e] text-gray-950 font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer whitespace-nowrap"
             >
-              <PlusCircle size={15} />
+              <PlusCircle size={14} />
               <span>+ Tambah Bahan Baru</span>
             </button>
           </div>
         </section>
 
         {/* 4 SUMMARY KPI CARDS (DINAMIS DARI STATE INVENTORY CABANG) */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4 gap-5 print:gap-3">
+        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4 gap-4 print:gap-3">
           {/* Card 1: TOTAL ITEM AKTIF */}
-          <div className="bg-white rounded-2xl p-6 print:p-3.5 shadow-sm print:shadow-none print:break-inside-avoid border border-gray-200 flex items-center justify-between gap-3">
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none print:break-inside-avoid border border-gray-200 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wider truncate">
+              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 TOTAL ITEM AKTIF
               </p>
               <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl print:text-lg font-black text-gray-900">
+                <span className="text-2xl print:text-lg font-black text-gray-900 whitespace-nowrap tabular-nums">
                   {kpiStats.totalItems}
                 </span>
-                <span className="text-xs sm:text-sm font-bold text-gray-500">
+                <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
                   Bahan
                 </span>
               </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-bold min-w-0">
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-semibold min-w-0">
                 <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
                 <span className="truncate">5 Kategori operasional</span>
               </div>
@@ -2131,7 +2157,7 @@ export default function StokPage() {
 
           {/* Card 2: STOK KRITIS / RESTOCK */}
           <div
-            className={`rounded-2xl p-6 print:p-3.5 shadow-sm print:shadow-none print:break-inside-avoid border flex items-center justify-between gap-3 ${
+            className={`rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none print:break-inside-avoid border flex items-center justify-between gap-3 ${
               kpiStats.criticalCount > 0
                 ? "bg-[#FFF5F5] border-red-300"
                 : "bg-emerald-50/60 border-emerald-300"
@@ -2139,7 +2165,7 @@ export default function StokPage() {
           >
             <div className="min-w-0 flex-1">
               <p
-                className={`text-xs font-extrabold uppercase tracking-wider truncate ${
+                className={`text-[11px] font-extrabold uppercase tracking-wider whitespace-nowrap ${
                   kpiStats.criticalCount > 0
                     ? "text-[#DC2626]"
                     : "text-emerald-800"
@@ -2149,7 +2175,7 @@ export default function StokPage() {
               </p>
               <div className="mt-2 flex items-baseline gap-1.5">
                 <span
-                  className={`text-2xl sm:text-3xl print:text-lg font-black ${
+                  className={`text-2xl print:text-lg font-black whitespace-nowrap tabular-nums ${
                     kpiStats.criticalCount > 0
                       ? "text-[#DC2626]"
                       : "text-emerald-800"
@@ -2158,7 +2184,7 @@ export default function StokPage() {
                   {kpiStats.criticalCount}
                 </span>
                 <span
-                  className={`text-xs sm:text-sm font-bold ${
+                  className={`text-xs font-bold whitespace-nowrap ${
                     kpiStats.criticalCount > 0
                       ? "text-red-700"
                       : "text-emerald-700"
@@ -2168,7 +2194,7 @@ export default function StokPage() {
                 </span>
               </div>
               <div
-                className={`mt-1.5 flex items-center gap-1.5 text-xs font-extrabold min-w-0 ${
+                className={`mt-1.5 flex items-center gap-1.5 text-xs font-semibold min-w-0 ${
                   kpiStats.criticalCount > 0
                     ? "text-[#DC2626]"
                     : "text-emerald-700"
@@ -2191,16 +2217,16 @@ export default function StokPage() {
           </div>
 
           {/* Card 3: KETAHANAN OPERASIONAL */}
-          <div className="bg-white rounded-2xl p-6 print:p-3.5 shadow-sm print:shadow-none print:break-inside-avoid border border-gray-200 flex items-center justify-between gap-3">
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none print:break-inside-avoid border border-gray-200 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wider truncate">
+              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 KETAHANAN OPERASIONAL
               </p>
               <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl print:text-lg font-black text-gray-900">
+                <span className="text-2xl print:text-lg font-black text-gray-900 whitespace-nowrap tabular-nums">
                   {kpiStats.avgDays}
                 </span>
-                <span className="text-xs sm:text-sm font-bold text-gray-500">
+                <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
                   Hari
                 </span>
               </div>
@@ -2215,13 +2241,13 @@ export default function StokPage() {
           </div>
 
           {/* Card 4: NILAI TOTAL INVENTARIS */}
-          <div className="bg-white rounded-2xl p-6 print:p-3.5 shadow-sm print:shadow-none print:break-inside-avoid border border-gray-200 flex items-center justify-between gap-3">
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none print:break-inside-avoid border border-gray-200 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wider truncate">
+              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 NILAI TOTAL INVENTARIS
               </p>
               <div className="mt-2">
-                <span className="text-xl sm:text-2xl print:text-base font-black text-gray-900">
+                <span className="text-lg xl:text-xl print:text-base font-black text-gray-900 whitespace-nowrap tabular-nums">
                   Rp {Math.round(kpiStats.totalValue).toLocaleString("id-ID")}
                 </span>
               </div>
@@ -2238,7 +2264,7 @@ export default function StokPage() {
 
         {/* DYNAMIC CRITICAL RE-ORDER ALERT BANNER */}
         {kpiStats.criticalCount > 0 ? (
-          <section className="print:hidden bg-[#FFF5F5] border border-red-300 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
+          <section className="print:hidden min-h-[88px] bg-[#FFF5F5] border border-red-300 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
               <div className="w-10 h-10 rounded-full bg-[#DC2626] text-white font-black text-base flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                 !
@@ -2309,7 +2335,7 @@ export default function StokPage() {
             </div>
           </section>
         ) : (
-          <section className="print:hidden bg-emerald-50 border border-emerald-300 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <section className="print:hidden min-h-[88px] bg-emerald-50 border border-emerald-300 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
               <div className="w-10 h-10 rounded-full bg-emerald-600 text-white font-black text-base flex items-center justify-center shrink-0 shadow-xs">
                 <CheckCircle2 size={20} />
@@ -2436,39 +2462,39 @@ export default function StokPage() {
               })}
             </div>
 
-            {/* Table with locked fixed column widths */}
+            {/* Table with fixed column widths */}
             <div className="overflow-x-auto print:overflow-visible">
-              <table className="table-fixed w-[1090px] print:table-auto print:w-full print:text-[10px] text-left border-collapse text-xs sm:text-sm">
+              <table className="table-fixed w-full min-w-[950px] print:min-w-0 print:w-full print:text-[10px] text-left border-collapse text-xs sm:text-sm">
                 <colgroup>
-                  <col className="w-[260px] print:w-auto" />
-                  <col className="w-[175px] print:w-auto" />
-                  <col className="w-[150px] print:w-auto" />
-                  <col className="w-[185px] print:w-auto" />
-                  <col className="w-[130px] print:w-auto" />
-                  <col className="w-[95px] print:w-auto" />
-                  <col className="w-[95px] print:w-auto" />
+                  <col className="w-[230px]" />
+                  <col className="w-[155px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[175px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[105px]" />
+                  <col className="w-[95px] print:hidden" />
                 </colgroup>
                 <thead>
-                  <tr className="border-y border-gray-200 bg-gray-50 text-xs print:text-[9px] font-extrabold text-gray-600 uppercase tracking-wider">
-                    <th className="py-4 px-4 text-left whitespace-nowrap">
+                  <tr className="border-y border-gray-200 bg-gray-50 print:text-[9px]">
+                    <th className="px-4 py-3.5 pl-5 w-[230px] text-left text-[11px] font-extrabold uppercase tracking-wider text-gray-500 whitespace-nowrap">
                       BAHAN BAKU &amp; SKU
                     </th>
-                    <th className="py-4 px-4 text-left whitespace-nowrap">
+                    <th className="px-4 py-3.5 w-[155px] text-left text-[11px] font-extrabold uppercase tracking-wider text-gray-500 whitespace-nowrap">
                       KATEGORI
                     </th>
-                    <th className="py-4 px-4 text-center whitespace-nowrap">
+                    <th className="px-4 py-3.5 w-[120px] text-center text-[11px] font-extrabold uppercase tracking-wider text-gray-500 whitespace-nowrap">
                       STOK AKTUAL
                     </th>
-                    <th className="py-4 px-4 text-left whitespace-nowrap">
+                    <th className="px-4 py-3.5 pr-6 w-[175px] text-left text-[11px] font-extrabold uppercase tracking-wider text-gray-500 whitespace-nowrap">
                       KETAHANAN &amp; SAFETY
                     </th>
-                    <th className="py-4 px-4 text-right whitespace-nowrap">
+                    <th className="px-4 py-3.5 pl-6 w-[120px] text-right text-[11px] font-extrabold uppercase tracking-wider text-gray-500 whitespace-nowrap">
                       HARGA SATUAN
                     </th>
-                    <th className="py-4 px-4 text-center whitespace-nowrap">
+                    <th className="px-4 py-3.5 w-[105px] text-center text-[11px] font-extrabold uppercase tracking-wider text-gray-500 whitespace-nowrap">
                       STATUS
                     </th>
-                    <th className="py-4 px-4 text-center whitespace-nowrap print:hidden">
+                    <th className="px-4 py-3.5 pr-5 w-[95px] text-right text-[11px] font-extrabold uppercase tracking-wider text-gray-500 whitespace-nowrap print:hidden">
                       AKSI
                     </th>
                   </tr>
@@ -2486,24 +2512,24 @@ export default function StokPage() {
                         }`}
                       >
                         {/* 1. BAHAN BAKU & SKU */}
-                        <td className="py-5 px-4 text-left">
-                          <div className="flex items-start gap-3.5 min-w-0">
+                        <td className="px-4 py-3.5 pl-5 text-left whitespace-normal break-words">
+                          <div className="flex items-start gap-2.5 min-w-0">
                             <div
                               className={`w-9 h-9 rounded-xl border ${item.iconBg} flex items-center justify-center text-base shrink-0 mt-0.5 print:hidden`}
                             >
                               {item.icon}
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="font-extrabold text-gray-900 text-xs sm:text-sm leading-snug">
+                            <div className="min-w-0 flex-1 whitespace-normal break-words">
+                              <div className="font-extrabold text-gray-900 text-xs sm:text-sm leading-snug break-words">
                                 {item.name}
                               </div>
-                              <div className="mt-1.5">
+                              <div className="mt-1">
                                 <span className="inline-block px-2 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-700 font-extrabold text-[10px]">
                                   {item.sku}
                                 </span>
                               </div>
                               <p
-                                className="text-xs text-gray-500 font-medium mt-1.5 truncate"
+                                className="text-xs text-gray-500 font-medium mt-1 break-words"
                                 title={item.supplier}
                               >
                                 {item.supplier}
@@ -2513,12 +2539,12 @@ export default function StokPage() {
                         </td>
 
                         {/* 2. KATEGORI */}
-                        <td className="py-5 px-4 text-left font-bold text-gray-900 whitespace-nowrap">
+                        <td className="px-4 py-3.5 text-left font-bold text-gray-900 whitespace-normal break-words">
                           {item.category}
                         </td>
 
                         {/* 3. STOK AKTUAL */}
-                        <td className="py-5 px-4 text-center whitespace-nowrap">
+                        <td className="px-4 py-3.5 text-center whitespace-nowrap">
                           <div
                             className={`font-black text-sm whitespace-nowrap ${
                               item.status === "KRITIS"
@@ -2539,8 +2565,8 @@ export default function StokPage() {
                         </td>
 
                         {/* 4. KETAHANAN & SAFETY */}
-                        <td className="py-5 px-4 text-left">
-                          <div className="flex items-center justify-between text-xs mb-2 gap-2 whitespace-nowrap">
+                        <td className="px-4 py-3.5 pr-6 text-left">
+                          <div className="flex items-center justify-between text-xs mb-1.5 gap-2 whitespace-nowrap">
                             <span className="text-gray-600 font-bold">
                               {item.pct}%
                             </span>
@@ -2571,7 +2597,7 @@ export default function StokPage() {
                         </td>
 
                         {/* 5. HARGA SATUAN */}
-                        <td className="py-5 px-4 text-right whitespace-nowrap">
+                        <td className="px-4 py-3.5 pl-6 text-right whitespace-nowrap">
                           <div className="font-extrabold text-gray-900 text-xs sm:text-sm whitespace-nowrap">
                             Rp {item.unitPrice.toLocaleString("id-ID")}
                           </div>
@@ -2581,9 +2607,9 @@ export default function StokPage() {
                         </td>
 
                         {/* 6. STATUS */}
-                        <td className="py-5 px-4 text-center whitespace-nowrap">
+                        <td className="px-4 py-3.5 text-center whitespace-nowrap">
                           <span
-                            className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide whitespace-nowrap ${
+                            className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide whitespace-nowrap ${
                               item.status === "KRITIS"
                                 ? "bg-red-50 text-[#DC2626] border border-red-300"
                                 : item.status === "MENIPIS"
@@ -2596,13 +2622,13 @@ export default function StokPage() {
                         </td>
 
                         {/* 7. AKSI */}
-                        <td className="py-5 px-4 text-center whitespace-nowrap print:hidden">
-                          <div className="inline-flex items-center gap-1.5">
+                        <td className="px-4 py-3.5 pr-5 whitespace-nowrap print:hidden">
+                          <div className="flex items-center justify-end gap-2">
                             <button
                               type="button"
                               onClick={() => handleQuickRestockRow(item)}
                               title="Tambah Stok Cepat"
-                              className="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-300 text-[#B45309] flex items-center justify-center transition cursor-pointer"
+                              className="w-7 h-7 shrink-0 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-300 text-[#B45309] flex items-center justify-center transition cursor-pointer"
                             >
                               <Plus size={14} />
                             </button>
@@ -2616,7 +2642,7 @@ export default function StokPage() {
                                 showToast(`Memilih ${item.name} untuk diedit.`);
                               }}
                               title="Edit / Mutasi Bahan"
-                              className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center transition cursor-pointer"
+                              className="w-7 h-7 shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center transition cursor-pointer"
                             >
                               <Edit3 size={13} />
                             </button>
@@ -2645,26 +2671,20 @@ export default function StokPage() {
                     </tr>
                   )}
                 </tbody>
-                {filteredInventory.length > 0 && (
-                  <tfoot>
-                    <tr className="border-t-2 border-gray-200 bg-[#FAF8F3] text-xs sm:text-sm print:text-[10px]">
-                      <td
-                        colSpan={4}
-                        className="py-4 px-4 font-extrabold text-gray-800"
-                      >
-                        Total Valuasi Stok Terfilter ({filteredInventory.length}{" "}
-                        Bahan • {selectedBranch})
-                      </td>
-                      <td className="py-4 px-4 text-right font-black text-[#EA8E18] whitespace-nowrap">
-                        Rp{" "}
-                        {Math.round(filteredTotalValue).toLocaleString("id-ID")}
-                      </td>
-                      <td colSpan={2} className="print:hidden" />
-                    </tr>
-                  </tfoot>
-                )}
               </table>
             </div>
+
+            {filteredInventory.length > 0 && (
+              <div className="px-5 py-3.5 bg-[#F8F9FA] border-t border-gray-200 flex items-center justify-between gap-4 text-xs sm:text-sm print:text-[10px]">
+                <span className="font-extrabold text-gray-800">
+                  Total Valuasi Stok Terfilter ({filteredInventory.length}{" "}
+                  Bahan • {selectedBranch})
+                </span>
+                <span className="font-black text-[#EA8E18] whitespace-nowrap shrink-0">
+                  Rp {Math.round(filteredTotalValue).toLocaleString("id-ID")}
+                </span>
+              </div>
+            )}
 
             {/* Table Footer / Pagination */}
             <div className="print:hidden pt-4 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-600 font-medium">
@@ -2856,7 +2876,7 @@ export default function StokPage() {
                         className="w-full text-xs sm:text-sm font-bold text-gray-900 outline-none bg-transparent"
                       />
                       <span className="text-xs font-extrabold text-gray-500 ml-1.5 shrink-0">
-                        {selectedItemObj.unit}
+                        {selectedItemObj?.unit}
                       </span>
                     </div>
                   </div>
@@ -2967,6 +2987,25 @@ export default function StokPage() {
             {selectedBranch})
           </span>
         </div>
+
+        {/* FOOTER SYSTEM */}
+        <footer className="print:hidden pt-3 pb-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-600 font-medium gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-extrabold text-[#EA8E18]">
+              PrekDuaDara POS v2.4
+            </span>
+            <span>•</span>
+            <span>Terminal Counter #01</span>
+            <span>•</span>
+            <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              MySQL (prekduadara_db) Terhubung
+            </span>
+          </div>
+          <div>
+            &copy; 2026 PrekDuaDara Quick-Service Culinary. All rights reserved.
+          </div>
+        </footer>
       </main>
     </div>
   );

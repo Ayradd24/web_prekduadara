@@ -1,9 +1,17 @@
 'use client';
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { useTransactions, Transaction } from '@/context/TransactionContext';
-import { Printer, RotateCcw, Eye, CheckCircle2, X, ChevronDown } from 'lucide-react';
+import {
+  Printer,
+  RotateCcw,
+  Eye,
+  CheckCircle2,
+  X,
+  ChevronDown,
+  User,
+} from 'lucide-react';
 
 const BRANCH_OPTIONS = [
   'Semua Cabang',
@@ -48,6 +56,14 @@ export default function DashboardPage() {
       setToastMessage(null);
     }, 3000);
   };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
 
   // Helper format rupiah
   const formatRupiah = (val: number) => {
@@ -139,6 +155,8 @@ export default function DashboardPage() {
       'Kasir',
       'Menu/Item',
       'Metode Bayar',
+      'Subtotal',
+      'Diskon',
       'Total',
       'Status',
     ];
@@ -150,6 +168,8 @@ export default function DashboardPage() {
       `${tx.cashier} (${tx.terminal})`,
       `${tx.itemsSummary} (${tx.totalItems} item)`,
       tx.paymentMethod,
+      formatRupiah(tx.subtotal),
+      tx.diskon === 0 ? 'Rp 0' : formatRupiah(tx.diskon),
       formatRupiah(tx.total),
       tx.status,
     ]);
@@ -358,40 +378,62 @@ export default function DashboardPage() {
       </div>
 
       {/* 2. KONTEN UTAMA (KANAN) */}
-      <main className="flex-1 flex flex-col gap-5 overflow-x-hidden print:overflow-visible max-w-full">
+      <main className="flex-1 flex flex-col gap-5 overflow-x-hidden max-w-full print:overflow-visible">
         {/* Header Dashboard */}
-        <header className="bg-white rounded-2xl px-5 py-3.5 shadow-sm print:shadow-none print:min-h-0 border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <img
               src="/logo.png"
               alt="Logo PrekDuaDara"
-              className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm shrink-0"
+              className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-xs shrink-0"
             />
             <div>
               <div className="font-extrabold text-base text-[#EA8E18] tracking-tight leading-tight">
                 PrekDuaDara
               </div>
-              <div className="text-xs text-gray-600 font-medium leading-tight">
-                Daftar Transaksi Kasir
+              <div className="text-xs text-gray-600 font-medium leading-tight mt-0.5">
+                Ringkasan &amp; Daftar Transaksi Kasir
               </div>
             </div>
           </div>
 
-          <div className="print:hidden flex flex-wrap items-center gap-2">
+          <div className="print:hidden flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
             <button
               type="button"
               onClick={() => window.print()}
-              className="px-3.5 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-50 cursor-pointer transition"
+              className="h-9 px-3.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-50 cursor-pointer transition flex items-center gap-1.5 whitespace-nowrap shrink-0"
             >
-              🖨️ Cetak Laporan
+              <Printer size={14} className="shrink-0" />
+              <span>Cetak Laporan</span>
             </button>
             <button
               type="button"
               onClick={handleExportExcel}
-              className="px-3.5 py-2 border border-emerald-300 bg-emerald-50 text-emerald-800 rounded-lg text-xs font-semibold hover:bg-emerald-100 cursor-pointer transition"
+              className="h-9 px-3.5 border border-emerald-300 bg-emerald-50 text-emerald-800 rounded-xl text-xs font-bold hover:bg-emerald-100 cursor-pointer transition flex items-center gap-1.5 whitespace-nowrap shrink-0"
             >
-              📊 Export Excel
+              <span>📊 Export Excel</span>
             </button>
+
+            {/* Online Sync Pill */}
+            <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
+              <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
+              <span>ONLINE SYNC</span>
+            </div>
+
+            {/* User Profile */}
+            <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
+              <div className="text-right">
+                <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
+                  Rian Pratama
+                </div>
+                <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
+                  Supervisor Kasir
+                </div>
+              </div>
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
+                <User size={16} />
+              </div>
+            </div>
           </div>
 
           <div className="hidden print:block text-right text-xs text-gray-700">
@@ -404,55 +446,76 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* 3 KARTU RINGKASAN (REAL-TIME DARI STATE & CABANG) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 print:grid-cols-3 gap-4 print:gap-3">
-          <div className="bg-white p-5 sm:p-6 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center">
-            <div>
-              <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wider">
+        {/* 4 KARTU RINGKASAN SERAGAM (REAL-TIME DARI STATE & CABANG) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4 gap-4 print:gap-3">
+          {/* Card 1: Total Transaksi Hari Ini */}
+          <div className="bg-white p-5 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Total Transaksi Hari Ini
               </p>
-              <h2 className="text-2xl sm:text-3xl print:text-lg font-black text-gray-900 mt-1.5">
+              <h2 className="text-2xl print:text-lg font-black text-gray-900 mt-2 whitespace-nowrap tabular-nums">
                 {branchStats.totalCount}
               </h2>
-              <p className="text-xs text-emerald-700 font-bold mt-1.5">
+              <p className="text-xs text-emerald-700 font-semibold mt-1.5">
                 {branchStats.tunaiCount} Tunai • {branchStats.qrisCount} QRIS
               </p>
             </div>
-            <div className="w-12 h-12 print:w-8 print:h-8 bg-orange-100 border border-orange-200 text-orange-700 rounded-2xl flex items-center justify-center text-xl print:text-sm shrink-0">
+            <div className="w-11 h-11 print:w-8 print:h-8 bg-orange-100 border border-orange-200 text-orange-700 rounded-xl flex items-center justify-center text-lg print:text-sm shrink-0">
               📋
             </div>
           </div>
 
-          <div className="bg-white p-5 sm:p-6 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center">
-            <div>
-              <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wider">
+          {/* Card 2: Total Omset Bruto */}
+          <div className="bg-white p-5 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Total Omset Bruto
               </p>
-              <h2 className="text-2xl sm:text-3xl print:text-lg font-black text-gray-900 mt-1.5">
+              <h2 className="text-2xl print:text-lg font-black text-gray-900 mt-2 whitespace-nowrap tabular-nums">
                 {formatRupiah(branchStats.totalOmset)}
               </h2>
               <p className="text-xs text-gray-600 font-semibold mt-1.5">
-                Tunai: {formatRupiah(branchStats.tunaiOmset)} | QRIS: {formatRupiah(branchStats.qrisOmset)}
+                Tunai: {formatRupiah(branchStats.tunaiOmset)}
               </p>
             </div>
-            <div className="w-12 h-12 print:w-8 print:h-8 bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-2xl flex items-center justify-center text-xl print:text-sm shrink-0">
+            <div className="w-11 h-11 print:w-8 print:h-8 bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl flex items-center justify-center text-lg print:text-sm shrink-0">
               💵
             </div>
           </div>
 
-          <div className="bg-white p-5 sm:p-6 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center">
-            <div>
-              <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wider">
+          {/* Card 3: Pembayaran QRIS & Digital */}
+          <div className="bg-white p-5 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                Pembayaran QRIS Digital
+              </p>
+              <h2 className="text-2xl print:text-lg font-black text-gray-900 mt-2 whitespace-nowrap tabular-nums">
+                {formatRupiah(branchStats.qrisOmset)}
+              </h2>
+              <p className="text-xs text-gray-600 font-semibold mt-1.5">
+                {branchStats.qrisCount} Transaksi Non-Tunai
+              </p>
+            </div>
+            <div className="w-11 h-11 print:w-8 print:h-8 bg-amber-100 border border-amber-200 text-amber-800 rounded-xl flex items-center justify-center text-lg print:text-sm shrink-0">
+              📱
+            </div>
+          </div>
+
+          {/* Card 4: Transaksi Berhasil */}
+          <div className="bg-white p-5 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Transaksi Berhasil
               </p>
-              <h2 className="text-2xl sm:text-3xl print:text-lg font-black text-gray-900 mt-1.5">
+              <h2 className="text-2xl print:text-lg font-black text-gray-900 mt-2 whitespace-nowrap tabular-nums">
                 {branchStats.successCount}
               </h2>
-              <p className="text-xs text-emerald-700 font-bold mt-1.5">
+              <p className="text-xs text-emerald-700 font-semibold mt-1.5">
                 {branchStats.successRate} success rate
               </p>
             </div>
-            <div className="w-12 h-12 print:w-8 print:h-8 bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-2xl flex items-center justify-center text-xl print:text-sm shrink-0">
+            <div className="w-11 h-11 print:w-8 print:h-8 bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl flex items-center justify-center text-lg print:text-sm shrink-0">
               ✅
             </div>
           </div>
@@ -545,53 +608,41 @@ export default function DashboardPage() {
 
           {/* Table Container */}
           <div className="overflow-x-auto print:overflow-visible flex-1">
-            <table className="table-fixed w-[1340px] print:table-auto print:w-full print:text-[9px] text-left border-collapse text-xs sm:text-sm">
-              <colgroup>
-                <col className="w-[155px] print:w-auto" />
-                <col className="w-[125px] print:w-auto" />
-                <col className="w-[185px] print:w-auto" />
-                <col className="w-[150px] print:w-auto" />
-                <col className="w-[230px] print:w-auto" />
-                <col className="w-[105px] print:w-auto" />
-                <col className="w-[85px] print:w-auto" />
-                <col className="w-[115px] print:w-auto" />
-                <col className="w-[95px] print:w-auto" />
-                <col className="w-[100px] print:w-auto" />
-                <col className="w-[95px] print:w-auto" />
-              </colgroup>
+            <table className="w-full min-w-[1180px] print:min-w-0 print:w-full print:text-[9px] text-left border-collapse text-xs">
+              <colgroup><col className="w-[160px] min-w-[160px] print:w-auto" /><col className="w-[115px] min-w-[115px] print:w-auto" /><col className="w-[130px] min-w-[130px] print:w-auto" /><col className="w-[130px] print:w-auto" /><col className="print:w-auto" /><col className="w-[105px] print:w-auto" /><col className="w-[85px] print:w-auto" /><col className="w-[115px] print:w-auto" /><col className="w-[85px] print:w-auto" /><col className="w-[95px] print:w-auto" /><col className="w-[95px] print:w-auto" /></colgroup>
               <thead>
-                <tr className="border-y border-gray-200 bg-gray-50 text-gray-600 font-extrabold uppercase text-xs print:text-[9px] tracking-wider">
-                  <th className="py-3.5 px-4 print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
+                <tr className="border-y border-gray-200 bg-gray-50 text-gray-600 font-extrabold uppercase text-[11px] print:text-[9px] tracking-wider">
+                  <th className="py-3 pl-5 pr-3 w-[160px] min-w-[160px] print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
                     ID STRUK
                   </th>
-                  <th className="py-3.5 px-4 print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 w-[115px] min-w-[115px] print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
                     WAKTU
                   </th>
-                  <th className="py-3.5 px-4 print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 min-w-[130px] print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
                     CABANG
                   </th>
-                  <th className="py-3.5 px-4 print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
                     KASIR / TERMINAL
                   </th>
-                  <th className="py-3.5 px-4 print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
                     RINGKASAN ITEM
                   </th>
-                  <th className="py-3.5 px-4 print:px-1.5 print:py-2 text-right whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-right whitespace-nowrap print:whitespace-normal">
                     SUBTOTAL
                   </th>
-                  <th className="py-3.5 px-4 print:px-1.5 print:py-2 text-right whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-right whitespace-nowrap print:whitespace-normal">
                     DISKON
                   </th>
-                  <th className="py-3.5 px-4 print:px-1.5 print:py-2 text-right whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-right whitespace-nowrap print:whitespace-normal">
                     TOTAL AKHIR
                   </th>
-                  <th className="py-3.5 px-4 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal">
                     METODE
                   </th>
-                  <th className="py-3.5 px-4 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal">
                     STATUS
                   </th>
-                  <th className="py-3.5 px-4 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal print:hidden">
+                  <th className="py-3 pl-3 pr-5 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal print:hidden">
                     AKSI
                   </th>
                 </tr>
@@ -606,38 +657,40 @@ export default function DashboardPage() {
                 ) : (
                   displayedTransactions.map((tx) => (
                     <tr key={tx.id} className="hover:bg-amber-50/30 transition-colors">
-                      <td className="py-4 px-4 print:px-1.5 print:py-2 text-left font-extrabold text-gray-900 whitespace-nowrap print:whitespace-normal">
+                      <td className="py-3 pl-5 pr-3 print:px-1.5 print:py-2 text-left font-extrabold text-gray-900 whitespace-nowrap print:whitespace-normal">
                         {tx.id}
                       </td>
-                      <td className="py-4 px-4 print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
+                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
                         <div className="font-bold text-gray-900">{tx.time} WIB</div>
-                        <div className="text-xs print:text-[9px] text-gray-500 font-medium">{tx.date}</div>
+                        <div className="text-[11px] print:text-[9px] text-gray-500 font-medium">{tx.date}</div>
                       </td>
-                      <td className="py-4 px-4 print:px-1.5 print:py-2 text-left font-bold text-gray-900 whitespace-nowrap print:whitespace-normal">
-                        {getTransactionBranch(tx)}
+                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-left font-bold text-gray-900 whitespace-nowrap print:whitespace-normal">
+                        {getTransactionBranch(tx).replace('Cabang ', '')}
                       </td>
-                      <td className="py-4 px-4 print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
+                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
                         <div className="font-bold text-gray-900">{tx.cashier}</div>
-                        <div className="text-xs print:text-[9px] text-gray-500 font-medium">{tx.terminal}</div>
+                        <div className="text-[11px] print:text-[9px] text-gray-500 font-medium">{tx.terminal}</div>
                       </td>
-                      <td className="py-4 px-4 print:px-1.5 print:py-2 text-left print:whitespace-normal">
-                        <div className="font-bold text-gray-900">{tx.itemsSummary}</div>
-                        <div className="text-xs print:text-[9px] text-emerald-700 font-bold mt-0.5">
+                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-left print:whitespace-normal">
+                        <div className="font-bold text-gray-900 truncate max-w-[260px] print:max-w-none" title={tx.itemsSummary}>
+                          {tx.itemsSummary}
+                        </div>
+                        <div className="text-[11px] print:text-[9px] text-emerald-700 font-bold mt-0.5">
                           {tx.totalItems} item total
                         </div>
                       </td>
-                      <td className="py-4 px-4 print:px-1.5 print:py-2 text-right font-semibold text-gray-700 whitespace-nowrap print:whitespace-normal">
+                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-right font-semibold text-gray-700 whitespace-nowrap tabular-nums print:whitespace-normal">
                         {formatRupiah(tx.subtotal)}
                       </td>
-                      <td className="py-4 px-4 print:px-1.5 print:py-2 text-right text-gray-500 font-medium whitespace-nowrap print:whitespace-normal">
+                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-right text-gray-500 font-medium whitespace-nowrap tabular-nums print:whitespace-normal">
                         {tx.diskon === 0 ? 'Rp 0' : formatRupiah(tx.diskon)}
                       </td>
-                      <td className="py-4 px-4 print:px-1.5 print:py-2 text-right font-extrabold text-gray-900 whitespace-nowrap print:whitespace-normal">
+                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-right font-extrabold text-gray-900 whitespace-nowrap tabular-nums print:whitespace-normal">
                         {formatRupiah(tx.total)}
                       </td>
-                      <td className="py-4 px-4 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal">
+                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal">
                         <span
-                          className={`inline-block font-extrabold text-xs print:text-[9px] px-3 py-1 print:px-1.5 print:py-0.5 rounded-lg border ${
+                          className={`inline-block font-extrabold text-[11px] print:text-[9px] px-2.5 py-0.5 print:px-1.5 print:py-0.5 rounded-lg border ${
                             tx.paymentMethod === 'QRIS'
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                               : 'bg-blue-50 text-blue-800 border-blue-300'
@@ -646,9 +699,9 @@ export default function DashboardPage() {
                           {tx.paymentMethod}
                         </span>
                       </td>
-                      <td className="py-4 px-4 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal">
+                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal">
                         <span
-                          className={`inline-block font-extrabold text-xs print:text-[9px] px-3 py-1 print:px-1.5 print:py-0.5 rounded-lg border ${
+                          className={`inline-block font-extrabold text-[11px] print:text-[9px] px-2.5 py-0.5 print:px-1.5 print:py-0.5 rounded-lg border ${
                             tx.status === 'Berhasil'
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
                               : 'bg-red-50 text-red-700 border-red-300'
@@ -657,23 +710,23 @@ export default function DashboardPage() {
                           {tx.status}
                         </span>
                       </td>
-                      <td className="py-4 px-4 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal print:hidden">
-                        <div className="inline-flex items-center gap-1.5">
+                      <td className="py-3 pl-3 pr-5 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal print:hidden">
+                        <div className="inline-flex items-center gap-1">
                           <button
                             type="button"
                             onClick={() => handlePrintReceipt(tx.id)}
-                            className="p-2 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 hover:text-gray-900 cursor-pointer transition"
+                            className="p-1.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 hover:text-gray-900 cursor-pointer transition"
                             title="Cetak Struk"
                           >
-                            <Printer size={14} />
+                            <Printer size={13} />
                           </button>
                           <button
                             type="button"
                             onClick={() => setSelectedTx(tx)}
-                            className="p-2 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 hover:text-gray-900 cursor-pointer transition"
+                            className="p-1.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 hover:text-gray-900 cursor-pointer transition"
                             title="Lihat Detail"
                           >
-                            <Eye size={14} />
+                            <Eye size={13} />
                           </button>
                         </div>
                       </td>
@@ -686,20 +739,20 @@ export default function DashboardPage() {
                   <tr className="border-t-2 border-gray-300 bg-gray-50/90 font-extrabold text-gray-900">
                     <td
                       colSpan={7}
-                      className="py-3.5 px-4 print:px-1.5 print:py-2 text-left text-xs print:text-[9px] uppercase tracking-wider text-gray-700"
+                      className="py-3 pl-5 pr-3 print:px-1.5 print:py-2 text-left text-xs print:text-[9px] uppercase tracking-wider text-gray-700"
                     >
                       Total Rekapitulasi ({displayedTransactions.length} transaksi)
                     </td>
-                    <td className="py-3.5 px-4 print:px-1.5 print:py-2 text-right font-black text-[#EA8E18] whitespace-nowrap print:whitespace-normal">
+                    <td className="py-3 px-3 print:px-1.5 print:py-2 text-right font-black text-[#EA8E18] whitespace-nowrap tabular-nums print:whitespace-normal">
                       {formatRupiah(displayedTotalNominal)}
                     </td>
                     <td
                       colSpan={2}
-                      className="py-3.5 px-4 print:px-1.5 print:py-2 text-center text-[11px] print:text-[8px] font-bold text-emerald-700"
+                      className="py-3 px-3 print:px-1.5 print:py-2 text-center text-[11px] print:text-[8px] font-bold text-emerald-700 whitespace-nowrap"
                     >
                       Transaksi Berhasil
                     </td>
-                    <td className="py-3.5 px-4 print:hidden"></td>
+                    <td className="py-3 pl-3 pr-5 print:hidden"></td>
                   </tr>
                 </tfoot>
               )}
@@ -714,6 +767,25 @@ export default function DashboardPage() {
             Total Data Tercetak: {displayedTransactions.length} Transaksi ({selectedBranch})
           </span>
         </div>
+
+        {/* FOOTER SYSTEM */}
+        <footer className="print:hidden pt-3 pb-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-600 font-medium gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-extrabold text-[#EA8E18]">
+              PrekDuaDara POS v2.4
+            </span>
+            <span>•</span>
+            <span>Terminal Counter #01</span>
+            <span>•</span>
+            <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              MySQL (prekduadara_db) Terhubung
+            </span>
+          </div>
+          <div>
+            &copy; 2026 PrekDuaDara Quick-Service Culinary. All rights reserved.
+          </div>
+        </footer>
       </main>
     </div>
   );

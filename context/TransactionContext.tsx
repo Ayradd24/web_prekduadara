@@ -328,7 +328,8 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
       // Filter Terminal
       const matchTerminal =
-        filterTerminal === 'Semua' || tx.terminal.includes(filterTerminal);
+        filterTerminal === 'Semua' ||
+        tx.terminal.toLowerCase().includes(filterTerminal.toLowerCase());
 
       // Filter Status
       const matchStatus =

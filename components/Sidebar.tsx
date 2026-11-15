@@ -17,7 +17,9 @@ const menuItems: MenuItem[] = [
     href: '/dashboard',
     icon: (
       <svg
-        className="w-5 h-5 shrink-0"
+        width={18}
+        height={18}
+        className="w-[18px] h-[18px] shrink-0"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -37,7 +39,9 @@ const menuItems: MenuItem[] = [
     href: '/dashboard/transaksi',
     icon: (
       <svg
-        className="w-5 h-5 shrink-0"
+        width={18}
+        height={18}
+        className="w-[18px] h-[18px] shrink-0"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -53,11 +57,13 @@ const menuItems: MenuItem[] = [
     ),
   },
   {
-    name: 'Management stok',
+    name: 'Manajemen Stok',
     href: '/dashboard/stok',
     icon: (
       <svg
-        className="w-5 h-5 shrink-0"
+        width={18}
+        height={18}
+        className="w-[18px] h-[18px] shrink-0"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -72,11 +78,13 @@ const menuItems: MenuItem[] = [
     ),
   },
   {
-    name: 'Management kasir & shift',
+    name: 'Manajemen Kasir & Shift',
     href: '/dashboard/kasir-shift',
     icon: (
       <svg
-        className="w-5 h-5 shrink-0"
+        width={18}
+        height={18}
+        className="w-[18px] h-[18px] shrink-0"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -97,7 +105,9 @@ const menuItems: MenuItem[] = [
     href: '/dashboard/pengaturan',
     icon: (
       <svg
-        className="w-5 h-5 shrink-0"
+        width={18}
+        height={18}
+        className="w-[18px] h-[18px] shrink-0"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -124,7 +134,7 @@ export default function Sidebar() {
       {/* Sidebar Fixed: Paten di posisi kiri layar, tidak goyah saat di-scroll maupun pindah halaman */}
       <aside className="fixed top-4 bottom-4 left-4 sm:top-6 sm:bottom-6 sm:left-6 z-40 w-64 lg:w-72 bg-[#2D4F2A] rounded-2xl p-4 flex flex-col gap-3 text-white shrink-0 hidden md:flex select-none shadow-lg overflow-y-auto">
         {/* Header Navigasi */}
-        <div className="bg-[#5C7D55] text-white py-3 px-4 rounded-xl text-center font-bold text-sm tracking-wide shadow-sm">
+        <div className="bg-[#5C7D55] text-white h-11 px-4 rounded-xl flex items-center justify-center font-bold text-xs uppercase tracking-wider shadow-sm">
           Navigasi Utama
         </div>
 
@@ -137,7 +147,7 @@ export default function Sidebar() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`py-3 px-4 rounded-xl text-left text-sm font-bold flex items-center gap-3 transition-colors duration-150 cursor-pointer border ${isActive
+                className={`h-11 px-3.5 rounded-xl text-left text-sm font-bold flex items-center gap-2.5 transition-colors duration-150 cursor-pointer border ${isActive
                   ? /* Kolom Kanan: Saat Dipencet / Terpilih (Active/Pressed - Olive Gold Kalem) */
                   'bg-gradient-to-b from-[#BAA66D] via-[#A18F57] to-[#887844] text-[#17371C] shadow-inner border-[#7D6B38]/50'
                   : /* Kolom Kiri: Saat Idle / Default (Oranye Emas Cerah) */
