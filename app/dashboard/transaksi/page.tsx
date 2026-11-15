@@ -87,7 +87,7 @@ interface BranchProfile {
   weekendSplit: [number, number, number];
   stockInsightBoost: string;
   heatmapMaxCap: string;
-  categoryShares: number[];
+  categoryShares: [number, number]; // [Ayam Geprek Bakar, Ayam Geprek Biasa]
   hourlyCurveWeights: number[]; // 13 jam operasional (09:00 - 22:00)
   heatmapSlotWeights: [number, number, number, number, number, number];
   heatmapWeekendBoost: number;
@@ -145,7 +145,7 @@ const BRANCH_PROFILES: Record<string, BranchProfile> = {
     weekendSplit: [48, 36, 16],
     stockInsightBoost: "30% pada hari Senin & Kamis pagi",
     heatmapMaxCap: "96% terisi saat Jumat Siang",
-    categoryShares: [60, 40],
+    categoryShares: [62, 38],
     hourlyCurveWeights: [
       1.15, 1.2, 1.28, 1.35, 1.38, 1.15, 0.95, 0.9, 0.88, 0.82, 0.78, 0.72,
       0.68,
@@ -175,7 +175,7 @@ const BRANCH_PROFILES: Record<string, BranchProfile> = {
     weekendSplit: [38, 48, 14],
     stockInsightBoost: "40% pada hari Jumat pagi",
     heatmapMaxCap: "92% terisi saat Sabtu Malam",
-    categoryShares: [55, 45],
+    categoryShares: [54, 46],
     hourlyCurveWeights: [
       0.85, 0.9, 0.95, 0.92, 0.94, 1.0, 1.05, 1.14, 1.22, 1.28, 1.2, 1.1, 1.05,
     ],
@@ -204,7 +204,7 @@ const BRANCH_PROFILES: Record<string, BranchProfile> = {
     weekendSplit: [50, 34, 16],
     stockInsightBoost: "50% pada hari Jumat sore",
     heatmapMaxCap: "95% terisi saat Sabtu & Minggu Malam",
-    categoryShares: [57, 43],
+    categoryShares: [56, 44],
     hourlyCurveWeights: [
       0.75, 0.8, 0.86, 0.84, 0.86, 0.96, 1.08, 1.18, 1.28, 1.36, 1.3, 1.2, 1.14,
     ],
@@ -316,8 +316,8 @@ const CATEGORY_META = [
     name: "Ayam Geprek Bakar + Es Teh",
   },
   {
-    color: "bg-[#EA580C]",
-    stroke: "#EA580C",
+    color: "bg-[#EA8E18]",
+    stroke: "#EA8E18",
     name: "Ayam Geprek Biasa + Es Teh",
   },
 ];
@@ -466,8 +466,9 @@ export default function TransaksiPage() {
     []
   );
 
-  // State Kontrol Header (Periode, Rentang Kustom, Sync POS)
-  const [selectedBranch] = useState<string>("Semua Cabang");
+  // State Kontrol Header (Cabang, Periode, Rentang Kustom, Sync POS)
+  const [selectedBranch, setSelectedBranch] = useState<string>("Semua Cabang");
+  const [showBranchMenu, setShowBranchMenu] = useState<boolean>(false);
   const [selectedPeriod, setSelectedPeriod] = useState<string>("Bulan Ini");
   const [customStartDate, setCustomStartDate] =
     useState<string>(firstDayOfMonthStr);
@@ -494,22 +495,68 @@ export default function TransaksiPage() {
     occ: number;
   } | null>(null);
 
-  // State Tabel, Pagination & Modal Detail Struk (Sinkron dengan Ringkasan)
+  // State Tabel, Filter, Pagination & Modal Detail Struk
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const branchDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Reset page saat filter/search berubah
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, filterPayment, filterTerminal, filterStatus]);
+
+  const displayedTransactions = filteredTransactions;
+  const ITEMS_PER_PAGE = 5;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(displayedTransactions.length / ITEMS_PER_PAGE)
+  );
+  const activePage = Math.min(currentPage, totalPages);
+
+  const paginatedTransactions = useMemo(() => {
+    const start = (activePage - 1) * ITEMS_PER_PAGE;
+    return displayedTransactions.slice(start, start + ITEMS_PER_PAGE);
+  }, [displayedTransactions, activePage]);
+
+  const displayedTotalNominal = useMemo(() => {
+    return displayedTransactions.reduce(
+      (acc, tx) => (tx.status === "Berhasil" ? acc + tx.total : acc),
+      0
+    );
+  }, [displayedTransactions]);
+
+  const handleResetAllFilters = () => {
+    resetFilters();
+    setCurrentPage(1);
+  };
+
+  const handlePrintReceipt = (id: string) => {
+    showToast(`Mengirim struk ${id} ke printer thermal...`);
+  };
 
   useEffect(() => {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, "0");
     const minutes = String(now.getMinutes()).padStart(2, "0");
     setLastSyncTime(`${hours}:${minutes} WIB`);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        branchDropdownRef.current &&
+        !branchDropdownRef.current.contains(target)
+      ) {
+        setShowBranchMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   const showToast = (msg: string) => {
@@ -532,51 +579,20 @@ export default function TransaksiPage() {
 
   const formatRupiah = (val: number) => "Rp " + val.toLocaleString("id-ID");
 
-  // Single Source of Truth: Ambil seluruh daftar transaksi langsung dari TransactionContext
-  const allCombinedOrders = useMemo<RecentOrderRow[]>(() => {
-    const sourceTx =
-      transactions && transactions.length > 0
-        ? transactions
-        : filteredTransactions;
-    return sourceTx.map((tx) => ({
-      id: tx.id,
-      time: tx.time.includes("WIB") ? tx.time : `${tx.time} WIB`,
-      date: tx.date,
-      relativeTime: tx.relativeTime || tx.date || "Hari ini",
-      mainMenu: tx.itemsSummary,
-      addons: tx.addons || "+ Sambal Uleg Asli",
-      portions: tx.totalItems,
-      branch: "Gerai Utama",
-      cashier: tx.cashier,
-      terminal: tx.terminal,
-      paymentMethod: tx.paymentMethod,
-      paymentBadge:
-        tx.paymentMethod === "QRIS" ? "QRIS Dinamis" : "Tunai / Cash",
-      orderType: tx.orderType || "Dine-In",
-      subtotal: tx.subtotal,
-      diskon: tx.diskon,
-      total: tx.total,
-      status: tx.status,
-    }));
-  }, [transactions, filteredTransactions]);
-
-  // Data transaksi gerai utama (tanpa pembagian cabang)
-  const branchFilteredOrders = allCombinedOrders;
-
-  // Akumulasi kontribusi aktual dari transaksi aktif di TransactionContext sesuai cabang
+  // Akumulasi kontribusi aktual dari transaksi aktif di TransactionContext
   const liveBranchContextTotals = useMemo(() => {
     let omzet = 0;
     let porsi = 0;
     let txCount = 0;
-    branchFilteredOrders.forEach((row) => {
-      if (row.status === "Berhasil") {
-        omzet += row.total;
-        porsi += row.portions;
+    transactions.forEach((tx) => {
+      if (tx.status === "Berhasil") {
+        omzet += tx.total;
+        porsi += tx.totalItems;
         txCount += 1;
       }
     });
     return { omzet, porsi, txCount };
-  }, [branchFilteredOrders]);
+  }, [transactions]);
 
   // Hitung jumlah hari inklusif pada rentang tanggal Kustom yang telah diterapkan
   const customDays = useMemo(() => {
@@ -678,7 +694,7 @@ export default function TransaksiPage() {
     let allocatedQty = 0;
 
     const categories = CATEGORY_META.map((meta, idx) => {
-      const share = branchProfile.categoryShares[idx] ?? (idx === 0 ? 58 : 42);
+      const share = branchProfile.categoryShares[idx];
       const arcLen = Number(((share / 100) * circumference).toFixed(2));
       const dashOffset =
         idx === 0 ? "0" : `-${cumulativeArc.toFixed(2)}`;
@@ -951,58 +967,26 @@ export default function TransaksiPage() {
     );
   };
 
-  // Hitung jumlah metode bayar secara akurat dari data cabang yang sedang aktif
-  // Sinkronisasi data rincian penjualan dengan Ringkasan
-  const displayedTransactions = filteredTransactions;
-  const totalPages = Math.max(
-    1,
-    Math.ceil(displayedTransactions.length / ITEMS_PER_PAGE)
-  );
-  const activeTxPage = Math.min(currentPage, totalPages);
-
-  const paginatedTransactions = useMemo(() => {
-    const start = (activeTxPage - 1) * ITEMS_PER_PAGE;
-    return displayedTransactions.slice(start, start + ITEMS_PER_PAGE);
-  }, [displayedTransactions, activeTxPage]);
-
-  const displayedTotalNominal = useMemo(() => {
-    return displayedTransactions.reduce(
-      (acc, tx) => (tx.status === "Berhasil" ? acc + tx.total : acc),
-      0
-    );
-  }, [displayedTransactions]);
-
-  const handleResetAllFilters = () => {
-    resetFilters();
-    setCurrentPage(1);
-  };
-
-  const handlePrintReceipt = (id: string) => {
-    showToast(`Mengirim struk ${id} ke printer thermal...`);
-  };
-
-  // Fungsi Export CSV kompatibel Microsoft Excel (UTF-8 BOM) tanpa Cabang & Diskon
+  // Fungsi Export CSV kompatibel Microsoft Excel (UTF-8 BOM)
   const handleExportExcel = () => {
     const headers = [
       "ID Struk",
       "Waktu",
-      "Tanggal",
       "Kasir",
       "Ringkasan Item",
       "Subtotal",
       "Total Akhir",
-      "Metode Bayar",
-      "Status Transaksi",
+      "Metode",
+      "Status",
     ];
 
     const rows = displayedTransactions.map((tx) => [
       tx.id,
-      `${tx.time} WIB`,
-      tx.date,
+      `${tx.date}, ${tx.time} WIB`,
       tx.cashier,
       `${tx.itemsSummary} (${tx.totalItems} item)`,
-      tx.subtotal,
-      tx.total,
+      formatRupiah(tx.subtotal),
+      formatRupiah(tx.total),
       tx.paymentMethod,
       tx.status,
     ]);
@@ -1022,14 +1006,14 @@ export default function TransaksiPage() {
     link.href = url;
     link.setAttribute(
       "download",
-      `Laporan_Transaksi_PrekDuaDara_${new Date().toISOString().slice(0, 10)}.csv`
+      `Laporan_Transaksi_PrekDuaDara_${new Date().toISOString().split("T")[0]}.csv`
     );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    showToast("Laporan transaksi berhasil diunduh (Excel .csv)!");
+    showToast("Laporan transaksi berhasil diunduh!");
   };
 
   const getHeatmapCellStyle = (level: string) => {
@@ -1071,38 +1055,30 @@ export default function TransaksiPage() {
         </div>
       )}
 
-      {/* Modal Detail Struk Transaksi POS (Persis & Sinkron dengan Ringkasan) */}
+      {/* MODAL PREVIEW STRUK THERMAL 80MM */}
       {selectedTx && (
-        <div
-          className="print:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
-          onClick={() => setSelectedTx(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-sm overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl border border-gray-200 animate-in fade-in zoom-in-95 duration-150">
             {/* Header Modal */}
             <div className="bg-[#2D452B] text-white px-5 py-3.5 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Printer size={16} className="text-[#EA8E18]" />
-                <span className="font-extrabold text-xs uppercase tracking-wider">
-                  Preview Struk Thermal (80mm)
-                </span>
+              <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider">
+                <Printer size={16} />
+                <span>Preview Struk Thermal (80mm)</span>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedTx(null)}
-                className="text-gray-300 hover:text-white transition p-1 rounded-lg"
+                className="text-white/80 hover:text-white p-1 rounded-lg cursor-pointer transition"
               >
                 <X size={16} />
               </button>
             </div>
 
-            {/* Isi Struk POS */}
-            <div className="p-5 bg-[#FAF8F3]">
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs font-mono text-xs text-gray-800">
-                {/* Header Struk */}
-                <div className="text-center border-b border-dashed border-gray-300 pb-3.5 mb-3.5">
+            {/* Konten Kertas Struk Thermal */}
+            <div className="p-5 bg-[#FCFBF7] font-mono text-xs">
+              <div className="border border-gray-300 bg-white p-4 rounded-xl shadow-xs">
+                {/* Logo & Judul Struk */}
+                <div className="text-center pb-3 border-b border-dashed border-gray-300 mb-3.5">
                   <div className="font-black text-sm text-gray-900 tracking-wider">
                     PREKDUADARA
                   </div>
@@ -1213,9 +1189,9 @@ export default function TransaksiPage() {
                   handlePrintReceipt(selectedTx.id);
                   setSelectedTx(null);
                 }}
-                className="px-4 py-2 bg-[#2D452B] hover:bg-[#223520] text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition cursor-pointer"
+                className="px-4 py-2 bg-[#2D452B] hover:bg-[#223520] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
               >
-                <Printer size={13} />
+                <Printer size={14} />
                 <span>Cetak Struk</span>
               </button>
             </div>
@@ -1524,7 +1500,7 @@ export default function TransaksiPage() {
                 </div>
                 <p className="text-xs text-gray-600 font-medium mt-1 pl-5">
                   Arahkan kursor atau klik pada titik jam (09:00 - 22:00 WIB) •{" "}
-                  <strong className="text-gray-800">PrekDuaDara</strong> (
+                  <strong className="text-gray-800">{selectedBranch}</strong> (
                   {activeMetrics.periodBadge})
                 </p>
               </div>
@@ -1966,7 +1942,7 @@ export default function TransaksiPage() {
                   Komparasi Penjualan Hari Kerja vs Weekend
                 </h3>
                 <p className="text-xs text-gray-600 font-medium mt-1">
-                  Rata-rata penjualan harian • PrekDuaDara (
+                  Rata-rata penjualan harian • {selectedBranch} (
                   {activeMetrics.periodBadge})
                 </p>
               </div>
@@ -2075,7 +2051,7 @@ export default function TransaksiPage() {
             <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-4">
               <div className="flex items-center gap-2 text-xs font-extrabold text-[#1E562F]">
                 <Info size={15} className="text-emerald-700 shrink-0" />
-                <span>Insight Pengadaan Stok:</span>
+                <span>Insight Pengadaan Stok ({selectedBranch}):</span>
               </div>
               <p className="text-xs text-gray-700 font-medium mt-1 leading-relaxed">
                 Persediaan fillet ayam potong dan stok cabai rawit disarankan
@@ -2112,7 +2088,7 @@ export default function TransaksiPage() {
                       </span>
                     </span>
                   ) : (
-                    `Frekuensi struk & okupansi meja (PrekDuaDara • ${activeMetrics.periodBadge})`
+                    `Frekuensi struk & okupansi meja (${selectedBranch} • ${activeMetrics.periodBadge})`
                   )}
                 </p>
               </div>
@@ -2214,17 +2190,21 @@ export default function TransaksiPage() {
           </div>
         </section>
 
-        {/* BOTTOM TABLE: RINCIAN TRANSAKSI PENJUALAN TERKINI BERDASARKAN WAKTU (SINKRON DENGAN RINGKASAN) */}
-        <section className="bg-white rounded-2xl p-5 sm:p-6 print:p-3 border border-gray-200 shadow-sm print:shadow-none flex flex-col gap-4">
-          {/* Header */}
-          <div className="flex items-center gap-2.5">
-            <span className="w-3 h-3 rounded-full bg-emerald-600 shrink-0"></span>
-            <h3 className="font-extrabold text-base sm:text-lg text-gray-900">
-              Rincian Transaksi Penjualan Terkini Berdasarkan Waktu
-            </h3>
+        {/* BOTTOM TABLE: RINCIAN TRANSAKSI PENJUALAN TERKINI (SINKRON DENGAN RINGKASAN) */}
+        <section className="bg-white rounded-2xl p-5 sm:p-6 print:p-3 border border-gray-200 shadow-sm print:shadow-none flex flex-col gap-4 min-h-[430px] print:min-h-0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+            <div className="flex items-center gap-2.5">
+              <span className="w-3 h-3 rounded-full bg-emerald-600 shrink-0"></span>
+              <h3 className="font-extrabold text-base sm:text-lg text-gray-900">
+                Rincian Transaksi Penjualan Terkini
+              </h3>
+            </div>
+            <p className="text-xs text-gray-600 font-medium">
+              Sinkronisasi real-time dengan database POS ({displayedTransactions.length} transaksi)
+            </p>
           </div>
 
-          {/* Filter Bar (Persis & Sinkron dengan Halaman Ringkasan) */}
+          {/* Filter Bar */}
           <div className="print:hidden flex flex-wrap lg:flex-nowrap items-center gap-2.5 w-full">
             <input
               type="text"
@@ -2290,7 +2270,7 @@ export default function TransaksiPage() {
             </button>
           </div>
 
-          {/* Table Container (Tanpa Horizontal Scroll & Lebar Proporsional) */}
+          {/* Table Container */}
           <div className="overflow-x-auto print:overflow-visible flex-1">
             <table className="w-full min-w-full print:text-[9px] text-left border-collapse text-xs">
               <thead>
@@ -2327,25 +2307,40 @@ export default function TransaksiPage() {
               <tbody className="divide-y divide-gray-200 text-gray-800">
                 {paginatedTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="h-[280px] text-center text-gray-500 font-medium align-middle">
+                    <td
+                      colSpan={9}
+                      className="h-[280px] text-center text-gray-500 font-medium align-middle"
+                    >
                       Tidak ada transaksi yang cocok dengan filter.
                     </td>
                   </tr>
                 ) : (
                   paginatedTransactions.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-amber-50/30 transition-colors">
+                    <tr
+                      key={tx.id}
+                      className="hover:bg-amber-50/30 transition-colors"
+                    >
                       <td className="py-3 pl-3.5 pr-2 text-left font-extrabold text-gray-900 whitespace-nowrap">
                         {tx.id}
                       </td>
                       <td className="py-3 px-2 text-left whitespace-nowrap">
-                        <div className="font-bold text-gray-900">{tx.time} WIB</div>
-                        <div className="text-[11px] text-gray-500 font-medium">{tx.date}</div>
+                        <div className="font-bold text-gray-900">
+                          {tx.time} WIB
+                        </div>
+                        <div className="text-[11px] text-gray-500 font-medium">
+                          {tx.date}
+                        </div>
                       </td>
                       <td className="py-3 px-2 text-left whitespace-nowrap">
-                        <div className="font-bold text-gray-900">{tx.cashier}</div>
+                        <div className="font-bold text-gray-900">
+                          {tx.cashier}
+                        </div>
                       </td>
                       <td className="py-3 px-2.5 text-left">
-                        <div className="font-bold text-gray-900 truncate max-w-[240px]" title={tx.itemsSummary}>
+                        <div
+                          className="font-bold text-gray-900 truncate max-w-[240px]"
+                          title={tx.itemsSummary}
+                        >
                           {tx.itemsSummary}
                         </div>
                         <div className="text-[11px] text-emerald-700 font-bold mt-0.5">
@@ -2361,9 +2356,9 @@ export default function TransaksiPage() {
                       <td className="py-3 px-2 text-center whitespace-nowrap">
                         <span
                           className={`inline-block font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg border ${
-                            tx.paymentMethod === 'QRIS'
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                              : 'bg-blue-50 text-blue-800 border-blue-300'
+                            tx.paymentMethod === "QRIS"
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                              : "bg-blue-50 text-blue-800 border-blue-300"
                           }`}
                         >
                           {tx.paymentMethod}
@@ -2372,9 +2367,9 @@ export default function TransaksiPage() {
                       <td className="py-3 px-2 text-center whitespace-nowrap">
                         <span
                           className={`inline-block font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg border ${
-                            tx.status === 'Berhasil'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                              : 'bg-red-50 text-red-700 border-red-300'
+                            tx.status === "Berhasil"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                              : "bg-red-50 text-red-700 border-red-300"
                           }`}
                         >
                           {tx.status}
@@ -2411,7 +2406,8 @@ export default function TransaksiPage() {
                       colSpan={5}
                       className="py-2.5 pl-3.5 pr-2 text-left text-xs uppercase tracking-wider text-gray-700"
                     >
-                      Total Rekapitulasi ({displayedTransactions.length} transaksi)
+                      Total Rekapitulasi ({displayedTransactions.length}{" "}
+                      transaksi)
                     </td>
                     <td className="py-2.5 px-2 text-right font-black text-[#EA8E18] whitespace-nowrap tabular-nums">
                       {formatRupiah(displayedTotalNominal)}
@@ -2429,7 +2425,7 @@ export default function TransaksiPage() {
             </table>
           </div>
 
-          {/* Pagination Bar */}
+          {/* Pagination Row */}
           <div className="print:hidden pt-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-600 font-medium">
             <div>
               Menampilkan{" "}
@@ -2446,31 +2442,35 @@ export default function TransaksiPage() {
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                disabled={activeTxPage <= 1}
+                disabled={activePage <= 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 className="px-3.5 py-1.5 border border-gray-300 rounded-lg text-gray-600 font-semibold hover:text-gray-900 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
               >
                 Sebelumnya
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  type="button"
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-8 h-8 rounded-lg font-bold text-xs transition cursor-pointer ${
-                    activeTxPage === page
-                      ? "bg-[#1E562F] text-white"
-                      : "border border-gray-300 text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 rounded-lg font-extrabold transition cursor-pointer ${
+                      activePage === page
+                        ? "bg-[#1E3A1C] text-white"
+                        : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )
+              )}
               <button
                 type="button"
-                disabled={activeTxPage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                className="px-3.5 py-1.5 border border-gray-300 rounded-lg text-gray-600 font-semibold hover:text-gray-900 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
+                disabled={activePage >= totalPages}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                className="px-3.5 py-1.5 border border-gray-300 rounded-lg text-gray-800 font-bold hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
               >
                 Selanjutnya
               </button>
