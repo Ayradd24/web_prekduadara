@@ -506,6 +506,13 @@ export default function StokPage() {
     Record<SingleBranchName, InventoryDetailItem[]>
   >(() => createInitialBranchInventories(stokList));
 
+  // Sinkronisasi otomatis saat data backend MariaDB diperbarui
+  useEffect(() => {
+    if (stokList && stokList.length > 0) {
+      setBranchInventories(createInitialBranchInventories(stokList));
+    }
+  }, [stokList]);
+
   const [branchLogs, setBranchLogs] = useState<
     Record<SingleBranchName, MutationLog[]>
   >(INITIAL_BRANCH_LOGS);
@@ -2008,60 +2015,22 @@ export default function StokPage() {
             </div>
           </div>
 
-          {/* Right Controls: Interactive Branch Selector, Online Sync & Profile */}
+          {/* Right Controls: Online Sync & Admin Owner Profile */}
           <div className="print:hidden flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
-            {/* Interactive Branch Dropdown with Click-Outside Ref */}
-            <div ref={branchDropdownRef} className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowBranchMenu((prev) => !prev)}
-                className="h-9 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 flex items-center gap-2 bg-[#F8F9FA] border border-gray-200 text-gray-800 cursor-pointer hover:bg-gray-100 transition"
-              >
-                <Store size={14} className="text-[#EA8E18] shrink-0" />
-                <span>{selectedBranch}</span>
-                <ChevronDown size={14} className="text-gray-500 shrink-0" />
-              </button>
-
-              {showBranchMenu && (
-                <div className="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-30 text-xs">
-                  {BRANCH_OPTIONS.map((branch) => (
-                    <button
-                      key={branch}
-                      type="button"
-                      onClick={() => {
-                        setSelectedBranch(branch);
-                        setActivePage(1);
-                        setShowBranchMenu(false);
-                        showToast(`Menampilkan inventaris dapur: ${branch}`);
-                      }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-2 hover:bg-amber-50/60 transition cursor-pointer ${
-                        selectedBranch === branch
-                          ? "font-extrabold text-[#EA8E18] bg-amber-50/40"
-                          : "font-semibold text-gray-700"
-                      }`}
-                    >
-                      <Store size={13} className="shrink-0" />
-                      <span>{branch}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Online Sync Pill */}
             <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
-            {/* User Profile */}
+            {/* User Profile: Admin / Owner */}
             <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
               <div className="text-right">
                 <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
-                  Rian Pratama
+                  Admin
                 </div>
                 <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
-                  Supervisor Kasir
+                  Owner
                 </div>
               </div>
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">

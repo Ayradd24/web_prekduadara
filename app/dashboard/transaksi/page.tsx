@@ -576,7 +576,7 @@ export default function TransaksiPage() {
       mainMenu: tx.itemsSummary,
       addons: tx.addons || `+ Sambal Uleg Asli (${tx.terminal})`,
       portions: tx.totalItems,
-      branch: tx.branch || resolveBranchFromTerminal(tx.terminal),
+      branch: "Gerai Utama",
       cashier: tx.cashier,
       terminal: tx.terminal,
       paymentMethod: tx.paymentMethod,
@@ -590,11 +590,8 @@ export default function TransaksiPage() {
     }));
   }, [transactions, filteredTransactions]);
 
-  // Filter berdasarkan Cabang yang sedang dipilih
-  const branchFilteredOrders = useMemo(() => {
-    if (selectedBranch === "Semua Cabang") return allCombinedOrders;
-    return allCombinedOrders.filter((row) => row.branch === selectedBranch);
-  }, [allCombinedOrders, selectedBranch]);
+  // Data transaksi gerai utama (tanpa pembagian cabang)
+  const branchFilteredOrders = allCombinedOrders;
 
   // Akumulasi kontribusi aktual dari transaksi aktif di TransactionContext sesuai cabang
   const liveBranchContextTotals = useMemo(() => {
@@ -1317,62 +1314,22 @@ export default function TransaksiPage() {
             </div>
           </div>
 
-          {/* Right Controls: Branch Selector, Online Sync & User Profile */}
+          {/* Right Controls: Online Sync & Admin Owner Profile */}
           <div className="print:hidden flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
-            {/* Interactive Branch Dropdown */}
-            <div className="relative shrink-0" ref={branchDropdownRef}>
-              <button
-                type="button"
-                onClick={() => setShowBranchMenu((prev) => !prev)}
-                className="h-9 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 flex items-center gap-2 bg-[#F8F9FA] border border-gray-200 text-gray-800 hover:bg-gray-100 transition cursor-pointer"
-              >
-                <Store size={14} className="text-[#EA8E18] shrink-0" />
-                <span>{selectedBranch}</span>
-                <ChevronDown size={14} className="text-gray-500 shrink-0" />
-              </button>
-
-              {showBranchMenu && (
-                <div className="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-30 text-xs">
-                  {BRANCH_OPTIONS.map((branch) => (
-                    <button
-                      key={branch}
-                      type="button"
-                      onClick={() => {
-                        setSelectedBranch(branch);
-                        setShowBranchMenu(false);
-                        setActivePage(1);
-                        showToast(
-                          `Menampilkan analitik & transaksi: ${branch}`
-                        );
-                      }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-2 hover:bg-amber-50/60 transition cursor-pointer ${
-                        selectedBranch === branch
-                          ? "font-extrabold text-[#EA8E18] bg-amber-50/40"
-                          : "font-semibold text-gray-700"
-                      }`}
-                    >
-                      <Store size={13} className="shrink-0" />
-                      <span className="truncate">{branch}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Online Sync Pill */}
             <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
-            {/* User Profile */}
+            {/* User Profile: Admin / Owner */}
             <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
               <div className="text-right">
                 <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
-                  Rian Pratama
+                  Admin
                 </div>
                 <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
-                  Supervisor Kasir
+                  Owner
                 </div>
               </div>
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
@@ -1381,10 +1338,10 @@ export default function TransaksiPage() {
             </div>
           </div>
 
-          {/* Info Cabang & Periode Khusus Saat Print PDF */}
+          {/* Info Periode Khusus Saat Print PDF */}
           <div className="hidden print:flex flex-col items-end text-right text-xs text-gray-700">
             <div className="font-extrabold text-gray-900">
-              {selectedBranch} • Periode: {activeMetrics.periodBadge}
+              PrekDuaDara • Periode: {activeMetrics.periodBadge}
             </div>
             <div>Dicetak dari Sistem POS PrekDuaDara ({lastSyncTime})</div>
           </div>
@@ -2435,7 +2392,7 @@ export default function TransaksiPage() {
                     Porsi
                   </th>
                   <th className="py-3.5 px-3.5 min-w-[140px] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
-                    Cabang Outlet
+                    Kasir / Operator
                   </th>
                   <th className="py-3.5 px-3.5 min-w-[205px] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
                     Tipe &amp; Metode Bayar
@@ -2482,10 +2439,10 @@ export default function TransaksiPage() {
                     </td>
                     <td className="py-3.5 px-3.5 min-w-[140px] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
                       <div className="font-semibold text-gray-800">
-                        {order.branch}
+                        {order.cashier}
                       </div>
                       <div className="text-xs text-gray-500 font-medium mt-0.5">
-                        Kasir: {order.cashier}
+                        {order.terminal}
                       </div>
                     </td>
                     <td className="py-3.5 px-3.5 min-w-[205px] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
@@ -2550,7 +2507,7 @@ export default function TransaksiPage() {
               >
                 Sebelumnya
               </button>
-              {visiblePages.map((page) => (
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <button
                   key={page}
                   type="button"
@@ -2579,18 +2536,17 @@ export default function TransaksiPage() {
         </section>
 
         {/* FOOTER SISTEM */}
-        <footer className="print:hidden pt-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-500 font-semibold">
+        <footer className="print:hidden bg-white rounded-2xl px-6 py-3.5 shadow-sm border border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-700 font-semibold">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>
-              PrekDuaDara POS v2.4 • Terminal Counter #01 •{" "}
-              <strong className="text-gray-700">
-                MySQL (prekduadara_db) Terhubung
-              </strong>
-            </span>
+            <img src="/logo.png" alt="Logo" className="w-5 h-5 rounded-full object-cover shrink-0" />
+            <span><strong>Sistem Analitik Bisnis PrekDuaDara</strong> &copy; 2025. Seluruh Hak Cipta Dilindungi.</span>
           </div>
-          <div>
-            © 2026 PrekDuaDara Quick-Service Culinary. All rights reserved.
+          <div className="flex items-center gap-3 text-xs">
+            <span>Sinkronisasi Otomatis Terakhir: <strong>14:28 WIB</strong></span>
+            <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Sistem Cloud POS Terkoneksi
+            </span>
           </div>
         </footer>
       </main>

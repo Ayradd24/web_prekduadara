@@ -264,34 +264,106 @@ export default function PengaturanTokoPage() {
     };
   }, []);
 
-  // Muat dari localStorage saat halaman pertama kali dibuka
+  // State Scroll untuk Sticky Floating Buttons
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object") {
-          const merged: Record<SingleBranchName, BranchStoreSettings> = {
-            "Cabang Sudirman Utama": {
-              ...DEFAULT_BRANCH_SETTINGS["Cabang Sudirman Utama"],
-              ...(parsed["Cabang Sudirman Utama"] || {}),
-            },
-            "Cabang Tebet Eco Park": {
-              ...DEFAULT_BRANCH_SETTINGS["Cabang Tebet Eco Park"],
-              ...(parsed["Cabang Tebet Eco Park"] || {}),
-            },
-            "Cabang Dago Heritage": {
-              ...DEFAULT_BRANCH_SETTINGS["Cabang Dago Heritage"],
-              ...(parsed["Cabang Dago Heritage"] || {}),
-            },
-          };
-          setConfigsByBranch(merged);
-          setSavedConfigsByBranch(merged);
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 100);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Muat dari backend MariaDB saat halaman pertama kali dibuka
+  useEffect(() => {
+    const fetchBackendSettings = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/settings");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            const d = json.data;
+            setConfigsByBranch((prev) => {
+              const updated = { ...prev };
+              Object.keys(updated).forEach((k) => {
+                const branchKey = k as SingleBranchName;
+                updated[branchKey] = {
+                  ...updated[branchKey],
+                  namaWarung: d.namaWarung || updated[branchKey].namaWarung,
+                  slogan: d.slogan || updated[branchKey].slogan,
+                  alamat: d.alamat || updated[branchKey].alamat,
+                  whatsapp: d.whatsapp || updated[branchKey].whatsapp,
+                  emailResto: d.emailResto || updated[branchKey].emailResto,
+                  nib: d.nib || updated[branchKey].nib,
+                  jamBukaWeekday: d.jamBukaWeekday || updated[branchKey].jamBukaWeekday,
+                  jamTutupWeekday: d.jamTutupWeekday || updated[branchKey].jamTutupWeekday,
+                  jamBukaWeekend: d.jamBukaWeekend || updated[branchKey].jamBukaWeekend,
+                  jamTutupWeekend: d.jamTutupWeekend || updated[branchKey].jamTutupWeekend,
+                  autoCloseKasir:
+                    d.autoCloseKasir !== undefined
+                      ? Boolean(d.autoCloseKasir)
+                      : updated[branchKey].autoCloseKasir,
+                  istirahatSore:
+                    d.istirahatSore !== undefined
+                      ? Boolean(d.istirahatSore)
+                      : updated[branchKey].istirahatSore,
+                  pajakPersen: String(d.pajakPersen || updated[branchKey].pajakPersen),
+                  pajakTipe: (d.pajakTipe as "termasuk" | "akhir") || updated[branchKey].pajakTipe,
+                  biayaKemasan: String(d.biayaKemasan || updated[branchKey].biayaKemasan),
+                  aturanPembulatan:
+                    (d.aturanPembulatan as RoundingOption) ||
+                    updated[branchKey].aturanPembulatan,
+                  cetakLogo:
+                    d.cetakLogo !== undefined
+                      ? Boolean(d.cetakLogo)
+                      : updated[branchKey].cetakLogo,
+                  cetakAlamat:
+                    d.cetakAlamat !== undefined
+                      ? Boolean(d.cetakAlamat)
+                      : updated[branchKey].cetakAlamat,
+                  nomorAntrianBesar:
+                    d.nomorAntrianBesar !== undefined
+                      ? Boolean(d.nomorAntrianBesar)
+                      : updated[branchKey].nomorAntrianBesar,
+                  kodeQrisDinamis:
+                    d.kodeQrisDinamis !== undefined
+                      ? Boolean(d.kodeQrisDinamis)
+                      : updated[branchKey].kodeQrisDinamis,
+                  pesanFooter: d.pesanFooter || updated[branchKey].pesanFooter,
+                  autoPrintLunas:
+                    d.autoPrintLunas !== undefined
+                      ? Boolean(d.autoPrintLunas)
+                      : updated[branchKey].autoPrintLunas,
+                  channelTunai:
+                    d.channelTunai !== undefined
+                      ? Boolean(d.channelTunai)
+                      : updated[branchKey].channelTunai,
+                  channelQris:
+                    d.channelQris !== undefined
+                      ? Boolean(d.channelQris)
+                      : updated[branchKey].channelQris,
+                  channelEdc:
+                    d.channelEdc !== undefined
+                      ? Boolean(d.channelEdc)
+                      : updated[branchKey].channelEdc,
+                  channelOjol:
+                    d.channelOjol !== undefined
+                      ? Boolean(d.channelOjol)
+                      : updated[branchKey].channelOjol,
+                };
+              });
+              return updated;
+            });
+            setSavedConfigsByBranch((prev) => ({ ...prev }));
+          }
         }
+      } catch (e) {
+        console.warn("Gagal memuat pengaturan dari backend:", e);
       }
-    } catch {
-      // Gunakan default jika localStorage tidak tersedia / korup
-    }
+    };
+    fetchBackendSettings();
   }, []);
 
   // Tutup dropdown cabang saat klik di luar
@@ -413,45 +485,58 @@ export default function PengaturanTokoPage() {
     e.target.value = "";
   };
 
-  // Handler Simpan Konfigurasi ke localStorage
-  const handleSave = () => {
+  // Handler Simpan Konfigurasi ke Backend & localStorage
+  const handleSave = async () => {
     try {
-      if (selectedBranch === "Semua Cabang") {
-        const globalSource = configsByBranch["Cabang Sudirman Utama"];
-        const syncedAll: Record<SingleBranchName, BranchStoreSettings> = {
-          "Cabang Sudirman Utama": globalSource,
-          "Cabang Tebet Eco Park": {
-            ...globalSource,
-            outletId: configsByBranch["Cabang Tebet Eco Park"].outletId,
-            namaWarung: configsByBranch["Cabang Tebet Eco Park"].namaWarung,
-            alamat: configsByBranch["Cabang Tebet Eco Park"].alamat,
-            whatsapp: configsByBranch["Cabang Tebet Eco Park"].whatsapp,
-            emailResto: configsByBranch["Cabang Tebet Eco Park"].emailResto,
-            nib: configsByBranch["Cabang Tebet Eco Park"].nib,
-          },
-          "Cabang Dago Heritage": {
-            ...globalSource,
-            outletId: configsByBranch["Cabang Dago Heritage"].outletId,
-            namaWarung: configsByBranch["Cabang Dago Heritage"].namaWarung,
-            alamat: configsByBranch["Cabang Dago Heritage"].alamat,
-            whatsapp: configsByBranch["Cabang Dago Heritage"].whatsapp,
-            emailResto: configsByBranch["Cabang Dago Heritage"].emailResto,
-            nib: configsByBranch["Cabang Dago Heritage"].nib,
-          },
-        };
-        setConfigsByBranch(syncedAll);
-        setSavedConfigsByBranch(syncedAll);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(syncedAll));
-        showToast("Konfigurasi global berhasil diterapkan ke seluruh cabang!");
-      } else {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(configsByBranch));
-        setSavedConfigsByBranch(configsByBranch);
-        showToast(
-          `Perubahan konfigurasi ${activeBranchKey} berhasil disimpan!`
-        );
+      setIsSaving(true);
+      const payload = {
+        namaWarung: currentConfig.namaWarung,
+        slogan: currentConfig.slogan,
+        alamat: currentConfig.alamat,
+        whatsapp: currentConfig.whatsapp,
+        emailResto: currentConfig.emailResto,
+        nib: currentConfig.nib,
+        jamBukaWeekday: currentConfig.jamBukaWeekday,
+        jamTutupWeekday: currentConfig.jamTutupWeekday,
+        jamBukaWeekend: currentConfig.jamBukaWeekend,
+        jamTutupWeekend: currentConfig.jamTutupWeekend,
+        autoCloseKasir: currentConfig.autoCloseKasir,
+        istirahatSore: currentConfig.istirahatSore,
+        pajakPersen: currentConfig.pajakPersen,
+        pajakTipe: currentConfig.pajakTipe,
+        biayaKemasan: currentConfig.biayaKemasan,
+        aturanPembulatan: currentConfig.aturanPembulatan,
+        cetakLogo: currentConfig.cetakLogo,
+        cetakAlamat: currentConfig.cetakAlamat,
+        nomorAntrianBesar: currentConfig.nomorAntrianBesar,
+        kodeQrisDinamis: currentConfig.kodeQrisDinamis,
+        pesanFooter: currentConfig.pesanFooter,
+        autoPrintLunas: currentConfig.autoPrintLunas,
+        channelTunai: currentConfig.channelTunai,
+        channelQris: currentConfig.channelQris,
+        channelEdc: currentConfig.channelEdc,
+        channelOjol: currentConfig.channelOjol,
+      };
+
+      try {
+        await fetch("http://localhost:5000/api/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (e) {
+        console.warn("Gagal sinkronisasi pengaturan ke backend:", e);
       }
+
+      setSavedConfigsByBranch(configsByBranch);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(configsByBranch));
+      } catch {}
+      showToast("Perubahan konfigurasi toko berhasil disimpan!");
     } catch {
       showToast("Gagal menyimpan ke penyimpanan lokal browser.", "warning");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -625,59 +710,22 @@ export default function PengaturanTokoPage() {
             </div>
           </div>
 
-          {/* Right Controls: Branch Selector, Online Sync & User Profile */}
+          {/* Right Controls: Online Sync & Admin Owner Profile */}
           <div className="print:hidden flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
-            {/* Interactive Branch Selector */}
-            <div ref={branchDropdownRef} className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowBranchMenu((prev) => !prev)}
-                className="h-9 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 flex items-center gap-2 bg-[#F8F9FA] border border-gray-200 text-gray-800 cursor-pointer hover:bg-gray-100 transition"
-              >
-                <Store size={14} className="text-[#EA8E18] shrink-0" />
-                <span>{selectedBranch}</span>
-                <ChevronDown size={14} className="text-gray-500 shrink-0" />
-              </button>
-
-              {showBranchMenu && (
-                <div className="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-30 text-xs">
-                  {BRANCH_OPTIONS.map((branch) => (
-                    <button
-                      key={branch}
-                      type="button"
-                      onClick={() => {
-                        setSelectedBranch(branch);
-                        setShowBranchMenu(false);
-                        showToast(`Menampilkan pengaturan: ${branch}`);
-                      }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-2 hover:bg-amber-50/60 transition cursor-pointer ${
-                        selectedBranch === branch
-                          ? "font-extrabold text-[#EA8E18] bg-amber-50/40"
-                          : "font-semibold text-gray-700"
-                      }`}
-                    >
-                      <Store size={13} className="shrink-0" />
-                      <span className="truncate">{branch}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Online Sync Pill */}
             <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
-            {/* User Profile */}
+            {/* User Profile: Admin / Owner */}
             <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
               <div className="text-right">
                 <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
-                  Rian Pratama
+                  Admin
                 </div>
                 <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
-                  Supervisor Kasir
+                  Owner
                 </div>
               </div>
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
@@ -702,13 +750,7 @@ export default function PengaturanTokoPage() {
 
             <div className="flex items-center gap-1.5 mt-2 text-xs font-extrabold text-gray-800">
               <MapPin size={14} className="text-[#D97706] shrink-0" />
-              <span>
-                {selectedBranch === "Semua Cabang"
-                  ? "Semua Cabang • Konfigurasi Utama (Cabang Sudirman Utama)"
-                  : activeBranchKey === "Cabang Sudirman Utama"
-                    ? "Cabang Sudirman Utama (Pusat)"
-                    : activeBranchKey}
-              </span>
+              <span>Gerai Utama (Pusat)</span>
             </div>
 
             <p className="text-xs text-gray-600 mt-1 max-w-2xl leading-relaxed font-medium">
@@ -743,13 +785,59 @@ export default function PengaturanTokoPage() {
             <button
               type="button"
               onClick={handleSave}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#2D452B] hover:bg-[#223520] rounded-xl text-xs font-extrabold text-white transition shadow-xs cursor-pointer"
+              disabled={isSaving}
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#2D452B] hover:bg-[#223520] disabled:opacity-60 rounded-xl text-xs font-extrabold text-white transition shadow-xs cursor-pointer"
             >
-              <Save size={14} />
-              <span>Simpan Perubahan</span>
+              {isSaving ? (
+                <>
+                  <RefreshCw size={14} className="animate-spin" />
+                  <span>Menyimpan...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={14} />
+                  <span>Simpan Perubahan</span>
+                </>
+              )}
             </button>
           </div>
         </section>
+
+        {/* STICKY FLOATING BUTTONS (MENGIKUTI KE BAWAH SAAT SCROLL) */}
+        <div
+          className={`sticky top-4 sm:top-6 z-30 flex items-center justify-end gap-3 -mt-2 transition-opacity duration-200 ${
+            isScrolled
+              ? "opacity-100 pointer-events-auto"
+              : "opacity-0 pointer-events-none"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setShowResetModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white/95 backdrop-blur-xs border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 transition shadow-md cursor-pointer"
+          >
+            <RotateCcw size={14} />
+            <span>Reset ke Default</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-4 py-2 bg-[#2D452B]/95 backdrop-blur-xs hover:bg-[#223520] disabled:opacity-60 rounded-xl text-xs font-extrabold text-white transition shadow-md cursor-pointer"
+          >
+            {isSaving ? (
+              <>
+                <RefreshCw size={14} className="animate-spin" />
+                <span>Menyimpan...</span>
+              </>
+            ) : (
+              <>
+                <Save size={14} />
+                <span>Simpan Perubahan</span>
+              </>
+            )}
+          </button>
+        </div>
 
         {/* Banner Mode Konfigurasi Global (Semua Cabang) */}
         {selectedBranch === "Semua Cabang" && (

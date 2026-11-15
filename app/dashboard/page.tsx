@@ -13,19 +13,7 @@ import {
   User,
 } from 'lucide-react';
 
-const BRANCH_OPTIONS = [
-  'Semua Cabang',
-  'Cabang Sudirman Utama',
-  'Cabang Tebet Eco Park',
-  'Cabang Dago Heritage',
-];
-
-const getTransactionBranch = (tx: Transaction): string => {
-  if (tx.branch) return tx.branch;
-  if (tx.terminal.includes('Pos-02')) return 'Cabang Tebet Eco Park';
-  if (tx.terminal.includes('Pos-03')) return 'Cabang Dago Heritage';
-  return 'Cabang Sudirman Utama';
-};
+const ITEMS_PER_PAGE = 5;
 
 export default function DashboardPage() {
   const {
@@ -42,9 +30,9 @@ export default function DashboardPage() {
     resetFilters,
   } = useTransactions();
 
-  const [selectedBranch, setSelectedBranch] = useState<string>('Semua Cabang');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showToast = (msg: string) => {
@@ -70,24 +58,14 @@ export default function DashboardPage() {
     return 'Rp ' + val.toLocaleString('id-ID');
   };
 
-  // Gabungkan filter Cabang dengan hasil filter pencarian, terminal, pembayaran, dan status
-  const displayedTransactions = useMemo(() => {
-    return filteredTransactions.filter((tx) => {
-      const txBranch = getTransactionBranch(tx);
-      return selectedBranch === 'Semua Cabang' || txBranch === selectedBranch;
-    });
-  }, [filteredTransactions, selectedBranch]);
+  // Reset page saat filter/search berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterPayment, filterTerminal, filterStatus]);
 
-  // Statistik KPI Ringkasan yang menyesuaikan Cabang yang dipilih
-  const branchStats = useMemo(() => {
-    const branchSource =
-      selectedBranch === 'Semua Cabang'
-        ? transactions
-        : transactions.filter(
-            (tx) => getTransactionBranch(tx) === selectedBranch
-          );
-
-    const totalCount = branchSource.length;
+  // Statistik KPI Ringkasan diambil real-time dari data backend/transaksi
+  const dashboardStats = useMemo(() => {
+    const totalCount = transactions.length;
     let totalOmset = 0;
     let tunaiCount = 0;
     let tunaiOmset = 0;
@@ -95,7 +73,7 @@ export default function DashboardPage() {
     let qrisOmset = 0;
     let successCount = 0;
 
-    branchSource.forEach((tx) => {
+    transactions.forEach((tx) => {
       if (tx.status === 'Berhasil') {
         successCount++;
         totalOmset += tx.total;
@@ -125,9 +103,21 @@ export default function DashboardPage() {
       qrisCount,
       qrisOmset,
     };
-  }, [transactions, selectedBranch]);
+  }, [transactions]);
 
-  // Akumulasi total nominal dari transaksi yang sedang ditampilkan (status Berhasil)
+  // Transaksi yang difilter
+  const displayedTransactions = filteredTransactions;
+
+  // Pagination Slice
+  const totalPages = Math.max(1, Math.ceil(displayedTransactions.length / ITEMS_PER_PAGE));
+  const activePage = Math.min(currentPage, totalPages);
+
+  const paginatedTransactions = useMemo(() => {
+    const start = (activePage - 1) * ITEMS_PER_PAGE;
+    return displayedTransactions.slice(start, start + ITEMS_PER_PAGE);
+  }, [displayedTransactions, activePage]);
+
+  // Akumulasi total nominal dari transaksi yang sedang difilter
   const displayedTotalNominal = useMemo(() => {
     return displayedTransactions.reduce(
       (acc, tx) => (tx.status === 'Berhasil' ? acc + tx.total : acc),
@@ -135,10 +125,10 @@ export default function DashboardPage() {
     );
   }, [displayedTransactions]);
 
-  // Handler Reset seluruh filter termasuk Cabang
+  // Handler Reset seluruh filter
   const handleResetAllFilters = () => {
-    setSelectedBranch('Semua Cabang');
     resetFilters();
+    setCurrentPage(1);
   };
 
   // Handler Kirim ke Printer Thermal
@@ -146,17 +136,15 @@ export default function DashboardPage() {
     showToast(`Mengirim struk ${id} ke printer thermal...`);
   };
 
-  // Fungsi Export CSV kompatibel Microsoft Excel (UTF-8 BOM)
+  // Fungsi Export CSV kompatibel Microsoft Excel (UTF-8 BOM) tanpa Cabang & Diskon
   const handleExportExcel = () => {
     const headers = [
       'ID Transaksi',
       'Waktu',
-      'Cabang',
       'Kasir',
       'Menu/Item',
       'Metode Bayar',
       'Subtotal',
-      'Diskon',
       'Total',
       'Status',
     ];
@@ -164,12 +152,10 @@ export default function DashboardPage() {
     const rows = displayedTransactions.map((tx) => [
       tx.id,
       `${tx.time} WIB (${tx.date})`,
-      getTransactionBranch(tx),
       `${tx.cashier} (${tx.terminal})`,
       `${tx.itemsSummary} (${tx.totalItems} item)`,
       tx.paymentMethod,
       formatRupiah(tx.subtotal),
-      tx.diskon === 0 ? 'Rp 0' : formatRupiah(tx.diskon),
       formatRupiah(tx.total),
       tx.status,
     ]);
@@ -187,14 +173,7 @@ export default function DashboardPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    const branchSlug =
-      selectedBranch === 'Semua Cabang'
-        ? 'Semua_Cabang'
-        : selectedBranch.replace(/\s+/g, '_');
-    link.setAttribute(
-      'download',
-      `Laporan_Transaksi_PrekDuaDara_${branchSlug}.csv`
-    );
+    link.setAttribute('download', `Laporan_Transaksi_PrekDuaDara.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -255,7 +234,7 @@ export default function DashboardPage() {
                     Spesial Ayam Geprek Cobek &amp; Sambal Uleg Asli
                   </div>
                   <div className="text-[11px] text-gray-500 font-sans">
-                    {getTransactionBranch(selectedTx)} • Telp: 0812-xxxx-xxxx
+                    Gerai Utama • Telp: 0812-xxxx-xxxx
                   </div>
                 </div>
 
@@ -300,14 +279,6 @@ export default function DashboardPage() {
                     <span className="text-gray-500">Subtotal:</span>
                     <span className="font-semibold text-gray-800">
                       {formatRupiah(selectedTx.subtotal)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Diskon:</span>
-                    <span className="font-semibold text-gray-800">
-                      {selectedTx.diskon === 0
-                        ? 'Rp 0'
-                        : `- ${formatRupiah(selectedTx.diskon)}`}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs font-black text-gray-900 pt-1">
@@ -379,7 +350,7 @@ export default function DashboardPage() {
 
       {/* 2. KONTEN UTAMA (KANAN) */}
       <main className="flex-1 flex flex-col gap-5 overflow-x-hidden max-w-full print:overflow-visible">
-        {/* Header Dashboard */}
+        {/* Header Dashboard: Admin / Owner & Online Sync */}
         <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <img
@@ -420,14 +391,14 @@ export default function DashboardPage() {
               <span>ONLINE SYNC</span>
             </div>
 
-            {/* User Profile */}
+            {/* User Profile: Admin / Owner */}
             <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
               <div className="text-right">
                 <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
-                  Rian Pratama
+                  Admin
                 </div>
                 <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
-                  Supervisor Kasir
+                  Owner
                 </div>
               </div>
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
@@ -438,7 +409,7 @@ export default function DashboardPage() {
 
           <div className="hidden print:block text-right text-xs text-gray-700">
             <div className="font-bold text-gray-900">
-              Laporan Transaksi • {selectedBranch}
+              Laporan Transaksi Kasir PrekDuaDara
             </div>
             <div>
               Terminal: {filterTerminal} | Pembayaran: {filterPayment} | Status: {filterStatus}
@@ -446,7 +417,7 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* 4 KARTU RINGKASAN SERAGAM (REAL-TIME DARI STATE & CABANG) */}
+        {/* 4 KARTU RINGKASAN SERAGAM (REAL-TIME DARI BACKEND MARIADB) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4 gap-4 print:gap-3">
           {/* Card 1: Total Transaksi Hari Ini */}
           <div className="bg-white p-5 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center gap-3">
@@ -455,10 +426,10 @@ export default function DashboardPage() {
                 Total Transaksi Hari Ini
               </p>
               <h2 className="text-2xl print:text-lg font-black text-gray-900 mt-2 whitespace-nowrap tabular-nums">
-                {branchStats.totalCount}
+                {dashboardStats.totalCount}
               </h2>
               <p className="text-xs text-emerald-700 font-semibold mt-1.5">
-                {branchStats.tunaiCount} Tunai • {branchStats.qrisCount} QRIS
+                {dashboardStats.tunaiCount} Tunai • {dashboardStats.qrisCount} QRIS
               </p>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 bg-orange-100 border border-orange-200 text-orange-700 rounded-xl flex items-center justify-center text-lg print:text-sm shrink-0">
@@ -473,10 +444,10 @@ export default function DashboardPage() {
                 Total Omset Bruto
               </p>
               <h2 className="text-2xl print:text-lg font-black text-gray-900 mt-2 whitespace-nowrap tabular-nums">
-                {formatRupiah(branchStats.totalOmset)}
+                {formatRupiah(dashboardStats.totalOmset)}
               </h2>
               <p className="text-xs text-gray-600 font-semibold mt-1.5">
-                Tunai: {formatRupiah(branchStats.tunaiOmset)}
+                Tunai: {formatRupiah(dashboardStats.tunaiOmset)} | QRIS: {formatRupiah(dashboardStats.qrisOmset)}
               </p>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl flex items-center justify-center text-lg print:text-sm shrink-0">
@@ -484,17 +455,17 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Card 3: Pembayaran QRIS & Digital */}
+          {/* Card 3: Pembayaran QRIS Digital */}
           <div className="bg-white p-5 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Pembayaran QRIS Digital
               </p>
               <h2 className="text-2xl print:text-lg font-black text-gray-900 mt-2 whitespace-nowrap tabular-nums">
-                {formatRupiah(branchStats.qrisOmset)}
+                {formatRupiah(dashboardStats.qrisOmset)}
               </h2>
               <p className="text-xs text-gray-600 font-semibold mt-1.5">
-                {branchStats.qrisCount} Transaksi Non-Tunai
+                {dashboardStats.qrisCount} Transaksi Non-Tunai
               </p>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 bg-amber-100 border border-amber-200 text-amber-800 rounded-xl flex items-center justify-center text-lg print:text-sm shrink-0">
@@ -509,10 +480,10 @@ export default function DashboardPage() {
                 Transaksi Berhasil
               </p>
               <h2 className="text-2xl print:text-lg font-black text-gray-900 mt-2 whitespace-nowrap tabular-nums">
-                {branchStats.successCount}
+                {dashboardStats.successCount}
               </h2>
               <p className="text-xs text-emerald-700 font-semibold mt-1.5">
-                {branchStats.successRate} success rate
+                {dashboardStats.successRate} success rate
               </p>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl flex items-center justify-center text-lg print:text-sm shrink-0">
@@ -521,7 +492,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* TABEL TRANSAKSI DENGAN LIVE FILTER STATE */}
+        {/* TABEL TRANSAKSI DENGAN LIVE FILTER STATE (TANPA CABANG & DISKON) */}
         <div className="bg-white rounded-2xl p-5 sm:p-6 print:p-3 border border-gray-200 shadow-sm print:shadow-none flex-1 flex flex-col gap-4 min-h-[430px] print:min-h-0">
           {/* Filter Bar */}
           <div className="print:hidden flex flex-wrap lg:flex-nowrap items-center gap-2.5 w-full">
@@ -532,23 +503,6 @@ export default function DashboardPage() {
               placeholder="🔍 Cari ID struk, kasir, atau nama menu..."
               className="flex-1 min-w-[260px] border border-gray-300 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-emerald-600 bg-gray-50/50"
             />
-            <div className="relative inline-flex items-center shrink-0">
-              <select
-                value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-                className="appearance-none w-[160px] shrink-0 truncate bg-white border border-gray-200 rounded-2xl pl-3.5 pr-7 py-2.5 text-xs font-bold text-gray-800 cursor-pointer focus:outline-none focus:border-emerald-600"
-              >
-                {BRANCH_OPTIONS.map((branch) => (
-                  <option key={branch} value={branch}>
-                    {branch}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={14}
-                className="pointer-events-none absolute right-2.5 text-gray-700"
-              />
-            </div>
             <div className="relative inline-flex items-center shrink-0">
               <select
                 value={filterTerminal}
@@ -608,89 +562,76 @@ export default function DashboardPage() {
 
           {/* Table Container */}
           <div className="overflow-x-auto print:overflow-visible flex-1">
-            <table className="w-full min-w-[1180px] print:min-w-0 print:w-full print:text-[9px] text-left border-collapse text-xs">
-              <colgroup><col className="w-[160px] min-w-[160px] print:w-auto" /><col className="w-[115px] min-w-[115px] print:w-auto" /><col className="w-[130px] min-w-[130px] print:w-auto" /><col className="w-[130px] print:w-auto" /><col className="print:w-auto" /><col className="w-[105px] print:w-auto" /><col className="w-[85px] print:w-auto" /><col className="w-[115px] print:w-auto" /><col className="w-[85px] print:w-auto" /><col className="w-[95px] print:w-auto" /><col className="w-[95px] print:w-auto" /></colgroup>
+            <table className="w-full min-w-[1000px] print:min-w-0 print:w-full print:text-[9px] text-left border-collapse text-xs">
               <thead>
                 <tr className="border-y border-gray-200 bg-gray-50 text-gray-600 font-extrabold uppercase text-[11px] print:text-[9px] tracking-wider">
-                  <th className="py-3 pl-5 pr-3 w-[160px] min-w-[160px] print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 pl-5 pr-3 w-[150px] min-w-[150px] print:px-1.5 print:py-2 text-left whitespace-nowrap">
                     ID STRUK
                   </th>
-                  <th className="py-3 px-3 w-[115px] min-w-[115px] print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 w-[115px] min-w-[115px] print:px-1.5 print:py-2 text-left whitespace-nowrap">
                     WAKTU
                   </th>
-                  <th className="py-3 px-3 min-w-[130px] print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
-                    CABANG
-                  </th>
-                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 min-w-[150px] print:px-1.5 print:py-2 text-left whitespace-nowrap">
                     KASIR / TERMINAL
                   </th>
-                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 min-w-[220px] print:px-1.5 print:py-2 text-left">
                     RINGKASAN ITEM
                   </th>
-                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-right whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-right whitespace-nowrap">
                     SUBTOTAL
                   </th>
-                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-right whitespace-nowrap print:whitespace-normal">
-                    DISKON
-                  </th>
-                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-right whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-right whitespace-nowrap">
                     TOTAL AKHIR
                   </th>
-                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-center whitespace-nowrap">
                     METODE
                   </th>
-                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal">
+                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-center whitespace-nowrap">
                     STATUS
                   </th>
-                  <th className="py-3 pl-3 pr-5 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal print:hidden">
+                  <th className="py-3 pl-3 pr-5 print:px-1.5 print:py-2 text-center whitespace-nowrap print:hidden">
                     AKSI
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 text-gray-800">
-                {displayedTransactions.length === 0 ? (
+                {paginatedTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="h-[280px] text-center text-gray-500 font-medium align-middle">
+                    <td colSpan={9} className="h-[280px] text-center text-gray-500 font-medium align-middle">
                       Tidak ada transaksi yang cocok dengan filter.
                     </td>
                   </tr>
                 ) : (
-                  displayedTransactions.map((tx) => (
+                  paginatedTransactions.map((tx) => (
                     <tr key={tx.id} className="hover:bg-amber-50/30 transition-colors">
-                      <td className="py-3 pl-5 pr-3 print:px-1.5 print:py-2 text-left font-extrabold text-gray-900 whitespace-nowrap print:whitespace-normal">
+                      <td className="py-3.5 pl-5 pr-3 text-left font-extrabold text-gray-900 whitespace-nowrap">
                         {tx.id}
                       </td>
-                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
+                      <td className="py-3.5 px-3 text-left whitespace-nowrap">
                         <div className="font-bold text-gray-900">{tx.time} WIB</div>
-                        <div className="text-[11px] print:text-[9px] text-gray-500 font-medium">{tx.date}</div>
+                        <div className="text-[11px] text-gray-500 font-medium">{tx.date}</div>
                       </td>
-                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-left font-bold text-gray-900 whitespace-nowrap print:whitespace-normal">
-                        {getTransactionBranch(tx).replace('Cabang ', '')}
-                      </td>
-                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-left whitespace-nowrap print:whitespace-normal">
+                      <td className="py-3.5 px-3 text-left whitespace-nowrap">
                         <div className="font-bold text-gray-900">{tx.cashier}</div>
-                        <div className="text-[11px] print:text-[9px] text-gray-500 font-medium">{tx.terminal}</div>
+                        <div className="text-[11px] text-gray-500 font-medium">{tx.terminal}</div>
                       </td>
-                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-left print:whitespace-normal">
-                        <div className="font-bold text-gray-900 truncate max-w-[260px] print:max-w-none" title={tx.itemsSummary}>
+                      <td className="py-3.5 px-3 text-left">
+                        <div className="font-bold text-gray-900 truncate max-w-[260px]" title={tx.itemsSummary}>
                           {tx.itemsSummary}
                         </div>
-                        <div className="text-[11px] print:text-[9px] text-emerald-700 font-bold mt-0.5">
+                        <div className="text-[11px] text-emerald-700 font-bold mt-0.5">
                           {tx.totalItems} item total
                         </div>
                       </td>
-                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-right font-semibold text-gray-700 whitespace-nowrap tabular-nums print:whitespace-normal">
+                      <td className="py-3.5 px-3 text-right font-semibold text-gray-700 whitespace-nowrap tabular-nums">
                         {formatRupiah(tx.subtotal)}
                       </td>
-                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-right text-gray-500 font-medium whitespace-nowrap tabular-nums print:whitespace-normal">
-                        {tx.diskon === 0 ? 'Rp 0' : formatRupiah(tx.diskon)}
-                      </td>
-                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-right font-extrabold text-gray-900 whitespace-nowrap tabular-nums print:whitespace-normal">
+                      <td className="py-3.5 px-3 text-right font-extrabold text-gray-900 whitespace-nowrap tabular-nums">
                         {formatRupiah(tx.total)}
                       </td>
-                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal">
+                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
                         <span
-                          className={`inline-block font-extrabold text-[11px] print:text-[9px] px-2.5 py-0.5 print:px-1.5 print:py-0.5 rounded-lg border ${
+                          className={`inline-block font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg border ${
                             tx.paymentMethod === 'QRIS'
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                               : 'bg-blue-50 text-blue-800 border-blue-300'
@@ -699,9 +640,9 @@ export default function DashboardPage() {
                           {tx.paymentMethod}
                         </span>
                       </td>
-                      <td className="py-3 px-3 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal">
+                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
                         <span
-                          className={`inline-block font-extrabold text-[11px] print:text-[9px] px-2.5 py-0.5 print:px-1.5 print:py-0.5 rounded-lg border ${
+                          className={`inline-block font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg border ${
                             tx.status === 'Berhasil'
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
                               : 'bg-red-50 text-red-700 border-red-300'
@@ -710,7 +651,7 @@ export default function DashboardPage() {
                           {tx.status}
                         </span>
                       </td>
-                      <td className="py-3 pl-3 pr-5 print:px-1.5 print:py-2 text-center whitespace-nowrap print:whitespace-normal print:hidden">
+                      <td className="py-3.5 pl-3 pr-5 text-center whitespace-nowrap print:hidden">
                         <div className="inline-flex items-center gap-1">
                           <button
                             type="button"
@@ -738,19 +679,19 @@ export default function DashboardPage() {
                 <tfoot>
                   <tr className="border-t-2 border-gray-300 bg-gray-50/90 font-extrabold text-gray-900">
                     <td
-                      colSpan={7}
-                      className="py-3 pl-5 pr-3 print:px-1.5 print:py-2 text-left text-xs print:text-[9px] uppercase tracking-wider text-gray-700"
+                      colSpan={5}
+                      className="py-3 pl-5 pr-3 text-left text-xs uppercase tracking-wider text-gray-700"
                     >
                       Total Rekapitulasi ({displayedTransactions.length} transaksi)
                     </td>
-                    <td className="py-3 px-3 print:px-1.5 print:py-2 text-right font-black text-[#EA8E18] whitespace-nowrap tabular-nums print:whitespace-normal">
+                    <td className="py-3 px-3 text-right font-black text-[#EA8E18] whitespace-nowrap tabular-nums">
                       {formatRupiah(displayedTotalNominal)}
                     </td>
                     <td
                       colSpan={2}
-                      className="py-3 px-3 print:px-1.5 print:py-2 text-center text-[11px] print:text-[8px] font-bold text-emerald-700 whitespace-nowrap"
+                      className="py-3 px-3 text-center text-[11px] font-bold text-emerald-700 whitespace-nowrap"
                     >
-                      Transaksi Berhasil
+                      Transaksi Selesai
                     </td>
                     <td className="py-3 pl-3 pr-5 print:hidden"></td>
                   </tr>
@@ -758,32 +699,68 @@ export default function DashboardPage() {
               )}
             </table>
           </div>
-        </div>
 
-        {/* Footer Khusus Dokumen Cetak */}
-        <div className="hidden print:flex items-center justify-between text-[10px] text-gray-500 pt-2 border-t border-gray-200">
-          <span>Sistem Kasir &amp; Analitik POS PrekDuaDara • Dicetak otomatis</span>
-          <span>
-            Total Data Tercetak: {displayedTransactions.length} Transaksi ({selectedBranch})
-          </span>
-        </div>
+          {/* Pagination Bar */}
+          <div className="print:hidden pt-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-600 font-medium">
+            <div>
+              Menampilkan{' '}
+              <strong className="text-gray-900 font-extrabold">
+                {paginatedTransactions.length}
+              </strong>{' '}
+              dari{' '}
+              <strong className="text-gray-900 font-extrabold">
+                {displayedTransactions.length}
+              </strong>{' '}
+              transaksi
+            </div>
 
-        {/* FOOTER SYSTEM */}
-        <footer className="print:hidden pt-3 pb-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-600 font-medium gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-extrabold text-[#EA8E18]">
-              PrekDuaDara POS v2.4
-            </span>
-            <span>•</span>
-            <span>Terminal Counter #01</span>
-            <span>•</span>
-            <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              MySQL (prekduadara_db) Terhubung
-            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={activePage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="px-3.5 py-1.5 border border-gray-300 rounded-lg text-gray-600 font-semibold hover:text-gray-900 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
+              >
+                Sebelumnya
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-8 h-8 rounded-lg font-extrabold transition cursor-pointer ${
+                    activePage === page
+                      ? 'bg-[#1E3A1C] text-white'
+                      : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                type="button"
+                disabled={activePage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="px-3.5 py-1.5 border border-gray-300 rounded-lg text-gray-800 font-bold hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
+              >
+                Selanjutnya
+              </button>
+            </div>
           </div>
-          <div>
-            &copy; 2026 PrekDuaDara Quick-Service Culinary. All rights reserved.
+        </div>
+
+        {/* FOOTER SYSTEM DENGAN SINKRONISASI OTOMATIS */}
+        <footer className="print:hidden bg-white rounded-2xl px-6 py-3.5 shadow-sm border border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-700 font-semibold">
+          <div className="flex items-center gap-2">
+            <img src="/logo.png" alt="Logo" className="w-5 h-5 rounded-full object-cover shrink-0" />
+            <span><strong>Sistem Analitik Bisnis PrekDuaDara</strong> &copy; 2025. Seluruh Hak Cipta Dilindungi.</span>
+          </div>
+          <div className="flex items-center gap-3 text-xs">
+            <span>Sinkronisasi Otomatis Terakhir: <strong>14:28 WIB</strong></span>
+            <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Sistem Cloud POS Terkoneksi
+            </span>
           </div>
         </footer>
       </main>
