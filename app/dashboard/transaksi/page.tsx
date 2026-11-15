@@ -574,7 +574,7 @@ export default function TransaksiPage() {
       date: tx.date,
       relativeTime: tx.relativeTime || tx.date || "Hari ini",
       mainMenu: tx.itemsSummary,
-      addons: tx.addons || `+ Sambal Uleg Asli (${tx.terminal})`,
+      addons: tx.addons || "+ Sambal Uleg Asli",
       portions: tx.totalItems,
       branch: "Gerai Utama",
       cashier: tx.cashier,
@@ -1193,10 +1193,9 @@ export default function TransaksiPage() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Kasir / Terminal:</span>
-                    <span className="font-semibold text-gray-800">
-                      {selectedOrderModal.cashier} •{" "}
-                      {selectedOrderModal.terminal}
+                    <span className="text-gray-500">Kasir:</span>
+                    <span className="font-bold text-gray-800">
+                      {selectedOrderModal.cashier}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -1209,11 +1208,17 @@ export default function TransaksiPage() {
 
                 {/* Rincian Menu & Add-ons */}
                 <div className="border-b border-dashed border-gray-300 pb-3.5 mb-3.5">
-                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
                     Rincian Menu &amp; Add-Ons
                   </div>
-                  <div className="font-bold text-gray-900 leading-snug">
-                    {selectedOrderModal.mainMenu}
+                  <div className="space-y-1.5">
+                    {selectedOrderModal.mainMenu
+                      .split(/,\s*(?=\d+x|[A-Z])/g)
+                      .map((item, idx) => (
+                        <div key={idx} className="font-bold text-gray-900 leading-snug">
+                          {item.trim()}
+                        </div>
+                      ))}
                   </div>
                   <div className="text-[11px] text-gray-600 mt-1">
                     {selectedOrderModal.addons}
@@ -2392,7 +2397,7 @@ export default function TransaksiPage() {
                     Porsi
                   </th>
                   <th className="py-3.5 px-3.5 min-w-[140px] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
-                    Kasir / Operator
+                    Kasir
                   </th>
                   <th className="py-3.5 px-3.5 min-w-[205px] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
                     Tipe &amp; Metode Bayar
@@ -2440,9 +2445,6 @@ export default function TransaksiPage() {
                     <td className="py-3.5 px-3.5 min-w-[140px] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
                       <div className="font-semibold text-gray-800">
                         {order.cashier}
-                      </div>
-                      <div className="text-xs text-gray-500 font-medium mt-0.5">
-                        {order.terminal}
                       </div>
                     </td>
                     <td className="py-3.5 px-3.5 min-w-[205px] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">

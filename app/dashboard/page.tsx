@@ -251,25 +251,29 @@ export default function DashboardPage() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Kasir / Terminal:</span>
-                    <span className="font-semibold text-gray-800">
-                      {selectedTx.cashier} ({selectedTx.terminal})
+                    <span className="text-gray-500">Kasir:</span>
+                    <span className="font-bold text-gray-800">
+                      {selectedTx.cashier}
                     </span>
                   </div>
                 </div>
 
-                {/* Ringkasan Item */}
+                {/* Ringkasan Item Pesanan (Per Menu Diturunkan ke Bawah) */}
                 <div className="border-b border-dashed border-gray-300 pb-3.5 mb-3.5">
-                  <div className="text-[10px] font-bold text-gray-500 uppercase mb-1.5">
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
                     RINCIAN PESANAN ({selectedTx.totalItems} ITEM)
                   </div>
-                  <div className="flex justify-between items-start gap-2">
-                    <span className="font-bold text-gray-900 leading-snug">
-                      {selectedTx.itemsSummary}
-                    </span>
-                    <span className="font-bold text-gray-900 shrink-0">
-                      {formatRupiah(selectedTx.subtotal)}
-                    </span>
+                  <div className="space-y-2">
+                    {selectedTx.itemsSummary
+                      .split(/,\s*(?=\d+x|[A-Z])/g)
+                      .map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="font-bold text-gray-900 text-xs leading-relaxed"
+                        >
+                          {item.trim()}
+                        </div>
+                      ))}
                   </div>
                 </div>
 
@@ -507,12 +511,12 @@ export default function DashboardPage() {
               <select
                 value={filterTerminal}
                 onChange={(e) => setFilterTerminal(e.target.value)}
-                className="appearance-none w-[160px] shrink-0 truncate bg-white border border-gray-200 rounded-2xl pl-3.5 pr-7 py-2.5 text-xs font-bold text-gray-800 cursor-pointer focus:outline-none focus:border-emerald-600"
+                className="appearance-none w-[150px] shrink-0 truncate bg-white border border-gray-200 rounded-2xl pl-3.5 pr-7 py-2.5 text-xs font-bold text-gray-800 cursor-pointer focus:outline-none focus:border-emerald-600"
               >
-                <option value="Semua">Semua Terminal</option>
-                <option value="Pos-01">Pos-01 (Rian)</option>
-                <option value="Pos-02">Pos-02 (Siti)</option>
-                <option value="Pos-03">Pos-03 (Budi)</option>
+                <option value="Semua">Semua Kasir</option>
+                <option value="Rian">Rian Pratama</option>
+                <option value="Siti">Siti Rahma</option>
+                <option value="Budi">Budi Santoso</option>
               </select>
               <ChevronDown
                 size={14}
@@ -562,34 +566,34 @@ export default function DashboardPage() {
 
           {/* Table Container */}
           <div className="overflow-x-auto print:overflow-visible flex-1">
-            <table className="w-full min-w-[1000px] print:min-w-0 print:w-full print:text-[9px] text-left border-collapse text-xs">
+            <table className="w-full min-w-full print:text-[9px] text-left border-collapse text-xs">
               <thead>
                 <tr className="border-y border-gray-200 bg-gray-50 text-gray-600 font-extrabold uppercase text-[11px] print:text-[9px] tracking-wider">
-                  <th className="py-3 pl-5 pr-3 w-[150px] min-w-[150px] print:px-1.5 print:py-2 text-left whitespace-nowrap">
+                  <th className="py-2.5 pl-3.5 pr-2 w-[100px] whitespace-nowrap print:px-1.5 print:py-2 text-left">
                     ID STRUK
                   </th>
-                  <th className="py-3 px-3 w-[115px] min-w-[115px] print:px-1.5 print:py-2 text-left whitespace-nowrap">
+                  <th className="py-2.5 px-2 w-[95px] whitespace-nowrap print:px-1.5 print:py-2 text-left">
                     WAKTU
                   </th>
-                  <th className="py-3 px-3 min-w-[150px] print:px-1.5 print:py-2 text-left whitespace-nowrap">
-                    KASIR / TERMINAL
+                  <th className="py-2.5 px-2 w-[115px] whitespace-nowrap print:px-1.5 print:py-2 text-left">
+                    KASIR
                   </th>
-                  <th className="py-3 px-3 min-w-[220px] print:px-1.5 print:py-2 text-left">
+                  <th className="py-2.5 px-2.5 min-w-[170px] print:px-1.5 print:py-2 text-left">
                     RINGKASAN ITEM
                   </th>
-                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-right whitespace-nowrap">
+                  <th className="py-2.5 px-2 w-[90px] text-right whitespace-nowrap print:px-1.5 print:py-2">
                     SUBTOTAL
                   </th>
-                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-right whitespace-nowrap">
+                  <th className="py-2.5 px-2 w-[95px] text-right whitespace-nowrap print:px-1.5 print:py-2">
                     TOTAL AKHIR
                   </th>
-                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-center whitespace-nowrap">
+                  <th className="py-2.5 px-2 w-[75px] text-center whitespace-nowrap print:px-1.5 print:py-2">
                     METODE
                   </th>
-                  <th className="py-3 px-3 print:px-1.5 print:py-2 text-center whitespace-nowrap">
+                  <th className="py-2.5 px-2 w-[80px] text-center whitespace-nowrap print:px-1.5 print:py-2">
                     STATUS
                   </th>
-                  <th className="py-3 pl-3 pr-5 print:px-1.5 print:py-2 text-center whitespace-nowrap print:hidden">
+                  <th className="py-2.5 pl-2 pr-3.5 w-[70px] text-center whitespace-nowrap print:hidden">
                     AKSI
                   </th>
                 </tr>
@@ -604,32 +608,31 @@ export default function DashboardPage() {
                 ) : (
                   paginatedTransactions.map((tx) => (
                     <tr key={tx.id} className="hover:bg-amber-50/30 transition-colors">
-                      <td className="py-3.5 pl-5 pr-3 text-left font-extrabold text-gray-900 whitespace-nowrap">
+                      <td className="py-3 pl-3.5 pr-2 text-left font-extrabold text-gray-900 whitespace-nowrap">
                         {tx.id}
                       </td>
-                      <td className="py-3.5 px-3 text-left whitespace-nowrap">
+                      <td className="py-3 px-2 text-left whitespace-nowrap">
                         <div className="font-bold text-gray-900">{tx.time} WIB</div>
                         <div className="text-[11px] text-gray-500 font-medium">{tx.date}</div>
                       </td>
-                      <td className="py-3.5 px-3 text-left whitespace-nowrap">
+                      <td className="py-3 px-2 text-left whitespace-nowrap">
                         <div className="font-bold text-gray-900">{tx.cashier}</div>
-                        <div className="text-[11px] text-gray-500 font-medium">{tx.terminal}</div>
                       </td>
-                      <td className="py-3.5 px-3 text-left">
-                        <div className="font-bold text-gray-900 truncate max-w-[260px]" title={tx.itemsSummary}>
+                      <td className="py-3 px-2.5 text-left">
+                        <div className="font-bold text-gray-900 truncate max-w-[240px]" title={tx.itemsSummary}>
                           {tx.itemsSummary}
                         </div>
                         <div className="text-[11px] text-emerald-700 font-bold mt-0.5">
                           {tx.totalItems} item total
                         </div>
                       </td>
-                      <td className="py-3.5 px-3 text-right font-semibold text-gray-700 whitespace-nowrap tabular-nums">
+                      <td className="py-3 px-2 text-right font-semibold text-gray-700 whitespace-nowrap tabular-nums">
                         {formatRupiah(tx.subtotal)}
                       </td>
-                      <td className="py-3.5 px-3 text-right font-extrabold text-gray-900 whitespace-nowrap tabular-nums">
+                      <td className="py-3 px-2 text-right font-extrabold text-gray-900 whitespace-nowrap tabular-nums">
                         {formatRupiah(tx.total)}
                       </td>
-                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                      <td className="py-3 px-2 text-center whitespace-nowrap">
                         <span
                           className={`inline-block font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg border ${
                             tx.paymentMethod === 'QRIS'
@@ -640,7 +643,7 @@ export default function DashboardPage() {
                           {tx.paymentMethod}
                         </span>
                       </td>
-                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                      <td className="py-3 px-2 text-center whitespace-nowrap">
                         <span
                           className={`inline-block font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg border ${
                             tx.status === 'Berhasil'
@@ -651,7 +654,7 @@ export default function DashboardPage() {
                           {tx.status}
                         </span>
                       </td>
-                      <td className="py-3.5 pl-3 pr-5 text-center whitespace-nowrap print:hidden">
+                      <td className="py-3 pl-2 pr-3.5 text-center whitespace-nowrap print:hidden">
                         <div className="inline-flex items-center gap-1">
                           <button
                             type="button"
@@ -680,20 +683,20 @@ export default function DashboardPage() {
                   <tr className="border-t-2 border-gray-300 bg-gray-50/90 font-extrabold text-gray-900">
                     <td
                       colSpan={5}
-                      className="py-3 pl-5 pr-3 text-left text-xs uppercase tracking-wider text-gray-700"
+                      className="py-2.5 pl-3.5 pr-2 text-left text-xs uppercase tracking-wider text-gray-700"
                     >
                       Total Rekapitulasi ({displayedTransactions.length} transaksi)
                     </td>
-                    <td className="py-3 px-3 text-right font-black text-[#EA8E18] whitespace-nowrap tabular-nums">
+                    <td className="py-2.5 px-2 text-right font-black text-[#EA8E18] whitespace-nowrap tabular-nums">
                       {formatRupiah(displayedTotalNominal)}
                     </td>
                     <td
                       colSpan={2}
-                      className="py-3 px-3 text-center text-[11px] font-bold text-emerald-700 whitespace-nowrap"
+                      className="py-2.5 px-2 text-center text-[11px] font-bold text-emerald-700 whitespace-nowrap"
                     >
                       Transaksi Selesai
                     </td>
-                    <td className="py-3 pl-3 pr-5 print:hidden"></td>
+                    <td className="py-2.5 pl-2 pr-3.5 print:hidden"></td>
                   </tr>
                 </tfoot>
               )}
