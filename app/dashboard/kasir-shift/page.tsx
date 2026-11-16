@@ -38,11 +38,7 @@ import {
   X,
 } from "lucide-react";
 
-type SingleBranchName =
-  | "Gerai Utama"
-  | "Cabang Sudirman Utama"
-  | "Cabang Tebet Eco Park"
-  | "Cabang Dago Heritage";
+type SingleBranchName = "Gerai Utama";
 
 type ShiftMainType =
   | "Shift Pagi"
@@ -100,92 +96,16 @@ interface BranchDrawerState {
 
 const SINGLE_BRANCHES: SingleBranchName[] = ["Gerai Utama"];
 
-// Data Default: Sinkron persis dengan 3 staf kasir di database MariaDB (tabel `kasir`)
-const INITIAL_KASIR: KasirItem[] = [
-  {
-    id: "#KSR-001",
-    dbId: 1,
-    name: "Rian",
-    roleTitle: "Kasir",
-    shift: "Shift Pagi (08:00 - 12:00)",
-    shiftMain: "Shift Pagi",
-    shiftHours: "08:00 - 12:00",
-    statusLive: "Aktif Melayani",
-    isActive: true,
-    branch: "Gerai Utama",
-    avatarColor: "bg-amber-100 text-amber-800 border-amber-300",
-    initials: "RN",
-  },
-  {
-    id: "#KSR-002",
-    dbId: 2,
-    name: "Siti",
-    roleTitle: "Kasir",
-    shift: "Shift Siang (12:00 - 17:00)",
-    shiftMain: "Shift Siang",
-    shiftHours: "12:00 - 17:00",
-    statusLive: "Standby / Rehat",
-    isActive: true,
-    branch: "Gerai Utama",
-    avatarColor: "bg-orange-100 text-orange-800 border-orange-300",
-    initials: "ST",
-  },
-  {
-    id: "#KSR-003",
-    dbId: 3,
-    name: "Budi",
-    roleTitle: "Kasir",
-    shift: "Shift Malam (17:00 - 22:00)",
-    shiftMain: "Shift Malam",
-    shiftHours: "17:00 - 22:00",
-    statusLive: "Standby / Rehat",
-    isActive: true,
-    branch: "Gerai Utama",
-    avatarColor: "bg-slate-100 text-slate-700 border-slate-300",
-    initials: "BD",
-  },
-];
-
 const INITIAL_DRAWERS: Record<SingleBranchName, BranchDrawerState> = {
   "Gerai Utama": {
     counter: "Counter #01",
-    operatorId: "#KSR-001",
-    operatorName: "Rian",
-    shiftInfo: "Shift Pagi (08:00 - 12:00) • Login Aktif",
-    modalAwal: 500000,
-    totalSales: 301000,
-    totalNotes: 8,
-    isOpen: true,
-  },
-  "Cabang Sudirman Utama": {
-    counter: "Counter #01",
-    operatorId: "#KSR-001",
-    operatorName: "Rian",
-    shiftInfo: "Shift Pagi (08:00 - 12:00) • Login Aktif",
-    modalAwal: 500000,
-    totalSales: 301000,
-    totalNotes: 8,
-    isOpen: true,
-  },
-  "Cabang Tebet Eco Park": {
-    counter: "Counter #02",
-    operatorId: "#KSR-002",
-    operatorName: "Siti",
-    shiftInfo: "Shift Siang (12:00 - 17:00) • Standby",
+    operatorId: "-",
+    operatorName: "Memuat kasir...",
+    shiftInfo: "Menghubungkan ke database...",
     modalAwal: 500000,
     totalSales: 0,
     totalNotes: 0,
-    isOpen: false,
-  },
-  "Cabang Dago Heritage": {
-    counter: "Counter #03",
-    operatorId: "#KSR-003",
-    operatorName: "Budi",
-    shiftInfo: "Shift Malam (17:00 - 22:00) • Standby",
-    modalAwal: 400000,
-    totalSales: 0,
-    totalNotes: 0,
-    isOpen: false,
+    isOpen: true,
   },
 };
 
@@ -231,7 +151,7 @@ function generateNextCashierCode(list: KasirItem[]): string {
 }
 
 export default function KasirShiftPage() {
-  const [kasirList, setKasirList] = useState<KasirItem[]>(INITIAL_KASIR);
+  const [kasirList, setKasirList] = useState<KasirItem[]>([]);
   const [drawersByBranch, setDrawersByBranch] =
     useState<Record<SingleBranchName, BranchDrawerState>>(INITIAL_DRAWERS);
 
@@ -246,7 +166,7 @@ export default function KasirShiftPage() {
   const [showShiftDropdown, setShowShiftDropdown] = useState(false);
   const shiftDropdownRef = useRef<HTMLDivElement | null>(null);
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [dbConnected, setDbConnected] = useState(false);
 
   // Toast Notification dengan useRef Timer
@@ -281,7 +201,7 @@ export default function KasirShiftPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
   const [formRole, setFormRole] = useState("Kasir");
-  const [formId, setFormId] = useState("#KSR-004");
+  const [formId, setFormId] = useState("#KSR-001");
   const [formBranch, setFormBranch] = useState<SingleBranchName>("Gerai Utama");
   const [formShift, setFormShift] = useState<"Pagi" | "Siang" | "Malam">(
     "Pagi"
@@ -335,7 +255,13 @@ export default function KasirShiftPage() {
     try {
       const res = await fetch("http://localhost:5000/api/cashiers");
       const json = await res.json();
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+      if (json.success && Array.isArray(json.data)) {
+        if (json.data.length === 0) {
+          setKasirList([]);
+          setDbConnected(true);
+          return;
+        }
+
         const avatarBgs = [
           "bg-amber-100 text-amber-800 border-amber-300",
           "bg-orange-100 text-orange-800 border-orange-300",
@@ -371,11 +297,28 @@ export default function KasirShiftPage() {
         );
 
         setDbConnected(true);
-        // Tepat hanya 3 staf kasir dari database MariaDB (Rian, Siti, Budi)
         setKasirList(mappedDbItems);
 
         if (!editingIdRef.current && formNameRef.current === "") {
           setFormId(generateNextCashierCode(mappedDbItems));
+        }
+
+        // Ambil data transaksi langsung dari database MariaDB
+        let salesSum = 0;
+        let notesCount = 0;
+        try {
+          const trxRes = await fetch("http://localhost:5000/api/transactions");
+          const trxJson = await trxRes.json();
+          if (trxJson.success && Array.isArray(trxJson.data)) {
+            notesCount = trxJson.data.length;
+            salesSum = trxJson.data.reduce(
+              (sum: number, t: { total?: number | string }) =>
+                sum + (Number(t.total) || 0),
+              0
+            );
+          }
+        } catch {
+          // Abaikan jika server transaksi sedang offline
         }
 
         const activeKasir =
@@ -386,15 +329,7 @@ export default function KasirShiftPage() {
         if (activeKasir) {
           setDrawersByBranch((prev) => {
             const prevDrawer =
-              prev["Gerai Utama"] || prev["Cabang Sudirman Utama"] || INITIAL_DRAWERS["Gerai Utama"];
-            if (
-              prevDrawer &&
-              prevDrawer.operatorId === activeKasir.id &&
-              prevDrawer.operatorName === activeKasir.name &&
-              prevDrawer.shiftInfo.startsWith(activeKasir.shift)
-            ) {
-              return prev;
-            }
+              prev["Gerai Utama"] || INITIAL_DRAWERS["Gerai Utama"];
             return {
               ...prev,
               "Gerai Utama": {
@@ -402,6 +337,8 @@ export default function KasirShiftPage() {
                 operatorId: activeKasir.id,
                 operatorName: activeKasir.name,
                 shiftInfo: `${activeKasir.shift} • Login Aktif`,
+                totalSales: salesSum > 0 ? salesSum : prevDrawer.totalSales,
+                totalNotes: notesCount > 0 ? notesCount : prevDrawer.totalNotes,
               },
             };
           });
@@ -1464,8 +1401,7 @@ export default function KasirShiftPage() {
             </div>
             <p className="text-xs text-gray-600 mt-1.5 font-medium leading-relaxed">
               Kelola data kasir dari database MariaDB (tabel `kasir`), pantau
-              status shift lintas cabang, dan atur hak akses akun secara
-              real-time.
+              status shift kasir, dan atur hak akses akun secara real-time.
             </p>
           </div>
 
@@ -1801,7 +1737,7 @@ export default function KasirShiftPage() {
                     />
                     <input
                       type="text"
-                      placeholder="Cari nama, kode, atau cabang..."
+                      placeholder="Cari nama atau kode staf kasir..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="h-9 w-full pl-9 pr-8 bg-gray-50 border border-gray-300 rounded-xl text-xs sm:text-sm font-medium text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-[#EA8E18]"
@@ -2098,7 +2034,7 @@ export default function KasirShiftPage() {
                     <input
                       type="text"
                       required
-                      placeholder="Contoh: Rian, Siti, Budi..."
+                      placeholder="Masukkan nama staf kasir..."
                       value={formName}
                       onChange={(e) => setFormName(e.target.value)}
                       className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#EA8E18]"
