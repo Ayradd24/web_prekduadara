@@ -1270,18 +1270,18 @@ export default function StokPage() {
 
       {/* KONTEN UTAMA */}
       <main className="flex-1 min-w-0 flex flex-col gap-6">
-        {/* HEADER ATAS */}
-        <header className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-full overflow-hidden bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
-              <span className="text-xl">🐔</span>
-            </div>
-            <div className="min-w-0">
-              <div className="text-base sm:text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
-                <span>PrekDuaDara</span>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold">
-                  Gerai Utama
-                </span>
+        {/* TOP NAVBAR HEADER (SERAGAM DI SELURUH HALAMAN DASHBOARD) */}
+        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
+          {/* Logo & Subtitle */}
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.png"
+              alt="Logo PrekDuaDara"
+              className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-xs shrink-0"
+            />
+            <div>
+              <div className="font-extrabold text-base text-[#EA8E18] tracking-tight leading-tight">
+                PrekDuaDara
               </div>
               <div className="text-xs text-gray-600 font-medium leading-tight mt-0.5">
                 Manajemen Stok &amp; Inventaris Dapur
@@ -1291,11 +1291,13 @@ export default function StokPage() {
 
           {/* Right Controls: Online Sync & Admin Profile */}
           <div className="print:hidden flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
+            {/* Online Sync Pill */}
             <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
+            {/* User Profile: Admin / Owner */}
             <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
               <div className="text-right">
                 <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
