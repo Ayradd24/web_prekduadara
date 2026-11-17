@@ -424,7 +424,7 @@ export default function StokPage() {
 
   // 2. HANDLER TAMBAH CEPAT (+ Button di Baris Tabel)
   const handleQuickRestockRow = async (item: InventoryDetailItem) => {
-    const addVal = item.unit === "Pcs" ? 50 : 5;
+    const addVal = 2;
     try {
       const res = await fetch(`http://localhost:5000/api/stocks/${item.id}`, {
         method: "PATCH",
@@ -457,8 +457,8 @@ export default function StokPage() {
   const handleSaveMutation = async (e: React.FormEvent) => {
     e.preventDefault();
     const qty = parseFloat(mutationAmount);
-    if (isNaN(qty) || qty <= 0) {
-      showToast("Masukkan jumlah mutasi stok yang valid (lebih dari 0)!");
+    if (isNaN(qty) || qty < 2) {
+      showToast("Jumlah mutasi stok minimal 2!");
       return;
     }
 
@@ -1837,9 +1837,7 @@ export default function StokPage() {
                             <button
                               type="button"
                               onClick={() => handleQuickRestockRow(item)}
-                              title={`Tambah cepat +${
-                                item.unit === "Pcs" ? 50 : 5
-                              } ${item.unit}`}
+                              title={`Tambah cepat +2 ${item.unit}`}
                               className="w-6.5 h-6.5 rounded-lg border border-gray-200 hover:border-[#F3A712] hover:bg-amber-50 text-gray-700 hover:text-amber-800 flex items-center justify-center transition cursor-pointer"
                             >
                               <Plus size={12} />
@@ -2010,15 +2008,20 @@ export default function StokPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
-                      Jumlah
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-extrabold text-gray-800">
+                        Jumlah
+                      </label>
+                      <span className="text-[10px] font-bold text-amber-700">
+                        Min. 2 {selectedItemObj?.unit || "kg"}
+                      </span>
+                    </div>
                     <div className="flex items-center border border-gray-300 rounded-xl bg-white px-3.5 py-2.5 focus-within:border-[#D97706]">
                       <input
                         type="number"
                         step="0.1"
-                        min="0.1"
-                        placeholder="Misal: 5"
+                        min="2"
+                        placeholder="Misal: 2"
                         value={mutationAmount}
                         onChange={(e) => setMutationAmount(e.target.value)}
                         className="w-full text-xs sm:text-sm font-bold text-gray-900 outline-none bg-transparent"
