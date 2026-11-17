@@ -450,6 +450,7 @@ export default function TransaksiPage() {
   const {
     transactions,
     filteredTransactions,
+    isLoading,
     searchQuery,
     setSearchQuery,
     filterPayment,
@@ -469,7 +470,33 @@ export default function TransaksiPage() {
   // State Kontrol Header (Cabang, Periode, Rentang Kustom, Sync POS)
   const [selectedBranch, setSelectedBranch] = useState<string>("Semua Cabang");
   const [showBranchMenu, setShowBranchMenu] = useState<boolean>(false);
-  const [selectedPeriod, setSelectedPeriod] = useState<string>("Bulan Ini");
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("Hari Ini");
+  const [isClientReady, setIsClientReady] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("prekduadara_transaksi_period");
+      if (
+        saved &&
+        ["Hari Ini", "7 Hari", "Bulan Ini", "Kuartal", "Kustom"].includes(saved)
+      ) {
+        setSelectedPeriod(saved);
+      }
+    } catch {
+      // ignore
+    }
+    setIsClientReady(true);
+  }, []);
+
+  const handleSelectPeriod = (period: string) => {
+    setSelectedPeriod(period);
+    try {
+      localStorage.setItem("prekduadara_transaksi_period", period);
+    } catch {
+      // ignore
+    }
+  };
+
   const [customStartDate, setCustomStartDate] =
     useState<string>(firstDayOfMonthStr);
   const [customEndDate, setCustomEndDate] = useState<string>(todayStr);
@@ -641,6 +668,32 @@ export default function TransaksiPage() {
   }, [selectedPeriod, daysElapsedInMonth, customDays]);
 
   const activeMetrics = useMemo(() => {
+    if (!isClientReady || isLoading) {
+      return {
+        periodBadge: basePeriod.periodBadge,
+        omzetTitle: basePeriod.omzetTitle,
+        omzetValue: "Rp 0",
+        omzetGrowth: "+0,0%",
+        omzetTarget: "Target: Rp 0",
+        omzetAchieved: "0% Tercapai",
+        porsiValue: "0",
+        porsiNumber: 0,
+        porsiGrowth: "+0,0%",
+        porsiAvg: "Target: 0 porsi/hr",
+        aovValue: "Rp 0",
+        aovGrowth: "+0,0%",
+        totalTx: "0",
+        cabaiKg: "0 Kg Rawit Merah",
+        categories: CATEGORY_META.map((meta) => ({
+          ...meta,
+          pct: "0%",
+          qty: 0,
+          dashArray: "0 276.46",
+          dashOffset: "0",
+        })),
+      };
+    }
+
     const scaledOmzet =
       Math.round((basePeriod.baseOmzet * branchProfile.scale) / 10000) *
         10000 +
@@ -734,7 +787,7 @@ export default function TransaksiPage() {
       cabaiKg: `${cabaiFormatted} Kg Rawit Merah`,
       categories,
     };
-  }, [basePeriod, branchProfile, liveBranchContextTotals]);
+  }, [basePeriod, branchProfile, liveBranchContextTotals, isClientReady, isLoading]);
 
   // 1B. KALKULASI DINAMIS KOMPARASI HARI KERJA VS WEEKEND (selectedBranch + selectedPeriod + basePeriod)
   const comparisonData = useMemo(() => {
@@ -1269,7 +1322,7 @@ export default function TransaksiPage() {
                   <button
                     key={period}
                     type="button"
-                    onClick={() => setSelectedPeriod(period)}
+                    onClick={() => handleSelectPeriod(period)}
                     className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
                       selectedPeriod === period
                         ? "bg-white text-gray-900 font-extrabold shadow-xs"
@@ -1282,7 +1335,7 @@ export default function TransaksiPage() {
               )}
               <button
                 type="button"
-                onClick={() => setSelectedPeriod("Kustom")}
+                onClick={() => handleSelectPeriod("Kustom")}
                 className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
                   selectedPeriod === "Kustom"
                     ? "bg-white text-gray-900 font-extrabold shadow-xs"
@@ -2200,7 +2253,7 @@ export default function TransaksiPage() {
               </h3>
             </div>
             <p className="text-xs text-gray-600 font-medium">
-              Sinkronisasi real-time dengan database POS ({displayedTransactions.length} transaksi)
+              Sinkronisasi real-time dengan database POS ({isLoading ? 0 : displayedTransactions.length} transaksi)
             </p>
           </div>
 
@@ -2305,7 +2358,16 @@ export default function TransaksiPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 text-gray-800">
-                {paginatedTransactions.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td
+                      colSpan={9}
+                      className="h-[280px] text-center text-gray-500 font-medium align-middle"
+                    >
+                      Memuat data transaksi dari database MariaDB...
+                    </td>
+                  </tr>
+                ) : paginatedTransactions.length === 0 ? (
                   <tr>
                     <td
                       colSpan={9}

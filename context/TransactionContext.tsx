@@ -35,6 +35,7 @@ interface TransactionStats {
 interface TransactionContextType {
   transactions: Transaction[];
   filteredTransactions: Transaction[];
+  isLoading: boolean;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   filterPayment: string;
@@ -146,49 +147,56 @@ const initialTransactions: Transaction[] = [
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
 
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Ambil transaksi real-time dari database MariaDB
   const fetchTransactionsFromBackend = useCallback(async () => {
     try {
       const res = await fetch('http://localhost:5000/api/transactions');
       const json = await res.json();
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-        const mapped: Transaction[] = json.data.map((tx: any) => {
-          let terminalName = 'Pos-01 (Rian)';
-          if (tx.cashier && tx.cashier.toLowerCase().includes('siti')) {
-            terminalName = 'Pos-02 (Siti)';
-          } else if (tx.cashier && tx.cashier.toLowerCase().includes('budi')) {
-            terminalName = 'Pos-03 (Budi)';
-          }
+      if (json.success && Array.isArray(json.data)) {
+        if (json.data.length > 0) {
+          const mapped: Transaction[] = json.data.map((tx: any) => {
+            let terminalName = 'Pos-01 (Rian)';
+            if (tx.cashier && tx.cashier.toLowerCase().includes('siti')) {
+              terminalName = 'Pos-02 (Siti)';
+            } else if (tx.cashier && tx.cashier.toLowerCase().includes('budi')) {
+              terminalName = 'Pos-03 (Budi)';
+            }
 
-          const isQris = String(tx.paymentMethod).toLowerCase().includes('qris');
+            const isQris = String(tx.paymentMethod).toLowerCase().includes('qris');
 
-          return {
-            id: tx.id.startsWith('#') ? tx.id : `#${tx.id}`,
-            time: tx.time ? (tx.time.includes(':') ? tx.time : `${tx.time}:00`) : '12:00:00',
-            date: tx.created_at
-              ? new Date(tx.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
-              : 'Hari ini',
-            cashier: tx.cashier || 'Kasir PrekDuaDara',
-            terminal: terminalName,
-            itemsSummary: tx.itemsSummary || 'Ayam Geprek Bakar + Es Teh',
-            totalItems: Number(tx.totalItems) || 1,
-            subtotal: Number(tx.total) || 0,
-            diskon: 0,
-            total: Number(tx.total) || 0,
-            paymentMethod: isQris ? 'QRIS' : 'Tunai',
-            status: 'Berhasil',
-            branch: 'Gerai Pusat',
-            orderType: 'Dine-In',
-            addons: `Dilayani oleh ${tx.cashier || 'Kasir'}`,
-            relativeTime: 'Tersimpan di DB',
-          };
-        });
-        setTransactions(mapped);
+            return {
+              id: tx.id.startsWith('#') ? tx.id : `#${tx.id}`,
+              time: tx.time ? (tx.time.includes(':') ? tx.time : `${tx.time}:00`) : '12:00:00',
+              date: tx.created_at
+                ? new Date(tx.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+                : 'Hari ini',
+              cashier: tx.cashier || 'Kasir PrekDuaDara',
+              terminal: terminalName,
+              itemsSummary: tx.itemsSummary || 'Ayam Geprek Bakar + Es Teh',
+              totalItems: Number(tx.totalItems) || 1,
+              subtotal: Number(tx.total) || 0,
+              diskon: 0,
+              total: Number(tx.total) || 0,
+              paymentMethod: isQris ? 'QRIS' : 'Tunai',
+              status: 'Berhasil',
+              branch: 'Gerai Pusat',
+              orderType: 'Dine-In',
+              addons: `Dilayani oleh ${tx.cashier || 'Kasir'}`,
+              relativeTime: 'Tersimpan di DB',
+            };
+          });
+          setTransactions(mapped);
+        } else {
+          setTransactions([]);
+        }
       }
     } catch {
-      // Fallback tetap menggunakan data awal jika server offline
+      // Fallback tetap kosong jika server offline
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -324,6 +332,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       value={{
         transactions,
         filteredTransactions,
+        isLoading,
         searchQuery,
         setSearchQuery,
         filterPayment,

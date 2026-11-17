@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const {
     transactions,
     filteredTransactions,
+    isLoading,
     searchQuery,
     setSearchQuery,
     filterPayment,
@@ -599,7 +600,13 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 text-gray-800">
-                {paginatedTransactions.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={9} className="h-[280px] text-center text-gray-500 font-medium align-middle">
+                      Memuat data transaksi dari database MariaDB...
+                    </td>
+                  </tr>
+                ) : paginatedTransactions.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="h-[280px] text-center text-gray-500 font-medium align-middle">
                       Tidak ada transaksi yang cocok dengan filter.
