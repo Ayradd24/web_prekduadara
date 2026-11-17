@@ -303,15 +303,27 @@ export default function KasirShiftPage() {
           setFormId(generateNextCashierCode(mappedDbItems));
         }
 
-        // Ambil data transaksi langsung dari database MariaDB
+        // Ambil data transaksi langsung dari database MariaDB (khusus Hari Ini untuk shift aktif)
         let salesSum = 0;
         let notesCount = 0;
         try {
           const trxRes = await fetch("http://localhost:5000/api/transactions");
           const trxJson = await trxRes.json();
           if (trxJson.success && Array.isArray(trxJson.data)) {
-            notesCount = trxJson.data.length;
-            salesSum = trxJson.data.reduce(
+            const isToday = (created?: string) => {
+              if (!created) return true;
+              const d = new Date(created);
+              if (isNaN(d.getTime())) return true;
+              const now = new Date();
+              return (
+                d.getFullYear() === now.getFullYear() &&
+                d.getMonth() === now.getMonth() &&
+                d.getDate() === now.getDate()
+              );
+            };
+            const todayTrx = trxJson.data.filter((t: { created_at?: string }) => isToday(t.created_at));
+            notesCount = todayTrx.length;
+            salesSum = todayTrx.reduce(
               (sum: number, t: { total?: number | string }) =>
                 sum + (Number(t.total) || 0),
               0
@@ -337,8 +349,8 @@ export default function KasirShiftPage() {
                 operatorId: activeKasir.id,
                 operatorName: activeKasir.name,
                 shiftInfo: `${activeKasir.shift} • Login Aktif`,
-                totalSales: salesSum > 0 ? salesSum : prevDrawer.totalSales,
-                totalNotes: notesCount > 0 ? notesCount : prevDrawer.totalNotes,
+                totalSales: salesSum,
+                totalNotes: notesCount,
               },
             };
           });

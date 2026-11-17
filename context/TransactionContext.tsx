@@ -6,6 +6,8 @@ export interface Transaction {
   id: string;
   time: string;
   date: string;
+  rawCreatedAt?: string;
+  isToday?: boolean;
   cashier: string;
   terminal: string;
   itemsSummary: string;
@@ -48,6 +50,19 @@ interface TransactionContextType {
   addTransaction: (tx: Omit<Transaction, 'id' | 'time' | 'date'>) => void;
   addSimulatedTransaction: () => void;
   stats: TransactionStats;
+  todayStats: TransactionStats;
+}
+
+function isDateToday(rawDate?: string): boolean {
+  if (!rawDate) return true;
+  const d = new Date(rawDate);
+  if (isNaN(d.getTime())) return true;
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
 }
 
 // Data awal fallback sesuai transaksi autentik PrekDuaDara
@@ -56,6 +71,7 @@ const initialTransactions: Transaction[] = [
     id: '#TRX-001',
     time: '14:28:19',
     date: 'Hari ini',
+    isToday: true,
     cashier: 'Rian Pratama',
     terminal: 'Pos-01 (Rian)',
     itemsSummary: '2x Ayam Geprek Bakar + Es Teh',
@@ -74,6 +90,7 @@ const initialTransactions: Transaction[] = [
     id: '#TRX-002',
     time: '14:21:05',
     date: 'Hari ini',
+    isToday: true,
     cashier: 'Siti Rahma',
     terminal: 'Pos-02 (Siti)',
     itemsSummary: '1x Ayam Geprek Biasa + Es Teh',
@@ -92,6 +109,7 @@ const initialTransactions: Transaction[] = [
     id: '#TRX-003',
     time: '14:10:44',
     date: 'Hari ini',
+    isToday: true,
     cashier: 'Rian Pratama',
     terminal: 'Pos-01 (Rian)',
     itemsSummary: '3x Ayam Geprek Bakar + Es Teh',
@@ -110,6 +128,7 @@ const initialTransactions: Transaction[] = [
     id: '#TRX-004',
     time: '13:55:12',
     date: 'Hari ini',
+    isToday: true,
     cashier: 'Budi Santoso',
     terminal: 'Pos-03 (Budi)',
     itemsSummary: '2x Ayam Geprek Biasa + Es Teh',
@@ -128,6 +147,7 @@ const initialTransactions: Transaction[] = [
     id: '#TRX-005',
     time: '13:42:00',
     date: 'Hari ini',
+    isToday: true,
     cashier: 'Siti Rahma',
     terminal: 'Pos-02 (Siti)',
     itemsSummary: '1x Ayam Geprek Bakar + Es Teh',
@@ -166,13 +186,19 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
             }
 
             const isQris = String(tx.paymentMethod).toLowerCase().includes('qris');
+            const isToday = isDateToday(tx.created_at);
+            const dateStr = tx.created_at
+              ? (isToday
+                  ? 'Hari ini'
+                  : new Date(tx.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }))
+              : 'Hari ini';
 
             return {
               id: tx.id.startsWith('#') ? tx.id : `#${tx.id}`,
               time: tx.time ? (tx.time.includes(':') ? tx.time : `${tx.time}:00`) : '12:00:00',
-              date: tx.created_at
-                ? new Date(tx.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
-                : 'Hari ini',
+              date: dateStr,
+              rawCreatedAt: tx.created_at,
+              isToday,
               cashier: tx.cashier || 'Kasir PrekDuaDara',
               terminal: terminalName,
               itemsSummary: tx.itemsSummary || 'Ayam Geprek Bakar + Es Teh',
@@ -229,6 +255,8 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       id: idStr,
       time: timeStr,
       date: 'Hari ini',
+      rawCreatedAt: now.toISOString(),
+      isToday: true,
     };
 
     setTransactions((prev) => [fullTx, ...prev]);
@@ -243,6 +271,8 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       id: idStr,
       time: timeStr,
       date: 'Hari ini',
+      rawCreatedAt: now.toISOString(),
+      isToday: true,
       cashier: 'Rian Pratama',
       terminal: 'Pos-01 (Rian)',
       itemsSummary: '1x Ayam Geprek Bakar + Es Teh',
@@ -287,7 +317,50 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     });
   }, [transactions, searchQuery, filterPayment, filterTerminal, filterStatus]);
 
-  // Statistik Otomatis
+  // Statistik Otomatis Hari Ini (Reset ke 0 saat berganti hari)
+  const todayStats = useMemo(() => {
+    let totalCount = 0;
+    let totalOmset = 0;
+    let tunaiCount = 0;
+    let tunaiOmset = 0;
+    let qrisCount = 0;
+    let qrisOmset = 0;
+    let successCount = 0;
+
+    transactions.forEach((tx) => {
+      if (tx.isToday) {
+        totalCount++;
+        if (tx.status === 'Berhasil') {
+          successCount++;
+          totalOmset += tx.total;
+
+          if (tx.paymentMethod === 'Tunai') {
+            tunaiCount++;
+            tunaiOmset += tx.total;
+          } else if (tx.paymentMethod === 'QRIS') {
+            qrisCount++;
+            qrisOmset += tx.total;
+          }
+        }
+      }
+    });
+
+    const successRate =
+      totalCount > 0 ? `${((successCount / totalCount) * 100).toFixed(1)}%` : '100%';
+
+    return {
+      totalCount,
+      totalOmset,
+      successCount,
+      successRate,
+      tunaiCount,
+      tunaiOmset,
+      qrisCount,
+      qrisOmset,
+    };
+  }, [transactions]);
+
+  // Statistik Otomatis Semua Riwayat
   const stats = useMemo(() => {
     const totalCount = transactions.length;
     let totalOmset = 0;
@@ -345,6 +418,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         addTransaction,
         addSimulatedTransaction,
         stats,
+        todayStats,
       }}
     >
       {children}

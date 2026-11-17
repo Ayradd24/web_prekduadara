@@ -531,9 +531,14 @@ export default function TransaksiPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterPayment, filterTerminal, filterStatus]);
+  }, [searchQuery, filterPayment, filterTerminal, filterStatus, selectedPeriod]);
 
-  const displayedTransactions = filteredTransactions;
+  const displayedTransactions = useMemo(() => {
+    if (selectedPeriod === "Hari Ini") {
+      return filteredTransactions.filter((tx) => tx.isToday);
+    }
+    return filteredTransactions;
+  }, [filteredTransactions, selectedPeriod]);
   const ITEMS_PER_PAGE = 5;
   const totalPages = Math.max(
     1,
@@ -612,6 +617,7 @@ export default function TransaksiPage() {
     let porsi = 0;
     let txCount = 0;
     transactions.forEach((tx) => {
+      if (selectedPeriod === "Hari Ini" && !tx.isToday) return;
       if (tx.status === "Berhasil") {
         omzet += tx.total;
         porsi += tx.totalItems;
@@ -619,7 +625,7 @@ export default function TransaksiPage() {
       }
     });
     return { omzet, porsi, txCount };
-  }, [transactions]);
+  }, [transactions, selectedPeriod]);
 
   // Hitung jumlah hari inklusif pada rentang tanggal Kustom yang telah diterapkan
   const customDays = useMemo(() => {

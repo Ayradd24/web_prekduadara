@@ -34,6 +34,7 @@ export default function DashboardPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [filterPeriod, setFilterPeriod] = useState<string>('Hari Ini');
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showToast = (msg: string) => {
@@ -62,11 +63,11 @@ export default function DashboardPage() {
   // Reset page saat filter/search berubah
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterPayment, filterTerminal, filterStatus]);
+  }, [searchQuery, filterPayment, filterTerminal, filterStatus, filterPeriod]);
 
-  // Statistik KPI Ringkasan diambil real-time dari data backend/transaksi
+  // Statistik KPI Ringkasan diambil real-time dari data backend/transaksi (Hari Ini)
   const dashboardStats = useMemo(() => {
-    const totalCount = transactions.length;
+    let totalCount = 0;
     let totalOmset = 0;
     let tunaiCount = 0;
     let tunaiOmset = 0;
@@ -75,16 +76,20 @@ export default function DashboardPage() {
     let successCount = 0;
 
     transactions.forEach((tx) => {
-      if (tx.status === 'Berhasil') {
-        successCount++;
-        totalOmset += tx.total;
+      // Hanya menghitung transaksi Hari Ini agar reset ke 0 saat berganti hari
+      if (tx.isToday) {
+        totalCount++;
+        if (tx.status === 'Berhasil') {
+          successCount++;
+          totalOmset += tx.total;
 
-        if (tx.paymentMethod === 'Tunai') {
-          tunaiCount++;
-          tunaiOmset += tx.total;
-        } else if (tx.paymentMethod === 'QRIS') {
-          qrisCount++;
-          qrisOmset += tx.total;
+          if (tx.paymentMethod === 'Tunai') {
+            tunaiCount++;
+            tunaiOmset += tx.total;
+          } else if (tx.paymentMethod === 'QRIS') {
+            qrisCount++;
+            qrisOmset += tx.total;
+          }
         }
       }
     });
@@ -106,8 +111,15 @@ export default function DashboardPage() {
     };
   }, [transactions]);
 
-  // Transaksi yang difilter
-  const displayedTransactions = filteredTransactions;
+  // Transaksi yang difilter (default hanya menampilkan Hari Ini)
+  const displayedTransactions = useMemo(() => {
+    return filteredTransactions.filter((tx) => {
+      if (filterPeriod === 'Hari Ini') {
+        return tx.isToday;
+      }
+      return true;
+    });
+  }, [filteredTransactions, filterPeriod]);
 
   // Pagination Slice
   const totalPages = Math.max(1, Math.ceil(displayedTransactions.length / ITEMS_PER_PAGE));
@@ -129,6 +141,7 @@ export default function DashboardPage() {
   // Handler Reset seluruh filter
   const handleResetAllFilters = () => {
     resetFilters();
+    setFilterPeriod('Hari Ini');
     setCurrentPage(1);
   };
 
@@ -554,6 +567,20 @@ export default function DashboardPage() {
                 className="pointer-events-none absolute right-2.5 text-gray-700"
               />
             </div>
+            <div className="relative inline-flex items-center shrink-0">
+              <select
+                value={filterPeriod}
+                onChange={(e) => setFilterPeriod(e.target.value)}
+                className="appearance-none w-[150px] shrink-0 truncate bg-white border border-gray-200 rounded-2xl pl-3.5 pr-7 py-2.5 text-xs font-bold text-gray-800 cursor-pointer focus:outline-none focus:border-emerald-600"
+              >
+                <option value="Hari Ini">Hari Ini</option>
+                <option value="Semua">Semua Riwayat</option>
+              </select>
+              <ChevronDown
+                size={14}
+                className="pointer-events-none absolute right-2.5 text-gray-700"
+              />
+            </div>
             <button
               type="button"
               onClick={handleResetAllFilters}
@@ -609,7 +636,9 @@ export default function DashboardPage() {
                 ) : paginatedTransactions.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="h-[280px] text-center text-gray-500 font-medium align-middle">
-                      Tidak ada transaksi yang cocok dengan filter.
+                      {filterPeriod === 'Hari Ini'
+                        ? 'Belum ada transaksi hari ini di MariaDB.'
+                        : 'Tidak ada transaksi yang cocok dengan filter.'}
                     </td>
                   </tr>
                 ) : (
