@@ -278,8 +278,19 @@ export default function PengaturanTokoPage() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Muat dari backend MariaDB saat halaman pertama kali dibuka
+  // Muat dari localStorage dan backend MariaDB saat halaman pertama kali dibuka
   useEffect(() => {
+    try {
+      const local = localStorage.getItem(STORAGE_KEY);
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (parsed && typeof parsed === "object") {
+          setConfigsByBranch(parsed);
+          setSavedConfigsByBranch(parsed);
+        }
+      }
+    } catch {}
+
     const fetchBackendSettings = async () => {
       try {
         const res = await fetch("http://localhost:5000/api/settings");
@@ -356,9 +367,9 @@ export default function PengaturanTokoPage() {
                       : updated[branchKey].channelOjol,
                 };
               });
+              setSavedConfigsByBranch(updated);
               return updated;
             });
-            setSavedConfigsByBranch((prev) => ({ ...prev }));
           }
         }
       } catch (e) {
@@ -542,27 +553,21 @@ export default function PengaturanTokoPage() {
     }
   };
 
-  // Handler Konfirmasi Reset ke Default
-  const handleConfirmResetDefault = () => {
-    const updatedAll =
+  // Handler Konfirmasi Reset ke Data Terakhir Disimpan
+  const handleConfirmResetSaved = () => {
+    const updated =
       selectedBranch === "Semua Cabang"
-        ? DEFAULT_BRANCH_SETTINGS
+        ? savedConfigsByBranch
         : {
             ...configsByBranch,
-            [activeBranchKey]: DEFAULT_BRANCH_SETTINGS[activeBranchKey],
+            [activeBranchKey]: savedConfigsByBranch[activeBranchKey],
           };
-    setConfigsByBranch(updatedAll);
-    setSavedConfigsByBranch(updatedAll);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedAll));
-    } catch {
-      // Abaikan jika gagal tulis storage
-    }
+    setConfigsByBranch(updated);
     setShowResetModal(false);
     showToast(
       selectedBranch === "Semua Cabang"
-        ? "Konfigurasi seluruh cabang dikembalikan ke pengaturan awal (Default)."
-        : `Konfigurasi ${activeBranchKey} dikembalikan ke pengaturan awal (Default).`
+        ? "Konfigurasi seluruh cabang berhasil dikembalikan ke data yang terakhir disimpan."
+        : `Konfigurasi ${activeBranchKey} berhasil dikembalikan ke data yang terakhir disimpan.`
     );
   };
 
@@ -621,7 +626,7 @@ export default function PengaturanTokoPage() {
         </div>
       )}
 
-      {/* Modal Konfirmasi Reset ke Default */}
+      {/* Modal Konfirmasi Reset ke Data Terakhir Disimpan */}
       {showResetModal && (
         <div
           onClick={() => setShowResetModal(false)}
@@ -638,7 +643,7 @@ export default function PengaturanTokoPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-gray-900">
-                    Reset Konfigurasi ke Default?
+                    Reset ke Data Terakhir Disimpan?
                   </h3>
                   <p className="text-xs text-gray-500 font-semibold mt-0.5">
                     PrekDuaDara ({currentConfig.outletId || "OUT-001"})
@@ -655,12 +660,8 @@ export default function PengaturanTokoPage() {
             </div>
 
             <p className="text-xs sm:text-sm text-gray-600 leading-relaxed font-medium mb-6">
-              Seluruh perubahan profil gerai, jam operasional, pajak PB1,
-              template struk 80mm, dan kapasitas meja untuk{" "}
-              <strong className="text-gray-900">
-                Gerai PrekDuaDara
-              </strong>{" "}
-              akan dikembalikan ke pengaturan standar awal.
+              Seluruh perubahan konfigurasi yang belum disimpan akan dibatalkan
+              dan dikembalikan ke data yang terakhir Anda simpan di database.
             </p>
 
             <div className="flex items-center justify-end gap-2.5">
@@ -673,11 +674,11 @@ export default function PengaturanTokoPage() {
               </button>
               <button
                 type="button"
-                onClick={handleConfirmResetDefault}
-                className="px-4 py-2.5 rounded-xl bg-[#EF4444] hover:bg-[#DC2626] text-xs font-extrabold text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                onClick={handleConfirmResetSaved}
+                className="px-4 py-2.5 rounded-xl bg-[#EA8E18] hover:bg-[#d67f12] text-xs font-extrabold text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer"
               >
                 <RotateCcw size={14} />
-                <span>Ya, Reset ke Default</span>
+                <span>Ya, Kembalikan Data</span>
               </button>
             </div>
           </div>
@@ -703,7 +704,7 @@ export default function PengaturanTokoPage() {
             className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 transition shadow-lg cursor-pointer"
           >
             <RotateCcw size={14} />
-            <span>Reset ke Default</span>
+            <span>Reset ke Data Terakhir</span>
           </button>
           <button
             type="button"
@@ -814,7 +815,7 @@ export default function PengaturanTokoPage() {
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 transition shadow-2xs cursor-pointer"
             >
               <RotateCcw size={14} />
-              <span>Reset ke Default</span>
+              <span>Reset ke Data Terakhir</span>
             </button>
             <button
               type="button"
