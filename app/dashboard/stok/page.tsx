@@ -1590,12 +1590,12 @@ export default function StokPage() {
         {/* 2-COLUMN MAIN CONTENT: LEFT (TABLE) & RIGHT (MUTATION FORM & LOGS) */}
         <section className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           {/* LEFT COLUMN: TABLE (8 COLS) */}
-          <div className="xl:col-span-8 print:col-span-12 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-200 flex flex-col gap-5">
+          <div className="xl:col-span-8 print:col-span-12 bg-white rounded-2xl p-3.5 sm:p-4 md:p-5 shadow-sm border border-gray-200 flex flex-col gap-4">
             {/* SEARCH & STATUS FILTER */}
-            <div className="print:hidden flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3.5">
+            <div className="print:hidden flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
               <div className="relative flex-1">
                 <Search
-                  size={16}
+                  size={15}
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
                 />
                 <input
@@ -1603,7 +1603,7 @@ export default function StokPage() {
                   placeholder="Cari nama bahan, supplier, atau kode SKU..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#D97706] bg-gray-50/50"
+                  className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-xl text-xs font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#D97706] bg-gray-50/50"
                 />
                 {searchQuery && (
                   <button
@@ -1611,7 +1611,7 @@ export default function StokPage() {
                     onClick={() => setSearchQuery("")}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 cursor-pointer"
                   >
-                    <X size={14} />
+                    <X size={13} />
                   </button>
                 )}
               </div>
@@ -1644,7 +1644,7 @@ export default function StokPage() {
             </div>
 
             {/* CATEGORY TABS */}
-            <div className="print:hidden flex items-center gap-2 overflow-x-auto pb-1 text-xs font-extrabold border-b border-gray-100">
+            <div className="print:hidden flex items-center gap-1.5 flex-wrap pb-1 text-[11px] font-extrabold border-b border-gray-100">
               {(
                 [
                   "Semua Bahan",
@@ -1667,9 +1667,9 @@ export default function StokPage() {
                       setActiveCategory(cat);
                       setActivePage(1);
                     }}
-                    className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg whitespace-nowrap transition cursor-pointer ${
                       activeCategory === cat
-                        ? "bg-[#F3A712] text-gray-950 shadow-2xs"
+                        ? "bg-[#F3A712] text-gray-950 shadow-2xs font-black"
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     }`}
                   >
@@ -1680,27 +1680,26 @@ export default function StokPage() {
             </div>
 
             {/* TABEL INVENTARIS */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs sm:text-sm">
+            <div className="overflow-x-auto print:overflow-visible">
+              <table className="table-fixed w-full text-left border-collapse text-xs">
+                <colgroup>
+                  <col className="w-[28%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[7%] print:hidden" />
+                </colgroup>
                 <thead>
-                  <tr className="border-b border-gray-200 text-[11px] font-black text-gray-500 uppercase tracking-wider bg-gray-50/50">
-                    <th className="py-2.5 px-3 whitespace-nowrap">
-                      BAHAN BAKU &amp; SKU
-                    </th>
-                    <th className="py-2.5 px-2.5 whitespace-nowrap">KATEGORI</th>
-                    <th className="py-2.5 px-2.5 whitespace-nowrap">
-                      STOK AKTUAL
-                    </th>
-                    <th className="py-2.5 px-2.5 whitespace-nowrap">
-                      KETAHANAN &amp; SAFETY
-                    </th>
-                    <th className="py-2.5 px-2.5 whitespace-nowrap">
-                      HARGA UNIT
-                    </th>
-                    <th className="py-2.5 px-2.5 whitespace-nowrap">STATUS</th>
-                    <th className="py-2.5 px-2 text-center whitespace-nowrap print:hidden">
-                      AKSI
-                    </th>
+                  <tr className="border-b border-gray-200 text-[10px] font-black text-gray-500 uppercase tracking-wider bg-gray-50/50">
+                    <th className="py-2.5 px-2.5">BAHAN BAKU</th>
+                    <th className="py-2.5 px-1.5">KATEGORI</th>
+                    <th className="py-2.5 px-1.5">STOK</th>
+                    <th className="py-2.5 px-1.5">KETAHANAN</th>
+                    <th className="py-2.5 px-1.5">HARGA</th>
+                    <th className="py-2.5 px-1 text-center">STATUS</th>
+                    <th className="py-2.5 px-1 text-center print:hidden">AKSI</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 text-gray-800">
@@ -1729,19 +1728,25 @@ export default function StokPage() {
                         className="hover:bg-amber-50/30 transition-colors"
                       >
                         {/* Bahan Baku & SKU */}
-                        <td className="py-3 px-3">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="text-lg shrink-0">{item.icon}</span>
+                        <td className="py-2.5 px-2.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-base shrink-0">{item.icon}</span>
                             <div className="min-w-0 flex-1">
-                              <div className="font-extrabold text-gray-900 truncate">
+                              <div
+                                className="font-extrabold text-gray-900 text-xs truncate"
+                                title={item.name}
+                              >
                                 {item.name}
                               </div>
-                              <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                                <span className="inline-block px-1.5 py-0.2 rounded bg-gray-100 border border-gray-200 text-gray-700 font-extrabold text-[10px] shrink-0">
+                              <div className="flex items-center gap-1 mt-0.5 min-w-0">
+                                <span className="inline-block px-1 py-0.2 rounded bg-gray-100 border border-gray-200 text-gray-700 font-extrabold text-[9px] shrink-0">
                                   {item.sku}
                                 </span>
-                                <span className="text-[11px] text-gray-500 font-medium truncate">
-                                  {item.supplier}
+                                <span
+                                  className="text-[10px] text-gray-500 font-medium truncate"
+                                  title={item.supplier}
+                                >
+                                  {item.supplier.replace(/^Supplier:\s*/i, "")}
                                 </span>
                               </div>
                             </div>
@@ -1749,61 +1754,70 @@ export default function StokPage() {
                         </td>
 
                         {/* Kategori */}
-                        <td className="py-3 px-2.5 font-bold text-gray-800 whitespace-nowrap">
-                          {item.category}
+                        <td className="py-2.5 px-1.5">
+                          <span
+                            className="font-bold text-gray-700 text-xs truncate block"
+                            title={item.category}
+                          >
+                            {item.category}
+                          </span>
                         </td>
 
                         {/* Stok Aktual */}
-                        <td className="py-3 px-2.5 whitespace-nowrap">
-                          <div className="font-black text-gray-900 text-xs sm:text-sm">
+                        <td className="py-2.5 px-1.5">
+                          <div className="font-black text-gray-900 text-xs tabular-nums">
                             {item.unit === "Pcs"
                               ? item.stock
                               : item.stock.toFixed(1)}{" "}
                             {item.unit}
                           </div>
-                          <div className="text-[11px] text-gray-500 font-medium mt-0.5">
-                            Safety: {item.safetyStock} {item.safetyUnit}
+                          <div className="text-[10px] text-gray-500 font-medium">
+                            Min: {item.safetyStock} {item.safetyUnit}
                           </div>
                         </td>
 
                         {/* Ketahanan & Safety */}
-                        <td className="py-3 px-2.5 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-gray-700 w-8 tabular-nums">
-                              {item.pct}%
-                            </span>
-                            <div className="w-16 h-2 rounded-full bg-gray-200 overflow-hidden">
-                              <div
-                                style={{ width: `${item.pct}%` }}
-                                className={`h-full rounded-full transition-all ${
-                                  item.status === "KRITIS"
-                                    ? "bg-red-500"
-                                    : item.status === "MENIPIS"
-                                      ? "bg-amber-500"
-                                      : "bg-emerald-500"
-                                }`}
-                              />
+                        <td className="py-2.5 px-1.5">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1">
+                              <div className="w-9 sm:w-11 h-1.5 rounded-full bg-gray-200 overflow-hidden shrink-0">
+                                <div
+                                  style={{
+                                    width: `${Math.min(item.pct, 100)}%`,
+                                  }}
+                                  className={`h-full rounded-full transition-all ${
+                                    item.status === "KRITIS"
+                                      ? "bg-red-500"
+                                      : item.status === "MENIPIS"
+                                        ? "bg-amber-500"
+                                        : "bg-emerald-500"
+                                  }`}
+                                />
+                              </div>
+                              <span className="text-[10px] font-bold text-gray-700 tabular-nums shrink-0">
+                                {item.pct}%
+                              </span>
                             </div>
-                            <span className="text-[11px] font-bold text-emerald-800 tabular-nums">
+                            <span className="text-[10px] font-semibold text-emerald-800 tabular-nums">
                               {item.daysLeft}
                             </span>
                           </div>
                         </td>
 
                         {/* Harga Unit */}
-                        <td className="py-3 px-2.5 whitespace-nowrap">
-                          <div className="font-extrabold text-gray-900 tabular-nums">
+                        <td className="py-2.5 px-1.5">
+                          <div className="font-extrabold text-gray-900 text-xs tabular-nums whitespace-nowrap">
                             Rp {item.unitPrice.toLocaleString("id-ID")}
                           </div>
-                          <div className="text-[11px] text-gray-500 font-medium">
+                          <div className="text-[10px] text-gray-500 font-medium">
                             {item.priceUnit}
                           </div>
                         </td>
 
                         {/* Status */}
-                        <td className="py-3 px-2.5 whitespace-nowrap">
+                        <td className="py-2.5 px-1 text-center">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                            className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase ${
                               item.status === "KRITIS"
                                 ? "bg-red-100 text-red-700 border border-red-200"
                                 : item.status === "MENIPIS"
@@ -1816,25 +1830,25 @@ export default function StokPage() {
                         </td>
 
                         {/* Aksi (+ Quick Add & Delete) */}
-                        <td className="py-3 px-2 text-center whitespace-nowrap print:hidden">
-                          <div className="inline-flex items-center justify-center gap-1.5">
+                        <td className="py-2.5 px-1 text-center print:hidden">
+                          <div className="inline-flex items-center justify-center gap-1">
                             <button
                               type="button"
                               onClick={() => handleQuickRestockRow(item)}
                               title={`Tambah cepat +${
                                 item.unit === "Pcs" ? 50 : 5
                               } ${item.unit}`}
-                              className="w-7 h-7 rounded-lg border border-gray-200 hover:border-[#F3A712] hover:bg-amber-50 text-gray-700 hover:text-amber-800 flex items-center justify-center transition cursor-pointer"
+                              className="w-6.5 h-6.5 rounded-lg border border-gray-200 hover:border-[#F3A712] hover:bg-amber-50 text-gray-700 hover:text-amber-800 flex items-center justify-center transition cursor-pointer"
                             >
-                              <Plus size={13} />
+                              <Plus size={12} />
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDeleteStock(item)}
                               title="Hapus Bahan Baku dari Database"
-                              className="w-7 h-7 rounded-lg border border-gray-200 hover:border-red-400 hover:bg-red-50 text-gray-500 hover:text-red-600 flex items-center justify-center transition cursor-pointer"
+                              className="w-6.5 h-6.5 rounded-lg border border-gray-200 hover:border-red-400 hover:bg-red-50 text-gray-500 hover:text-red-600 flex items-center justify-center transition cursor-pointer"
                             >
-                              <Trash2 size={13} />
+                              <Trash2 size={12} />
                             </button>
                           </div>
                         </td>
