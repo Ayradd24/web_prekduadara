@@ -245,7 +245,7 @@ export default function DashboardPage() {
                     PREKDUADARA
                   </div>
                   <div className="text-[11px] text-gray-600 mt-0.5 font-sans font-medium">
-                    Spesial Ayam Geprek Cobek &amp; Sambal Uleg Asli
+                    Spesial Ayam Geprek &amp; Geprek Bakar
                   </div>
                   <div className="text-[11px] text-gray-500 font-sans">
                     Gerai Utama • Telp: 0812-xxxx-xxxx
@@ -318,11 +318,10 @@ export default function DashboardPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500">Status Transaksi:</span>
                     <span
-                      className={`font-bold px-2 py-0.5 rounded text-[10px] ${
-                        selectedTx.status === 'Berhasil'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-red-50 text-red-700 border border-red-200'
-                      }`}
+                      className={`font-bold px-2 py-0.5 rounded text-[10px] ${selectedTx.status === 'Berhasil'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-red-50 text-red-700 border border-red-200'
+                        }`}
                     >
                       {selectedTx.status}
                     </span>
@@ -670,22 +669,20 @@ export default function DashboardPage() {
                       </td>
                       <td className="py-3 px-2 text-center whitespace-nowrap">
                         <span
-                          className={`inline-block font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg border ${
-                            tx.paymentMethod === 'QRIS'
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                              : 'bg-blue-50 text-blue-800 border-blue-300'
-                          }`}
+                          className={`inline-block font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg border ${tx.paymentMethod === 'QRIS'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                            : 'bg-blue-50 text-blue-800 border-blue-300'
+                            }`}
                         >
                           {tx.paymentMethod}
                         </span>
                       </td>
                       <td className="py-3 px-2 text-center whitespace-nowrap">
                         <span
-                          className={`inline-block font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg border ${
-                            tx.status === 'Berhasil'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                              : 'bg-red-50 text-red-700 border-red-300'
-                          }`}
+                          className={`inline-block font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg border ${tx.status === 'Berhasil'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                            : 'bg-red-50 text-red-700 border-red-300'
+                            }`}
                         >
                           {tx.status}
                         </span>
@@ -767,11 +764,10 @@ export default function DashboardPage() {
                   key={page}
                   type="button"
                   onClick={() => setCurrentPage(page)}
-                  className={`w-8 h-8 rounded-lg font-extrabold transition cursor-pointer ${
-                    activePage === page
-                      ? 'bg-[#1E3A1C] text-white'
-                      : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
+                  className={`w-8 h-8 rounded-lg font-extrabold transition cursor-pointer ${activePage === page
+                    ? 'bg-[#1E3A1C] text-white'
+                    : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
                 >
                   {page}
                 </button>
