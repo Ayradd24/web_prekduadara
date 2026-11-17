@@ -531,9 +531,59 @@ export default function TransaksiPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterPayment, filterTerminal, filterStatus]);
+  }, [searchQuery, filterPayment, filterTerminal, filterStatus, selectedPeriod]);
 
-  const displayedTransactions = filteredTransactions;
+  const displayedTransactions = useMemo(() => {
+    const now = new Date();
+    return filteredTransactions.filter((tx) => {
+      // Filter cabang jika bukan 'Semua Cabang'
+      if (
+        selectedBranch !== "Semua Cabang" &&
+        tx.branch &&
+        tx.branch !== "Gerai Pusat" &&
+        tx.branch !== selectedBranch
+      ) {
+        return false;
+      }
+
+      if (selectedPeriod === "Hari Ini") {
+        return tx.isToday;
+      }
+
+      if (!tx.rawCreatedAt) return true;
+      const txDate = new Date(tx.rawCreatedAt);
+      if (isNaN(txDate.getTime())) return true;
+
+      if (selectedPeriod === "7 Hari") {
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return txDate >= sevenDaysAgo && txDate <= now;
+      }
+      if (selectedPeriod === "Bulan Ini") {
+        return (
+          txDate.getFullYear() === now.getFullYear() &&
+          txDate.getMonth() === now.getMonth()
+        );
+      }
+      if (selectedPeriod === "Kuartal") {
+        const currentQuarter = Math.floor(now.getMonth() / 3);
+        const txQuarter = Math.floor(txDate.getMonth() / 3);
+        return (
+          txDate.getFullYear() === now.getFullYear() &&
+          currentQuarter === txQuarter
+        );
+      }
+      if (selectedPeriod === "Kustom") {
+        const [sY, sM, sD] = appliedCustomRange.start.split("-").map(Number);
+        const [eY, eM, eD] = appliedCustomRange.end.split("-").map(Number);
+        if (sY && sM && sD && eY && eM && eD) {
+          const start = new Date(sY, sM - 1, sD, 0, 0, 0);
+          const end = new Date(eY, eM - 1, eD, 23, 59, 59);
+          return txDate >= start && txDate <= end;
+        }
+      }
+      return true;
+    });
+  }, [filteredTransactions, selectedPeriod, selectedBranch, appliedCustomRange]);
   const ITEMS_PER_PAGE = 5;
   const totalPages = Math.max(
     1,
@@ -606,20 +656,88 @@ export default function TransaksiPage() {
 
   const formatRupiah = (val: number) => "Rp " + val.toLocaleString("id-ID");
 
-  // Akumulasi kontribusi aktual dari transaksi aktif di TransactionContext
+  // Filter transaksi sesuai periode dan cabang aktif langsung dari MariaDB
+  const periodTransactions = useMemo(() => {
+    const now = new Date();
+    return transactions.filter((tx) => {
+      if (tx.status !== "Berhasil") return false;
+
+      // Filter cabang jika bukan 'Semua Cabang'
+      if (
+        selectedBranch !== "Semua Cabang" &&
+        tx.branch &&
+        tx.branch !== "Gerai Pusat" &&
+        tx.branch !== selectedBranch
+      ) {
+        return false;
+      }
+
+      if (selectedPeriod === "Hari Ini") {
+        return tx.isToday;
+      }
+
+      if (!tx.rawCreatedAt) return true;
+      const txDate = new Date(tx.rawCreatedAt);
+      if (isNaN(txDate.getTime())) return true;
+
+      if (selectedPeriod === "7 Hari") {
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return txDate >= sevenDaysAgo && txDate <= now;
+      }
+      if (selectedPeriod === "Bulan Ini") {
+        return (
+          txDate.getFullYear() === now.getFullYear() &&
+          txDate.getMonth() === now.getMonth()
+        );
+      }
+      if (selectedPeriod === "Kuartal") {
+        const currentQuarter = Math.floor(now.getMonth() / 3);
+        const txQuarter = Math.floor(txDate.getMonth() / 3);
+        return (
+          txDate.getFullYear() === now.getFullYear() &&
+          currentQuarter === txQuarter
+        );
+      }
+      if (selectedPeriod === "Kustom") {
+        const [sY, sM, sD] = appliedCustomRange.start.split("-").map(Number);
+        const [eY, eM, eD] = appliedCustomRange.end.split("-").map(Number);
+        if (sY && sM && sD && eY && eM && eD) {
+          const start = new Date(sY, sM - 1, sD, 0, 0, 0);
+          const end = new Date(eY, eM - 1, eD, 23, 59, 59);
+          return txDate >= start && txDate <= end;
+        }
+      }
+      return true;
+    });
+  }, [transactions, selectedPeriod, selectedBranch, appliedCustomRange]);
+
+  // Akumulasi data aktual murni dari database MariaDB
   const liveBranchContextTotals = useMemo(() => {
     let omzet = 0;
     let porsi = 0;
     let txCount = 0;
-    transactions.forEach((tx) => {
-      if (tx.status === "Berhasil") {
-        omzet += tx.total;
-        porsi += tx.totalItems;
-        txCount += 1;
+    let qtyBakar = 0;
+    let qtyBiasa = 0;
+
+    periodTransactions.forEach((tx) => {
+      omzet += tx.total;
+      porsi += tx.totalItems || 1;
+      txCount += 1;
+
+      const summary = (tx.itemsSummary || "").toLowerCase();
+      if (summary.includes("bakar")) {
+        qtyBakar += tx.totalItems || 1;
+      } else if (summary.includes("biasa")) {
+        qtyBiasa += tx.totalItems || 1;
+      } else {
+        qtyBakar += Math.ceil((tx.totalItems || 1) / 2);
+        qtyBiasa += Math.floor((tx.totalItems || 1) / 2);
       }
     });
-    return { omzet, porsi, txCount };
-  }, [transactions]);
+
+    const aov = txCount > 0 ? Math.round(omzet / txCount) : 0;
+    return { omzet, porsi, txCount, aov, qtyBakar, qtyBiasa };
+  }, [periodTransactions]);
 
   // Hitung jumlah hari inklusif pada rentang tanggal Kustom yang telah diterapkan
   const customDays = useMemo(() => {
@@ -684,6 +802,9 @@ export default function TransaksiPage() {
         aovGrowth: "+0,0%",
         totalTx: "0",
         cabaiKg: "0 Kg Rawit Merah",
+        topMenuLabel: branchProfile.topMenuLabel,
+        rushHourLabel: branchProfile.rushLunchTime,
+        rushHourTag: branchProfile.rushLunchTag,
         categories: CATEGORY_META.map((meta) => ({
           ...meta,
           pct: "0%",
@@ -694,70 +815,56 @@ export default function TransaksiPage() {
       };
     }
 
-    const scaledOmzet =
-      Math.round((basePeriod.baseOmzet * branchProfile.scale) / 10000) *
-        10000 +
-      liveBranchContextTotals.omzet;
+    // Ambil data aktual murni dari database MariaDB (tanpa mock base)
+    const scaledOmzet = liveBranchContextTotals.omzet;
+    const scaledPorsi = liveBranchContextTotals.porsi;
+    const scaledTx = liveBranchContextTotals.txCount;
+    const scaledAov = liveBranchContextTotals.aov;
+
     const scaledTarget =
       Math.round((basePeriod.baseTarget * branchProfile.scale) / 100000) *
       100000;
-    const achievedPct = Math.round((scaledOmzet / scaledTarget) * 100);
-    const omzetGrowth = (
-      basePeriod.baseOmzetGrowth + branchProfile.growthBonus
-    )
-      .toFixed(1)
-      .replace(".", ",");
+    const achievedPct = scaledTarget > 0 ? Math.round((scaledOmzet / scaledTarget) * 100) : 0;
+    const omzetGrowth =
+      scaledOmzet > 0
+        ? `+${(basePeriod.baseOmzetGrowth + branchProfile.growthBonus).toFixed(1).replace(".", ",")}%`
+        : "+0,0%";
 
-    const scaledPorsi =
-      Math.max(10, Math.round(basePeriod.basePorsi * branchProfile.scale)) +
-      liveBranchContextTotals.porsi;
-    const porsiGrowth = (
-      basePeriod.basePorsiGrowth +
-      branchProfile.growthBonus * 0.7
-    )
-      .toFixed(1)
-      .replace(".", ",");
+    const porsiGrowth =
+      scaledPorsi > 0
+        ? `+${(basePeriod.basePorsiGrowth + branchProfile.growthBonus * 0.7).toFixed(1).replace(".", ",")}%`
+        : "+0,0%";
     const scaledDailyPorsi = Math.max(
       5,
       Math.round(basePeriod.baseDailyPorsi * branchProfile.scale)
     );
 
-    const scaledAov =
-      Math.round((basePeriod.baseAov * branchProfile.aovMultiplier) / 100) *
-      100;
-    const aovGrowth = (
-      basePeriod.baseAovGrowth +
-      branchProfile.growthBonus * 0.3
-    )
-      .toFixed(1)
-      .replace(".", ",");
-    const scaledTx =
-      Math.max(5, Math.round(basePeriod.baseTotalTx * branchProfile.scale)) +
-      liveBranchContextTotals.txCount;
+    const aovGrowth =
+      scaledAov > 0
+        ? `+${(basePeriod.baseAovGrowth + branchProfile.growthBonus * 0.3).toFixed(1).replace(".", ",")}%`
+        : "+0,0%";
 
-    const rawCabai = basePeriod.baseCabaiKg * branchProfile.scale;
+    const rawCabai = Number((scaledPorsi * 0.03).toFixed(1));
     const cabaiFormatted =
       rawCabai < 20
         ? rawCabai.toFixed(1).replace(".", ",")
         : Math.round(rawCabai).toLocaleString("id-ID");
 
+    const totalCategories = liveBranchContextTotals.qtyBakar + liveBranchContextTotals.qtyBiasa;
+    const shareBakar = totalCategories > 0 ? Math.round((liveBranchContextTotals.qtyBakar / totalCategories) * 100) : 58;
+    const shareBiasa = totalCategories > 0 ? 100 - shareBakar : 42;
+
     // Donut Chart Circumference (r = 44 => 2 * PI * 44 = 276.46)
     const circumference = 276.46;
     let cumulativeArc = 0;
-    let allocatedQty = 0;
 
     const categories = CATEGORY_META.map((meta, idx) => {
-      const share = branchProfile.categoryShares[idx];
+      const isBakar = idx === 0;
+      const share = isBakar ? shareBakar : shareBiasa;
+      const qty = isBakar ? liveBranchContextTotals.qtyBakar : liveBranchContextTotals.qtyBiasa;
       const arcLen = Number(((share / 100) * circumference).toFixed(2));
-      const dashOffset =
-        idx === 0 ? "0" : `-${cumulativeArc.toFixed(2)}`;
+      const dashOffset = idx === 0 ? "0" : `-${cumulativeArc.toFixed(2)}`;
       cumulativeArc += arcLen;
-
-      const qty =
-        idx === CATEGORY_META.length - 1
-          ? Math.max(1, scaledPorsi - allocatedQty)
-          : Math.round((scaledPorsi * share) / 100);
-      allocatedQty += qty;
 
       return {
         ...meta,
@@ -768,26 +875,69 @@ export default function TransaksiPage() {
       };
     });
 
+    const topMenuLabel =
+      totalCategories > 0
+        ? (liveBranchContextTotals.qtyBakar >= liveBranchContextTotals.qtyBiasa
+            ? "Top: Ayam Geprek Bakar"
+            : "Top: Ayam Geprek Biasa")
+        : branchProfile.topMenuLabel;
+
+    // Deteksi jam sibuk dari transaksi aktual
+    let rushHourLabel = branchProfile.rushLunchTime;
+    let rushHourTag = branchProfile.rushLunchTag;
+    if (periodTransactions.length > 0) {
+      const hourCounts: Record<string, number> = {};
+      periodTransactions.forEach((tx) => {
+        let h = "12:00";
+        if (tx.time && tx.time.includes(":")) {
+          h = `${tx.time.split(":")[0].padStart(2, "0")}:00`;
+        }
+        hourCounts[h] = (hourCounts[h] || 0) + 1;
+      });
+      let maxH = "";
+      let maxC = 0;
+      Object.entries(hourCounts).forEach(([h, c]) => {
+        if (c > maxC) {
+          maxC = c;
+          maxH = h;
+        }
+      });
+      if (maxH) {
+        const startH = maxH;
+        const endHNum = (parseInt(maxH.split(":")[0], 10) + 1) % 24;
+        const endH = `${String(endHNum).padStart(2, "0")}:00`;
+        rushHourLabel = `${startH} - ${endH}`;
+        const hInt = parseInt(maxH.split(":")[0], 10);
+        if (hInt >= 11 && hInt <= 14) rushHourTag = "Siang (Peak)";
+        else if (hInt >= 17 && hInt <= 21) rushHourTag = "Malam (Peak)";
+        else if (hInt >= 0 && hInt < 5) rushHourTag = "Dini Hari";
+        else rushHourTag = "Sore";
+      }
+    }
+
     return {
       periodBadge: basePeriod.periodBadge,
       omzetTitle: basePeriod.omzetTitle,
       omzetValue: formatRupiah(scaledOmzet),
-      omzetGrowth: `+${omzetGrowth}%`,
+      omzetGrowth,
       omzetTarget: formatTargetRupiah(scaledTarget),
       omzetAchieved: `${achievedPct}% Tercapai`,
       porsiValue: scaledPorsi.toLocaleString("id-ID"),
       porsiNumber: scaledPorsi,
-      porsiGrowth: `+${porsiGrowth}%`,
+      porsiGrowth,
       porsiAvg: basePeriod.isDailyPeriod
         ? `Target: ${scaledDailyPorsi} porsi/hr`
         : `Rata-rata: ${scaledDailyPorsi} porsi/hr`,
       aovValue: formatRupiah(scaledAov),
-      aovGrowth: `+${aovGrowth}%`,
+      aovGrowth,
       totalTx: scaledTx.toLocaleString("id-ID"),
       cabaiKg: `${cabaiFormatted} Kg Rawit Merah`,
       categories,
+      topMenuLabel,
+      rushHourLabel,
+      rushHourTag,
     };
-  }, [basePeriod, branchProfile, liveBranchContextTotals, isClientReady, isLoading]);
+  }, [basePeriod, branchProfile, liveBranchContextTotals, periodTransactions, isClientReady, isLoading]);
 
   // 1B. KALKULASI DINAMIS KOMPARASI HARI KERJA VS WEEKEND (selectedBranch + selectedPeriod + basePeriod)
   const comparisonData = useMemo(() => {
@@ -837,36 +987,72 @@ export default function TransaksiPage() {
 
   // 2. KALKULASI DINAMIS GRAFIK TREN PENJUALAN & FLUKTUASI PORSI (SVG CHART)
   const dynamicHourlyChart = useMemo(() => {
-    const rawValues = BASE_HOURLY_POINTS.map((pt, idx) => {
-      const weight = branchProfile.hourlyCurveWeights[idx] ?? 1.0;
-      const omzetJt =
-        pt.baseOmzetJt *
-        branchProfile.scale *
-        weight *
-        basePeriod.chartPeriodScale;
-      const porsi = Math.max(
-        2,
-        Math.round(
-          pt.basePorsi *
-            branchProfile.scale *
-            weight *
-            basePeriod.chartPeriodScale
-        )
-      );
+    // Kelompokkan data transaksi aktual per jam
+    const hourMap: Record<string, { omzet: number; porsi: number }> = {};
+    BASE_HOURLY_POINTS.forEach((pt) => {
+      hourMap[pt.t] = { omzet: 0, porsi: 0 };
+    });
+
+    periodTransactions.forEach((tx) => {
+      let hStr = "";
+      if (tx.time && tx.time.includes(":")) {
+        const parts = tx.time.split(":");
+        hStr = `${parts[0].padStart(2, "0")}:00`;
+      } else if (tx.rawCreatedAt) {
+        const d = new Date(tx.rawCreatedAt);
+        if (!isNaN(d.getTime())) {
+          hStr = `${String(d.getHours()).padStart(2, "0")}:00`;
+        }
+      }
+
+      if (hStr && hourMap[hStr]) {
+        hourMap[hStr].omzet += tx.total;
+        hourMap[hStr].porsi += tx.totalItems || 1;
+      } else if (hStr) {
+        const hNum = parseInt(hStr.split(":")[0], 10);
+        let bestKey = "12:00";
+        let minDiff = 999;
+        BASE_HOURLY_POINTS.forEach((pt) => {
+          const ptH = parseInt(pt.t.split(":")[0], 10);
+          const diff = Math.abs(ptH - hNum);
+          if (diff < minDiff) {
+            minDiff = diff;
+            bestKey = pt.t;
+          }
+        });
+        hourMap[bestKey].omzet += tx.total;
+        hourMap[bestKey].porsi += tx.totalItems || 1;
+      }
+    });
+
+    const hasRealData = liveBranchContextTotals.omzet > 0;
+
+    const rawValues = BASE_HOURLY_POINTS.map((pt) => {
+      if (hasRealData) {
+        const realHour = hourMap[pt.t];
+        const omzetJt = Number((realHour.omzet / 1000000).toFixed(4));
+        const porsi = realHour.porsi;
+        return {
+          ...pt,
+          omzetJt,
+          porsi,
+          shapeScore: omzetJt,
+        };
+      }
+
       return {
         ...pt,
-        omzetJt,
-        porsi,
-        shapeScore: pt.baseOmzetJt * weight,
+        omzetJt: 0,
+        porsi: 0,
+        shapeScore: 0,
       };
     });
 
-    const maxShape = Math.max(...rawValues.map((r) => r.shapeScore), 1);
-    const maxOmzetVal = Math.max(...rawValues.map((r) => r.omzetJt), 0.2);
+    const maxShape = Math.max(...rawValues.map((r) => r.shapeScore), 0.05);
+    const maxOmzetVal = Math.max(...rawValues.map((r) => r.omzetJt), 0.05);
 
     const points = rawValues.map((r) => {
-      // Koordinat Y antara 46 (puncak) dan 190 (dasar)
-      const normalized = r.shapeScore / maxShape;
+      const normalized = hasRealData ? r.shapeScore / maxShape : 0;
       const omzetY = Math.round(192 - normalized * 146);
       const porsiY = Math.min(193, omzetY + 13);
       return {
@@ -885,8 +1071,8 @@ export default function TransaksiPage() {
     const omzetAreaPath =
       `M ${points.map((p) => `${p.x} ${p.omzetY}`).join(" L ")} L 708 195 L 60 195 Z`;
 
-    // Label Y-Axis dinamis sesuai skala cabang & periode
-    const yAxisTop = Math.max(0.4, Math.ceil(maxOmzetVal * 1.15 * 10) / 10);
+    // Label Y-Axis dinamis sesuai omzet aktual database
+    const yAxisTop = Math.max(0.1, Math.ceil(maxOmzetVal * 1.15 * 10) / 10);
     const yAxisLabels = [1, 0.75, 0.5, 0.25, 0].map((ratio, i) => {
       const yPos = 35 + i * 40;
       if (ratio === 0) return { y: yPos, label: "0" };
@@ -907,7 +1093,7 @@ export default function TransaksiPage() {
       omzetAreaPath,
       yAxisLabels,
     };
-  }, [branchProfile, basePeriod]);
+  }, [periodTransactions, liveBranchContextTotals]);
 
   // 3. KALKULASI DINAMIS HEATMAP KEPADATAN ORDER PER CABANG & PERIODE
   const dynamicHeatmap = useMemo(() => {
@@ -1136,7 +1322,7 @@ export default function TransaksiPage() {
                     PREKDUADARA
                   </div>
                   <div className="text-[11px] text-gray-600 mt-0.5 font-sans font-medium">
-                    Spesial Ayam Geprek Cobek &amp; Sambal Uleg Asli
+                    Spesial Ayam Geprek &amp; Geprek Bakar
                   </div>
                   <div className="text-[11px] text-gray-500 font-sans">
                     Gerai Utama • Telp: 0812-xxxx-xxxx
@@ -1471,10 +1657,10 @@ export default function TransaksiPage() {
                 {activeMetrics.porsiAvg}
               </span>
               <span
-                title={branchProfile.topMenuLabel}
+                title={activeMetrics.topMenuLabel}
                 className="font-extrabold text-[#DC2626] min-w-0 truncate"
               >
-                {branchProfile.topMenuLabel}
+                {activeMetrics.topMenuLabel}
               </span>
             </div>
           </div>
@@ -1519,10 +1705,10 @@ export default function TransaksiPage() {
 
             <div className="my-2 flex items-baseline gap-2">
               <h2 className="text-2xl font-black text-gray-900 tracking-tight whitespace-nowrap tabular-nums">
-                {branchProfile.rushLunchTime}
+                {activeMetrics.rushHourLabel}
               </h2>
               <span className="text-xs text-gray-500 font-bold whitespace-nowrap">
-                {branchProfile.rushLunchTag}
+                {activeMetrics.rushHourTag}
               </span>
             </div>
 
