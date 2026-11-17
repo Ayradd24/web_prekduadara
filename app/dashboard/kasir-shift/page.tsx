@@ -353,6 +353,8 @@ export default function KasirShiftPage() {
 
   useEffect(() => {
     loadCashiersFromDB();
+    const interval = setInterval(loadCashiersFromDB, 10000);
+    return () => clearInterval(interval);
   }, [loadCashiersFromDB]);
 
   // Cabang target untuk Laci Kasir (Gerai Utama Pusat)
