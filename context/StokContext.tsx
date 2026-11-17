@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 export interface StokItem {
   id: string;
@@ -14,53 +14,54 @@ export interface StokItem {
 
 interface StokContextType {
   stokList: StokItem[];
-  updateStok: (id: string, newStock: number) => void;
-  restockItem: (id: string, amount: number) => void;
+  updateStok: (id: string, newStock: number) => Promise<void>;
+  restockItem: (id: string, amount: number) => Promise<void>;
+  fetchStocks: () => Promise<void>;
 }
 
 const initialStok: StokItem[] = [
   {
-    id: 'STK-01',
-    name: 'Daging Ayam Segar',
+    id: '1',
+    name: 'Ayam Potong Segar',
     category: 'Bahan Baku',
-    stock: 45,
-    unit: 'Kg',
-    minStock: 15,
+    stock: 29,
+    unit: 'kg',
+    minStock: 10,
     status: 'Aman',
   },
   {
-    id: 'STK-02',
-    name: 'Cabai Rawit Merah (Sambal Geprek)',
-    category: 'Bumbu & Sambal',
-    stock: 8,
-    unit: 'Kg',
-    minStock: 10,
+    id: '2',
+    name: 'Minyak Goreng Sawit',
+    category: 'Bahan Baku',
+    stock: 5,
+    unit: 'liter',
+    minStock: 8,
     status: 'Menipis',
   },
   {
-    id: 'STK-03',
-    name: 'Beras Premium',
+    id: '3',
+    name: 'Cabai Rawit Merah',
+    category: 'Bumbu & Sambal',
+    stock: 2,
+    unit: 'kg',
+    minStock: 5,
+    status: 'Menipis',
+  },
+  {
+    id: '4',
+    name: 'Beras Ramos',
     category: 'Bahan Baku',
-    stock: 120,
-    unit: 'Kg',
-    minStock: 30,
+    stock: 50,
+    unit: 'kg',
+    minStock: 20,
     status: 'Aman',
   },
   {
-    id: 'STK-04',
-    name: 'Minyak Goreng',
+    id: '5',
+    name: 'Tepung Bumbu Crispy',
     category: 'Bahan Baku',
-    stock: 24,
-    unit: 'Liter',
-    minStock: 10,
-    status: 'Aman',
-  },
-  {
-    id: 'STK-05',
-    name: 'Bungkus Teh & Gula',
-    category: 'Minuman',
     stock: 15,
-    unit: 'Pak',
+    unit: 'kg',
     minStock: 5,
     status: 'Aman',
   },
@@ -71,7 +72,46 @@ const StokContext = createContext<StokContextType | undefined>(undefined);
 export function StokProvider({ children }: { children: React.ReactNode }) {
   const [stokList, setStokList] = useState<StokItem[]>(initialStok);
 
-  const updateStok = (id: string, newStock: number) => {
+  const fetchStocks = useCallback(async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/stocks');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const mapped: StokItem[] = json.data.map((item: any) => ({
+            id: String(item.id),
+            name: item.name,
+            category: item.name.toLowerCase().includes('cabai')
+              ? 'Bumbu & Sambal'
+              : item.name.toLowerCase().includes('teh')
+              ? 'Minuman'
+              : 'Bahan Baku',
+            stock: Number(item.stock),
+            unit: item.unit || 'kg',
+            minStock: Number(item.minStock) || 10,
+            status:
+              item.status === 'Kritis' || item.status === 'Menipis'
+                ? 'Menipis'
+                : item.stock <= 0
+                ? 'Habis'
+                : 'Aman',
+          }));
+          setStokList(mapped);
+        }
+      }
+    } catch (e) {
+      console.warn('Gagal memuat stok dari backend:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStocks();
+    const timer = setInterval(fetchStocks, 15000);
+    return () => clearInterval(timer);
+  }, [fetchStocks]);
+
+  const updateStok = async (id: string, newStock: number) => {
+    // Optimistic UI update
     setStokList((prev) =>
       prev.map((item) => {
         if (item.id === id) {
@@ -82,9 +122,24 @@ export function StokProvider({ children }: { children: React.ReactNode }) {
         return item;
       })
     );
+
+    try {
+      const current = stokList.find((s) => s.id === id);
+      if (current) {
+        const diff = newStock - current.stock;
+        const action = diff >= 0 ? 'add' : 'subtract';
+        await fetch(`http://localhost:5000/api/stocks/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: Math.abs(diff), action }),
+        });
+      }
+    } catch (e) {
+      console.warn('Gagal sinkron update stok ke backend:', e);
+    }
   };
 
-  const restockItem = (id: string, amount: number) => {
+  const restockItem = async (id: string, amount: number) => {
     setStokList((prev) =>
       prev.map((item) => {
         if (item.id === id) {
@@ -96,10 +151,20 @@ export function StokProvider({ children }: { children: React.ReactNode }) {
         return item;
       })
     );
+
+    try {
+      await fetch(`http://localhost:5000/api/stocks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, action: 'add' }),
+      });
+    } catch (e) {
+      console.warn('Gagal kirim restock ke backend:', e);
+    }
   };
 
   return (
-    <StokContext.Provider value={{ stokList, updateStok, restockItem }}>
+    <StokContext.Provider value={{ stokList, updateStok, restockItem, fetchStocks }}>
       {children}
     </StokContext.Provider>
   );

@@ -1,18 +1,16 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
-import { useStok, type StokItem } from "@/context/StokContext";
+import { useStok } from "@/context/StokContext";
 import {
   AlertTriangle,
   Bell,
   Box,
   CheckCircle2,
-  ChevronDown,
   ClipboardCheck,
   Clock,
   Download,
-  Edit3,
   Layers,
   PackagePlus,
   Plus,
@@ -24,6 +22,7 @@ import {
   ShoppingCart,
   SlidersHorizontal,
   Store,
+  Trash2,
   User,
   Wallet,
   X,
@@ -54,14 +53,9 @@ type MutationType =
 
 type LogFilterType = "Semua" | "in" | "out_replace";
 
-type SingleBranchName =
-  | "Cabang Sudirman Utama"
-  | "Cabang Tebet Eco Park"
-  | "Cabang Dago Heritage";
-
-interface InventoryDetailItem {
+export interface InventoryDetailItem {
+  id: string;
   sku: string;
-  contextId?: string;
   name: string;
   supplier: string;
   category: InventoryCategory;
@@ -79,31 +73,17 @@ interface InventoryDetailItem {
   iconBg: string;
 }
 
-interface MutationLog {
+export interface MutationLog {
   id: string;
   title: string;
   subtitle: string;
   time: string;
   type: "out" | "in" | "replace";
-  branch: SingleBranchName;
 }
-
-const BRANCH_OPTIONS = [
-  "Semua Cabang",
-  "Cabang Sudirman Utama",
-  "Cabang Tebet Eco Park",
-  "Cabang Dago Heritage",
-] as const;
-
-const SINGLE_BRANCHES: SingleBranchName[] = [
-  "Cabang Sudirman Utama",
-  "Cabang Tebet Eco Park",
-  "Cabang Dago Heritage",
-];
 
 const ITEMS_PER_PAGE = 5;
 
-// Helper perhitungan tunggal untuk status, persentase bar (0-100), dan estimasi hari bertahan
+// Helper perhitungan status, persentase stok bar, dan estimasi sisa hari
 function computeStockMetrics(
   stock: number,
   safetyStock: number
@@ -128,432 +108,158 @@ function computeStockMetrics(
   return { status, pct, daysLeft };
 }
 
-function buildItem(
-  base: Omit<InventoryDetailItem, "status" | "pct" | "daysLeft">
-): InventoryDetailItem {
-  const metrics = computeStockMetrics(base.stock, base.safetyStock);
+function getStockMetadata(name: string, id: string | number) {
+  const lower = name.toLowerCase();
+  if (
+    lower.includes("ayam") ||
+    lower.includes("daging") ||
+    lower.includes("keju") ||
+    lower.includes("mozarella") ||
+    lower.includes("telur")
+  ) {
+    return {
+      category: "Protein & Unggas" as InventoryCategory,
+      filterTab: "Protein & Unggas" as FilterTabCategory,
+      supplier: "Supplier: Rumah Potong Unggas Berkah",
+      unitPrice: 38500,
+      icon: "🍗",
+      iconBg: "bg-amber-50 border-amber-200",
+    };
+  }
+  if (lower.includes("minyak") || lower.includes("sawit")) {
+    return {
+      category: "Tepung & Minyak" as InventoryCategory,
+      filterTab: "Tepung & Minyak" as FilterTabCategory,
+      supplier: "Supplier: Distribusi Pangan Makmur",
+      unitPrice: 17000,
+      icon: "💧",
+      iconBg: "bg-amber-50 border-amber-200",
+    };
+  }
+  if (
+    lower.includes("cabai") ||
+    lower.includes("sambal") ||
+    lower.includes("korek") ||
+    lower.includes("bawang")
+  ) {
+    return {
+      category: "Bumbu & Sambal" as InventoryCategory,
+      filterTab: "Bumbu & Sambal" as FilterTabCategory,
+      supplier: "Supplier: Tani Segar Jaya",
+      unitPrice: 65000,
+      icon: lower.includes("bawang") ? "🧄" : "🌶️",
+      iconBg: "bg-red-50 border-red-200",
+    };
+  }
+  if (lower.includes("beras") || lower.includes("nasi")) {
+    return {
+      category: "Bumbu & Pelengkap" as InventoryCategory,
+      filterTab: "Bumbu & Sambal" as FilterTabCategory,
+      supplier: "Supplier: Lumbung Padi Karawang Jaya",
+      unitPrice: 14500,
+      icon: "🍚",
+      iconBg: "bg-gray-50 border-gray-200",
+    };
+  }
+  if (
+    lower.includes("tepung") ||
+    lower.includes("crispy") ||
+    lower.includes("krispi")
+  ) {
+    return {
+      category: "Tepung & Minyak" as InventoryCategory,
+      filterTab: "Tepung & Minyak" as FilterTabCategory,
+      supplier: "Supplier: Sentral Tepung Bogasari",
+      unitPrice: 12500,
+      icon: "🌾",
+      iconBg: "bg-yellow-50 border-yellow-200",
+    };
+  }
+  if (
+    lower.includes("teh") ||
+    lower.includes("gula") ||
+    lower.includes("sirup")
+  ) {
+    return {
+      category: "Minuman & Pelengkap" as InventoryCategory,
+      filterTab: "Minuman & Pelengkap" as FilterTabCategory,
+      supplier: "Supplier: Grosir Minuman Segar",
+      unitPrice: 18000,
+      icon: "🍃",
+      iconBg: "bg-emerald-50 border-emerald-200",
+    };
+  }
   return {
-    ...base,
-    ...metrics,
-  };
-}
-
-const BASE_SUDIRMAN_ITEMS: InventoryDetailItem[] = [
-  buildItem({
-    sku: "CBI-01",
-    contextId: "STK-02",
-    name: "Cabai Rawit Merah Setan",
-    supplier: "Supplier: Tani Segar Jaya (Kramat)",
-    category: "Bumbu & Sambal",
-    filterTab: "Bumbu & Sambal",
-    stock: 8.0,
-    unit: "kg",
-    safetyStock: 10,
-    safetyUnit: "kg",
-    unitPrice: 65000,
-    priceUnit: "/Kg",
-    icon: "🌶️",
-    iconBg: "bg-red-50 border-red-200",
-  }),
-  buildItem({
-    sku: "AYM-01",
-    contextId: "STK-01",
-    name: "Daging Ayam Segar Potong 4",
-    supplier: "Supplier: Rumah Potong Unggas Berkah",
-    category: "Protein & Unggas",
-    filterTab: "Protein & Unggas",
-    stock: 54.0,
-    unit: "kg",
-    safetyStock: 30,
-    safetyUnit: "kg",
-    unitPrice: 38500,
-    priceUnit: "/Kg",
-    icon: "🍗",
-    iconBg: "bg-amber-50 border-amber-200",
-  }),
-  buildItem({
-    sku: "MYK-01",
-    contextId: "STK-04",
-    name: "Minyak Goreng Sawit Curah Higienis",
-    supplier: "Supplier: Distribusi Pangan Makmur",
-    category: "Tepung & Minyak",
-    filterTab: "Tepung & Minyak",
-    stock: 24.0,
-    unit: "Liter",
-    safetyStock: 25,
-    safetyUnit: "Liter",
-    unitPrice: 17000,
-    priceUnit: "/Liter",
-    icon: "💧",
-    iconBg: "bg-amber-50 border-amber-200",
-  }),
-  buildItem({
-    sku: "TPG-01",
-    name: "Tepung Terigu Krispi Racikan PrekDuaDara",
-    supplier: "Supplier: Sentral Tepung Bogasari",
-    category: "Tepung & Minyak",
-    filterTab: "Tepung & Minyak",
-    stock: 18.5,
-    unit: "kg",
-    safetyStock: 20,
-    safetyUnit: "kg",
-    unitPrice: 12500,
-    priceUnit: "/Kg",
-    icon: "🌾",
-    iconBg: "bg-yellow-50 border-yellow-200",
-  }),
-  buildItem({
-    sku: "BRS-01",
-    contextId: "STK-03",
-    name: "Beras Putih Pulen Rojolele Super",
-    supplier: "Supplier: Lumbung Padi Karawang Jaya",
-    category: "Bumbu & Pelengkap",
-    filterTab: "Bumbu & Sambal",
-    stock: 85.0,
-    unit: "kg",
-    safetyStock: 35,
-    safetyUnit: "kg",
-    unitPrice: 14500,
-    priceUnit: "/Kg",
-    icon: "🍚",
-    iconBg: "bg-gray-50 border-gray-200",
-  }),
-  buildItem({
-    sku: "BWG-01",
-    name: "Bawang Putih Kating Bersih",
-    supplier: "Supplier: Juragan Sayur Majalengka",
-    category: "Bumbu & Sambal",
-    filterTab: "Bumbu & Sambal",
-    stock: 14.0,
-    unit: "kg",
-    safetyStock: 8,
-    safetyUnit: "kg",
-    unitPrice: 42000,
-    priceUnit: "/Kg",
-    icon: "🧄",
-    iconBg: "bg-orange-50 border-orange-200",
-  }),
-  buildItem({
-    sku: "KJU-01",
-    name: "Mozarella Block Anchor Leleh",
-    supplier: "Supplier: Dairy Food Indofood",
-    category: "Protein & Pelengkap",
-    filterTab: "Protein & Unggas",
-    stock: 4.0,
-    unit: "Block",
-    safetyStock: 5,
-    safetyUnit: "Block",
-    unitPrice: 115000,
-    priceUnit: "/Block",
-    icon: "🧀",
-    iconBg: "bg-amber-50 border-amber-200",
-  }),
-  buildItem({
-    sku: "TEH-01",
-    contextId: "STK-05",
-    name: "Daun Teh Melati Wangi Solo",
-    supplier: "Supplier: Kebun Teh Wangi",
-    category: "Minuman & Pelengkap",
-    filterTab: "Minuman & Pelengkap",
-    stock: 22.0,
-    unit: "Bungkus",
-    safetyStock: 10,
-    safetyUnit: "Bungkus",
-    unitPrice: 18000,
-    priceUnit: "/Pak",
-    icon: "🍃",
-    iconBg: "bg-emerald-50 border-emerald-200",
-  }),
-  buildItem({
-    sku: "GLA-01",
-    name: "Gula Pasir Kristal Putih Gulaku",
-    supplier: "Supplier: Grosir Sembako Mulia",
-    category: "Minuman & Pelengkap",
-    filterTab: "Minuman & Pelengkap",
-    stock: 30.0,
-    unit: "kg",
-    safetyStock: 15,
-    safetyUnit: "kg",
-    unitPrice: 17500,
-    priceUnit: "/Kg",
-    icon: "🧂",
-    iconBg: "bg-slate-50 border-slate-200",
-  }),
-  buildItem({
-    sku: "BOX-01",
-    name: "Kotak Kemasan Cetak PrekDuaDara",
-    supplier: "Supplier: Percetakan Kemasan Nusantara",
-    category: "Kemasan / Box",
-    filterTab: "Kemasan / Box",
-    stock: 450,
-    unit: "Pcs",
-    safetyStock: 200,
-    safetyUnit: "Pcs",
-    unitPrice: 1250,
-    priceUnit: "/Pcs",
+    category: "Kemasan / Box" as InventoryCategory,
+    filterTab: "Kemasan / Box" as FilterTabCategory,
+    supplier: "Supplier: Sentral Mitra Operasional",
+    unitPrice: 2000,
     icon: "📦",
     iconBg: "bg-amber-50 border-amber-200",
-  }),
-];
-
-// Profil Cabang Tebet Eco Park: Daging Ayam (AYM-01) & Mozarella (KJU-01) KRITIS/MENIPIS, Cabai Rawit aman
-const BASE_TEBET_ITEMS: InventoryDetailItem[] = BASE_SUDIRMAN_ITEMS.map(
-  (item) => {
-    const stockOverrides: Record<
-      string,
-      { stock: number; safetyStock: number }
-    > = {
-      "CBI-01": { stock: 14.5, safetyStock: 9 },
-      "AYM-01": { stock: 11.0, safetyStock: 26 },
-      "MYK-01": { stock: 28.0, safetyStock: 20 },
-      "TPG-01": { stock: 16.0, safetyStock: 18 },
-      "BRS-01": { stock: 68.0, safetyStock: 30 },
-      "BWG-01": { stock: 11.5, safetyStock: 7 },
-      "KJU-01": { stock: 2.0, safetyStock: 5 },
-      "TEH-01": { stock: 18.0, safetyStock: 10 },
-      "GLA-01": { stock: 24.0, safetyStock: 14 },
-      "BOX-01": { stock: 340, safetyStock: 180 },
-    };
-    const ov = stockOverrides[item.sku];
-    return buildItem({
-      ...item,
-      contextId: undefined,
-      stock: ov ? ov.stock : item.stock,
-      safetyStock: ov ? ov.safetyStock : item.safetyStock,
-    });
-  }
-);
-
-// Profil Cabang Dago Heritage: Tepung Terigu (TPG-01) & Bawang Putih (BWG-01) KRITIS/MENIPIS
-const BASE_DAGO_ITEMS: InventoryDetailItem[] = BASE_SUDIRMAN_ITEMS.map(
-  (item) => {
-    const stockOverrides: Record<
-      string,
-      { stock: number; safetyStock: number }
-    > = {
-      "CBI-01": { stock: 12.0, safetyStock: 8 },
-      "AYM-01": { stock: 42.0, safetyStock: 24 },
-      "MYK-01": { stock: 24.0, safetyStock: 18 },
-      "TPG-01": { stock: 7.5, safetyStock: 18 },
-      "BRS-01": { stock: 62.0, safetyStock: 28 },
-      "BWG-01": { stock: 3.0, safetyStock: 8 },
-      "KJU-01": { stock: 6.5, safetyStock: 4 },
-      "TEH-01": { stock: 16.0, safetyStock: 8 },
-      "GLA-01": { stock: 12.5, safetyStock: 14 },
-      "BOX-01": { stock: 310, safetyStock: 160 },
-    };
-    const ov = stockOverrides[item.sku];
-    return buildItem({
-      ...item,
-      contextId: undefined,
-      stock: ov ? ov.stock : item.stock,
-      safetyStock: ov ? ov.safetyStock : item.safetyStock,
-    });
-  }
-);
-
-const INITIAL_BRANCH_INVENTORIES: Record<
-  SingleBranchName,
-  InventoryDetailItem[]
-> = {
-  "Cabang Sudirman Utama": BASE_SUDIRMAN_ITEMS,
-  "Cabang Tebet Eco Park": BASE_TEBET_ITEMS,
-  "Cabang Dago Heritage": BASE_DAGO_ITEMS,
-};
-
-function createInitialBranchInventories(
-  stokList: StokItem[]
-): Record<SingleBranchName, InventoryDetailItem[]> {
-  if (!stokList || stokList.length === 0) {
-    return INITIAL_BRANCH_INVENTORIES;
-  }
-  const contextMap = new Map(stokList.map((s) => [s.id, s.stock]));
-  return {
-    ...INITIAL_BRANCH_INVENTORIES,
-    "Cabang Sudirman Utama": INITIAL_BRANCH_INVENTORIES[
-      "Cabang Sudirman Utama"
-    ].map((item) => {
-      if (!item.contextId) return item;
-      const ctxStock = contextMap.get(item.contextId);
-      if (typeof ctxStock !== "number") return item;
-      return {
-        ...item,
-        stock: ctxStock,
-        ...computeStockMetrics(ctxStock, item.safetyStock),
-      };
-    }),
   };
 }
 
-const INITIAL_BRANCH_LOGS: Record<SingleBranchName, MutationLog[]> = {
-  "Cabang Sudirman Utama": [
-    {
-      id: "LOG-SUD-1",
-      title: "Daging Ayam • -12 Potong",
-      subtitle: "Auto-Deduct POS #GPRK-8829 (Geprek Mozarella)",
-      time: "13:20 WIB",
-      type: "out",
-      branch: "Cabang Sudirman Utama",
-    },
-    {
-      id: "LOG-SUD-2",
-      title: "Cabai Rawit Merah • -0.8 kg",
-      subtitle: "Batch Ulek Sambal Siang (Dapur Line 1–2)",
-      time: "13:05 WIB",
-      type: "out",
-      branch: "Cabang Sudirman Utama",
-    },
-    {
-      id: "LOG-SUD-3",
-      title: "Daging Ayam Segar • +50 kg",
-      subtitle: "Penerimaan RPU Berkah (Faktur PO-219)",
-      time: "08:30 WIB",
-      type: "in",
-      branch: "Cabang Sudirman Utama",
-    },
-    {
-      id: "LOG-SUD-4",
-      title: "Beras Rojolele • +2 Sak (50kg)",
-      subtitle: "Tani Sembako Karawang (Faktur PO-218)",
-      time: "07:15 WIB",
-      type: "in",
-      branch: "Cabang Sudirman Utama",
-    },
-    {
-      id: "LOG-SUD-5",
-      title: "Minyak Jelantah • -4.5 Liter",
-      subtitle: "Penggantian minyak wajan deep-fryer pagi",
-      time: "06:45 WIB",
-      type: "replace",
-      branch: "Cabang Sudirman Utama",
-    },
-  ],
-  "Cabang Tebet Eco Park": [
-    {
-      id: "LOG-TBT-1",
-      title: "Daging Ayam Segar • -9.5 kg",
-      subtitle: "Auto-Deduct POS #GPRK-8828 (Rombongan Taman)",
-      time: "13:10 WIB",
-      type: "out",
-      branch: "Cabang Tebet Eco Park",
-    },
-    {
-      id: "LOG-TBT-2",
-      title: "Mozarella Block • -1.5 Block",
-      subtitle: "Pemakaian Topping Geprek Leleh Siang",
-      time: "12:35 WIB",
-      type: "out",
-      branch: "Cabang Tebet Eco Park",
-    },
-    {
-      id: "LOG-TBT-3",
-      title: "Cabai Rawit Merah • +10 kg",
-      subtitle: "Kiriman Segar Pasar Induk Kramat Jati",
-      time: "08:10 WIB",
-      type: "in",
-      branch: "Cabang Tebet Eco Park",
-    },
-  ],
-  "Cabang Dago Heritage": [
-    {
-      id: "LOG-DGO-1",
-      title: "Tepung Terigu Krispi • -5.5 kg",
-      subtitle: "Batch Penepungan Ayam Crispy Shift Pagi",
-      time: "12:50 WIB",
-      type: "out",
-      branch: "Cabang Dago Heritage",
-    },
-    {
-      id: "LOG-DGO-2",
-      title: "Bawang Putih Kating • -1.2 kg",
-      subtitle: "Bumbu Marinasi & Sambal Bawang Dago",
-      time: "11:40 WIB",
-      type: "out",
-      branch: "Cabang Dago Heritage",
-    },
-    {
-      id: "LOG-DGO-3",
-      title: "Daging Ayam Segar • +30 kg",
-      subtitle: "Penerimaan Supplier Unggas Lembang",
-      time: "07:50 WIB",
-      type: "in",
-      branch: "Cabang Dago Heritage",
-    },
-  ],
-};
-
-function mapCategoryToFilterTab(cat: InventoryCategory): FilterTabCategory {
-  if (cat === "Protein & Unggas" || cat === "Protein & Pelengkap") {
-    return "Protein & Unggas";
-  }
-  if (cat === "Bumbu & Sambal" || cat === "Bumbu & Pelengkap") {
-    return "Bumbu & Sambal";
-  }
-  if (cat === "Tepung & Minyak") {
-    return "Tepung & Minyak";
-  }
-  if (cat === "Minuman & Pelengkap") {
-    return "Minuman & Pelengkap";
-  }
-  return "Kemasan / Box";
+function mapBackendStockToInventory(item: {
+  id: string | number;
+  name: string;
+  stock: number | string;
+  unit?: string;
+  minStock?: number | string;
+  min_stock?: number | string;
+  status?: string;
+}): InventoryDetailItem {
+  const meta = getStockMetadata(item.name, item.id);
+  const stockVal = Number(item.stock) || 0;
+  const safetyVal = Number(item.minStock ?? item.min_stock) || 10;
+  const metrics = computeStockMetrics(stockVal, safetyVal);
+  return {
+    id: String(item.id),
+    sku: `STK-${String(item.id).padStart(2, "0")}`,
+    name: item.name,
+    supplier: meta.supplier,
+    category: meta.category,
+    filterTab: meta.filterTab,
+    stock: stockVal,
+    unit: item.unit || "kg",
+    safetyStock: safetyVal,
+    safetyUnit: item.unit || "kg",
+    unitPrice: meta.unitPrice,
+    priceUnit: "/" + (item.unit || "kg"),
+    status: metrics.status,
+    pct: metrics.pct,
+    daysLeft: metrics.daysLeft,
+    icon: meta.icon,
+    iconBg: meta.iconBg,
+  };
 }
 
 export default function StokPage() {
-  // Pertahankan state global StokContext sesuai .cursorrules
-  const { stokList, updateStok, restockItem } = useStok();
+  const { fetchStocks } = useStok();
 
-  const [branchInventories, setBranchInventories] = useState<
-    Record<SingleBranchName, InventoryDetailItem[]>
-  >(() => createInitialBranchInventories(stokList));
-
-  const [branchLogs, setBranchLogs] = useState<
-    Record<SingleBranchName, MutationLog[]>
-  >(INITIAL_BRANCH_LOGS);
+  const [inventory, setInventory] = useState<InventoryDetailItem[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [dbConnected, setDbConnected] = useState<boolean>(false);
+  const [logs, setLogs] = useState<MutationLog[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Semua Status");
   const [activeCategory, setActiveCategory] = useState("Semua Bahan");
   const [activePage, setActivePage] = useState(1);
 
-  // Status Re-Order ditandai per cabang
-  const [reorderMarkedByBranch, setReorderMarkedByBranch] = useState<
-    Record<string, boolean>
-  >({
-    "Semua Cabang": false,
-    "Cabang Sudirman Utama": false,
-    "Cabang Tebet Eco Park": false,
-    "Cabang Dago Heritage": false,
-  });
-
-  // State Dropdown Cabang di Header (Default: "Semua Cabang")
-  const [selectedBranch, setSelectedBranch] = useState<string>("Semua Cabang");
-  const [showBranchMenu, setShowBranchMenu] = useState(false);
-  const branchDropdownRef = useRef<HTMLDivElement | null>(null);
-
-  // Handler Reset seluruh filter ke kondisi awal ("Semua Cabang")
-  const handleResetFilters = () => {
-    setSelectedBranch("Semua Cabang");
-    setSearchQuery("");
-    setStatusFilter("Semua Status");
-    setActiveCategory("Semua Bahan");
-    setActivePage(1);
-    showToast("Seluruh filter telah direset ke Semua Cabang.");
-  };
-
-  // State Form Penyesuaian Cepat
-  const [mutationTargetBranch, setMutationTargetBranch] =
-    useState<SingleBranchName>("Cabang Sudirman Utama");
-  const [selectedSku, setSelectedSku] = useState("CBI-01");
+  // Penyesuaian Cepat Form State
+  const [selectedSku, setSelectedSku] = useState("");
   const [mutationType, setMutationType] =
     useState<MutationType>("Stok Masuk (PO)");
   const [mutationAmount, setMutationAmount] = useState("");
   const [mutationNote, setMutationNote] = useState("");
 
-  // Toast Notification dengan useRef timer
+  const [reorderMarked, setReorderMarked] = useState<boolean>(false);
+
+  // Toast Notification
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // State Modal Interaktif (Opname Fisik, Quick PO, Riwayat Log, & Tambah Bahan Baru)
+  // State Modals
   const [showOpnameModal, setShowOpnameModal] = useState(false);
   const [opnameValues, setOpnameValues] = useState<Record<string, string>>({});
   const [showPoModal, setShowPoModal] = useState(false);
@@ -565,16 +271,13 @@ export default function StokPage() {
   // Modal Tambah Bahan Baru
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItemName, setNewItemName] = useState("");
-  const [newItemSku, setNewItemSku] = useState("");
-  const [newItemSupplier, setNewItemSupplier] = useState("");
   const [newItemCategory, setNewItemCategory] =
     useState<InventoryCategory>("Bumbu & Sambal");
   const [newItemStock, setNewItemStock] = useState("");
   const [newItemUnit, setNewItemUnit] = useState("kg");
   const [newItemSafety, setNewItemSafety] = useState("");
-  const [newItemPrice, setNewItemPrice] = useState("");
 
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     if (toastTimerRef.current) {
       clearTimeout(toastTimerRef.current);
     }
@@ -582,7 +285,7 @@ export default function StokPage() {
     toastTimerRef.current = setTimeout(() => {
       setToastMsg(null);
     }, 3200);
-  };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -592,155 +295,57 @@ export default function StokPage() {
     };
   }, []);
 
-  // Click-outside handler untuk menutup dropdown cabang
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        branchDropdownRef.current &&
-        !branchDropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowBranchMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  // Sinkronisasi awal ke StokContext jika ada item contextId yang belum terisi saat mount
-  const hasSyncedInitialContext = useRef(false);
-  useEffect(() => {
-    if (!hasSyncedInitialContext.current) {
-      hasSyncedInitialContext.current = true;
-      const contextIds = new Set(stokList.map((s) => s.id));
-      branchInventories["Cabang Sudirman Utama"].forEach((item) => {
-        if (item.contextId && !contextIds.has(item.contextId)) {
-          updateStok(item.contextId, item.stock);
-        }
-      });
-    }
-  }, [stokList, branchInventories, updateStok]);
-
-  // Cabang target untuk aksi tulis (jika "Semua Cabang" aktif, gunakan mutationTargetBranch)
-  const targetWriteBranch: SingleBranchName =
-    selectedBranch === "Semua Cabang"
-      ? mutationTargetBranch
-      : (selectedBranch as SingleBranchName);
-
-  // Daftar inventaris aktif berdasarkan pilihan cabang (atau agregasi Semua Cabang)
-  const inventory = useMemo<InventoryDetailItem[]>(() => {
-    if (selectedBranch !== "Semua Cabang") {
-      return (
-        branchInventories[selectedBranch as SingleBranchName] ||
-        branchInventories["Cabang Sudirman Utama"]
-      );
-    }
-
-    // Gabungan (agregasi) stok & safetyStock dari ketiga gerai
-    const skuMap = new Map<string, InventoryDetailItem>();
-
-    SINGLE_BRANCHES.forEach((bName) => {
-      branchInventories[bName].forEach((item) => {
-        const existing = skuMap.get(item.sku);
-        if (!existing) {
-          skuMap.set(item.sku, { ...item });
-        } else {
-          const combinedStock =
-            item.unit === "Pcs"
-              ? Math.round(existing.stock + item.stock)
-              : Number((existing.stock + item.stock).toFixed(1));
-          const combinedSafety =
-            item.unit === "Pcs"
-              ? Math.round(existing.safetyStock + item.safetyStock)
-              : Number((existing.safetyStock + item.safetyStock).toFixed(1));
-          const metrics = computeStockMetrics(combinedStock, combinedSafety);
-          skuMap.set(item.sku, {
-            ...existing,
-            stock: combinedStock,
-            safetyStock: combinedSafety,
-            ...metrics,
+  // 1. FETCH STOK DARI DATABASE BACKEND MARIADB
+  const loadStocksFromDB = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("http://localhost:5000/api/stocks");
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setDbConnected(true);
+        const mapped = json.data.map(mapBackendStockToInventory);
+        setInventory(mapped);
+        if (mapped.length > 0) {
+          setSelectedSku((prev) => {
+            return mapped.some((m: InventoryDetailItem) => m.sku === prev)
+              ? prev
+              : mapped[0].sku;
           });
         }
-      });
-    });
-
-    return Array.from(skuMap.values());
-  }, [branchInventories, selectedBranch]);
-
-  // Daftar log mutasi aktif sesuai cabang
-  const logs = useMemo<MutationLog[]>(() => {
-    if (selectedBranch !== "Semua Cabang") {
-      return (
-        branchLogs[selectedBranch as SingleBranchName] ||
-        branchLogs["Cabang Sudirman Utama"]
-      );
+      }
+    } catch {
+      setDbConnected(false);
+    } finally {
+      setIsLoading(false);
     }
-    return [
-      ...branchLogs["Cabang Sudirman Utama"],
-      ...branchLogs["Cabang Tebet Eco Park"],
-      ...branchLogs["Cabang Dago Heritage"],
-    ].sort((a, b) => b.time.localeCompare(a.time));
-  }, [branchLogs, selectedBranch]);
+  }, []);
 
-  const reorderMarked = Boolean(reorderMarkedByBranch[selectedBranch]);
+  useEffect(() => {
+    loadStocksFromDB();
+  }, [loadStocksFromDB]);
+
+  // Handler Reset Seluruh Filter
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("Semua Status");
+    setActiveCategory("Semua Bahan");
+    setActivePage(1);
+    showToast("Seluruh filter inventaris telah direset.");
+  };
 
   const selectedItemObj = useMemo(
     () => inventory.find((i) => i.sku === selectedSku) || inventory[0],
     [inventory, selectedSku]
   );
 
-  // Untuk validasi stok keluar saat "Semua Cabang" aktif, ambil item dari cabang target atau tampilan aktif
-  const targetBranchSelectedItem = useMemo(() => {
-    const branchList = branchInventories[targetWriteBranch];
-    return (
-      branchList.find((i) => i.sku === selectedSku) ||
-      selectedItemObj ||
-      branchList[0]
-    );
-  }, [branchInventories, targetWriteBranch, selectedSku, selectedItemObj]);
-
-  // Kalkulasi Dinamis 4 KPI Card & Daftar Item Kritis (Deteksi per cabang saat "Semua Cabang" aktif)
+  // 4 KPI Card Metrics
   const kpiStats = useMemo(() => {
     const totalItems = inventory.length;
-
-    const criticalItems: (InventoryDetailItem & {
-      branchName: SingleBranchName;
-      branchShort: string;
-    })[] = [];
-
-    if (selectedBranch === "Semua Cabang") {
-      SINGLE_BRANCHES.forEach((bName) => {
-        const bShort = bName.replace("Cabang ", "");
-        branchInventories[bName].forEach((item) => {
-          if (item.status === "KRITIS") {
-            criticalItems.push({
-              ...item,
-              branchName: bName,
-              branchShort: bShort,
-            });
-          }
-        });
-      });
-    } else {
-      const bName = selectedBranch as SingleBranchName;
-      const bShort = bName.replace("Cabang ", "");
-      inventory.forEach((item) => {
-        if (item.status === "KRITIS") {
-          criticalItems.push({
-            ...item,
-            branchName: bName,
-            branchShort: bShort,
-          });
-        }
-      });
-    }
-
+    const criticalItems = inventory.filter((item) => item.status === "KRITIS");
     const totalValue = inventory.reduce(
       (acc, item) => acc + item.stock * item.unitPrice,
       0
     );
-
     const totalDays = inventory.reduce((acc, item) => {
       const parsed = parseFloat(
         item.daysLeft.replace("~", "").replace("Hari", "").trim()
@@ -748,20 +353,13 @@ export default function StokPage() {
       const fallback = item.stock / Math.max(0.1, item.safetyStock * 0.4);
       return acc + (isNaN(parsed) ? fallback : parsed);
     }, 0);
-
     const avgDays =
       totalItems > 0 ? (totalDays / totalItems).toFixed(1) : "0.0";
-
     const criticalLabel =
       criticalItems.length === 0
         ? "Semua stok aman"
         : criticalItems
-            .map((i) => {
-              const shortName = i.name.split(" ").slice(0, 2).join(" ");
-              return selectedBranch === "Semua Cabang"
-                ? `${shortName} (${i.branchShort.split(" ")[0]})`
-                : shortName;
-            })
+            .map((i) => i.name.split(" ").slice(0, 2).join(" "))
             .join(" & ");
 
     return {
@@ -772,7 +370,7 @@ export default function StokPage() {
       totalValue,
       avgDays,
     };
-  }, [inventory, branchInventories, selectedBranch]);
+  }, [inventory]);
 
   // Filter daftar bahan baku berdasarkan pencarian, status, dan tab kategori
   const filteredInventory = useMemo(() => {
@@ -793,16 +391,6 @@ export default function StokPage() {
     });
   }, [inventory, searchQuery, statusFilter, activeCategory]);
 
-  const filteredTotalValue = useMemo(
-    () =>
-      filteredInventory.reduce(
-        (sum, item) => sum + item.stock * item.unitPrice,
-        0
-      ),
-    [filteredInventory]
-  );
-
-  // Pagination: 5 item per halaman & maksimal 5 tombol nomor halaman
   const totalPages = Math.max(
     1,
     Math.ceil(filteredInventory.length / ITEMS_PER_PAGE)
@@ -814,412 +402,220 @@ export default function StokPage() {
   }, [filteredInventory, currentPage]);
 
   const visiblePageNumbers = useMemo(() => {
-    const maxButtons = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
-    let endPage = startPage + maxButtons - 1;
-    if (endPage > totalPages) {
-      endPage = totalPages;
-      startPage = Math.max(1, endPage - maxButtons + 1);
-    }
     const pages: number[] = [];
-    for (let i = startPage; i <= endPage; i++) {
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    for (let i = start; i <= end; i++) {
       pages.push(i);
     }
     return pages;
   }, [currentPage, totalPages]);
 
-  // Helper pembuat UID unik untuk Log Mutasi
-  const createUid = () =>
-    `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const filteredTotalValue = useMemo(() => {
+    return filteredInventory.reduce(
+      (acc, item) => acc + item.stock * item.unitPrice,
+      0
+    );
+  }, [filteredInventory]);
 
-  // Helper update inventaris satu cabang + sinkronisasi StokContext di luar updater setState
-  const updateBranchItemStock = (
-    branch: SingleBranchName,
-    sku: string,
-    computeNewStock: (currentStock: number, item: InventoryDetailItem) => number
-  ) => {
-    const currentList = branchInventories[branch];
-    let becameCritical = false;
-    const contextUpdates: { id: string; nextStock: number }[] = [];
-
-    const nextList = currentList.map((row) => {
-      if (row.sku !== sku) return row;
-      const rawNext = computeNewStock(row.stock, row);
-      const nextStock =
-        row.unit === "Pcs"
-          ? Math.max(0, Math.round(rawNext))
-          : Math.max(0, Number(rawNext.toFixed(1)));
-      const metrics = computeStockMetrics(nextStock, row.safetyStock);
-      if (row.status !== "KRITIS" && metrics.status === "KRITIS") {
-        becameCritical = true;
+  // 2. HANDLER TAMBAH CEPAT (+ Button di Baris Tabel)
+  const handleQuickRestockRow = async (item: InventoryDetailItem) => {
+    const addVal = 2;
+    try {
+      const res = await fetch(`http://localhost:5000/api/stocks/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: addVal, action: "add" }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        await loadStocksFromDB();
+        await fetchStocks();
+        const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
+        const newLog: MutationLog = {
+          id: `LOG-${Date.now()}-${item.sku}`,
+          title: `${item.name.split(" ").slice(0, 3).join(" ")} • +${addVal} ${item.unit}`,
+          subtitle: `Penambahan cepat stok tabel (${item.sku}) • Gerai Utama`,
+          time: nowStr,
+          type: "in",
+        };
+        setLogs((prev) => [newLog, ...prev]);
+        showToast(`+${addVal} ${item.unit} ditambahkan ke ${item.name}!`);
+      } else {
+        showToast(json.message || "Gagal memperbarui stok di server!");
       }
-      if (branch === "Cabang Sudirman Utama" && row.contextId) {
-        contextUpdates.push({ id: row.contextId, nextStock });
-      }
-      return {
-        ...row,
-        stock: nextStock,
-        ...metrics,
-      };
-    });
-
-    setBranchInventories((prev) => ({
-      ...prev,
-      [branch]: nextList,
-    }));
-
-    contextUpdates.forEach((u) => {
-      updateStok(u.id, u.nextStock);
-    });
-
-    if (becameCritical) {
-      setReorderMarkedByBranch((prev) => ({
-        ...prev,
-        [branch]: false,
-        "Semua Cabang": false,
-      }));
+    } catch {
+      showToast("Gagal menghubungi server untuk menambah stok!");
     }
   };
 
-  // Handler tambah cepat (+ button pada baris tabel)
-  const handleQuickRestockRow = (item: InventoryDetailItem) => {
-    const addVal = item.unit === "Pcs" ? 50 : 5;
-    const branchToUpdate = targetWriteBranch;
-
-    updateBranchItemStock(branchToUpdate, item.sku, (curr) => curr + addVal);
-
-    const uid = createUid();
-    const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
-    const newLog: MutationLog = {
-      id: `LOG-${uid}-${item.sku}`,
-      title: `${item.name.split(" ").slice(0, 3).join(" ")} • +${addVal} ${item.unit}`,
-      subtitle: `Penambahan cepat stok tabel (${item.sku}) • ${branchToUpdate}`,
-      time: nowStr,
-      type: "in",
-      branch: branchToUpdate,
-    };
-
-    setBranchLogs((prev) => ({
-      ...prev,
-      [branchToUpdate]: [newLog, ...prev[branchToUpdate]],
-    }));
-
-    showToast(
-      `+${addVal} ${item.unit} ditambahkan ke ${item.name} (${branchToUpdate})`
-    );
-  };
-
-  // Handler simpan form Penyesuaian Cepat
-  const handleSaveMutation = (e: React.FormEvent) => {
+  // 3. HANDLER SIMPAN FORM PENYESUAIAN CEPAT (Dapur & Kasir)
+  const handleSaveMutation = async (e: React.FormEvent) => {
     e.preventDefault();
     const qty = parseFloat(mutationAmount);
-    if (isNaN(qty) || qty <= 0) {
-      showToast("Masukkan jumlah mutasi stok yang valid (lebih dari 0)!");
+    if (isNaN(qty) || qty < 2) {
+      showToast("Jumlah mutasi stok minimal 2!");
+      return;
+    }
+
+    if (!selectedItemObj) {
+      showToast("Pilih bahan baku terlebih dahulu!");
       return;
     }
 
     const isAddition = mutationType === "Stok Masuk (PO)";
-    const branchToUpdate = targetWriteBranch;
-    const branchItem = targetBranchSelectedItem;
 
-    // Validasi stok keluar tidak boleh melebihi stok aktual
-    if (!isAddition && qty > branchItem.stock) {
+    if (!isAddition && qty > selectedItemObj.stock) {
       showToast(
-        `Stok tidak mencukupi! Sisa stok ${branchItem.name} di ${branchToUpdate} saat ini: ${branchItem.stock} ${branchItem.unit}.`
+        `Stok tidak mencukupi! Sisa stok ${selectedItemObj.name} saat ini: ${selectedItemObj.stock} ${selectedItemObj.unit}.`
       );
       return;
     }
 
-    updateBranchItemStock(branchToUpdate, selectedSku, (curr) =>
-      isAddition ? curr + qty : curr - qty
-    );
+    const action = isAddition ? "add" : "subtract";
 
-    const uid = createUid();
-    const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
-    const newLog: MutationLog = {
-      id: `LOG-${uid}-${branchItem.sku}`,
-      title: `${branchItem.name.split(" ").slice(0, 3).join(" ")} • ${
-        isAddition ? "+" : "-"
-      }${qty} ${branchItem.unit}`,
-      subtitle: `${
-        mutationNote.trim() || `${mutationType} (${branchItem.sku})`
-      } • ${branchToUpdate}`,
-      time: nowStr,
-      type: isAddition
-        ? "in"
-        : mutationType === "Stok Rusak / Basi"
-          ? "replace"
-          : "out",
-      branch: branchToUpdate,
-    };
-
-    setBranchLogs((prev) => ({
-      ...prev,
-      [branchToUpdate]: [newLog, ...prev[branchToUpdate]],
-    }));
-
-    setMutationAmount("");
-    setMutationNote("");
-    showToast(
-      `Mutasi stok ${branchItem.name} berhasil disimpan ke ${branchToUpdate}!`
-    );
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/stocks/${selectedItemObj.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: qty, action }),
+        }
+      );
+      const json = await res.json();
+      if (json.success) {
+        await loadStocksFromDB();
+        await fetchStocks();
+        const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
+        const newLog: MutationLog = {
+          id: `LOG-${Date.now()}-${selectedItemObj.sku}`,
+          title: `${selectedItemObj.name.split(" ").slice(0, 3).join(" ")} • ${
+            isAddition ? "+" : "-"
+          }${qty} ${selectedItemObj.unit}`,
+          subtitle: `${
+            mutationNote.trim() || `${mutationType} (${selectedItemObj.sku})`
+          } • Gerai Utama`,
+          time: nowStr,
+          type: isAddition
+            ? "in"
+            : mutationType === "Stok Rusak / Basi"
+              ? "replace"
+              : "out",
+        };
+        setLogs((prev) => [newLog, ...prev]);
+        setMutationAmount("");
+        setMutationNote("");
+        showToast(
+          `Mutasi stok ${selectedItemObj.name} berhasil disimpan ke database!`
+        );
+      } else {
+        showToast(json.message || "Gagal memperbarui stok di server!");
+      }
+    } catch {
+      showToast("Gagal menghubungkan ke server backend!");
+    }
   };
 
-  // Buka Modal Audit / Opname Fisik
+  // 4. HANDLER AUDIT / OPNAME FISIK
   const handleOpenOpnameModal = () => {
-    const sourceList = branchInventories[targetWriteBranch];
     const initialMap: Record<string, string> = {};
-    sourceList.forEach((item) => {
+    inventory.forEach((item) => {
       initialMap[item.sku] = String(item.stock);
     });
     setOpnameValues(initialMap);
     setShowOpnameModal(true);
   };
 
-  // Simpan Hasil Audit / Opname Fisik
-  const handleSaveOpname = (e: React.FormEvent) => {
+  const handleSaveOpname = async (e: React.FormEvent) => {
     e.preventDefault();
-    const branchToUpdate = targetWriteBranch;
-    const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
-    const uid = createUid();
-    const currentList = branchInventories[branchToUpdate];
-    const newLogs: MutationLog[] = [];
-    const contextUpdates: { id: string; nextStock: number }[] = [];
-    let hasNewCritical = false;
-
-    const nextList = currentList.map((row) => {
-      const rawVal = opnameValues[row.sku];
-      const parsed = parseFloat(rawVal);
-      if (isNaN(parsed) || parsed < 0 || parsed === row.stock) {
-        return row;
+    let updatedCount = 0;
+    try {
+      for (const item of inventory) {
+        const rawVal = opnameValues[item.sku];
+        const parsed = parseFloat(rawVal);
+        if (!isNaN(parsed) && parsed >= 0 && parsed !== item.stock) {
+          await fetch(`http://localhost:5000/api/stocks/${item.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ newStock: parsed }),
+          });
+          updatedCount++;
+        }
       }
-
-      const diff = Number((parsed - row.stock).toFixed(1));
-      const nextStock =
-        row.unit === "Pcs" ? Math.round(parsed) : Number(parsed.toFixed(1));
-      const metrics = computeStockMetrics(nextStock, row.safetyStock);
-
-      if (row.status !== "KRITIS" && metrics.status === "KRITIS") {
-        hasNewCritical = true;
-      }
-
-      if (branchToUpdate === "Cabang Sudirman Utama" && row.contextId) {
-        contextUpdates.push({ id: row.contextId, nextStock });
-      }
-
-      newLogs.push({
-        id: `LOG-OPN-${uid}-${row.sku}`,
-        title: `${row.name.split(" ").slice(0, 3).join(" ")} • ${
-          diff > 0 ? `+${diff}` : diff
-        } ${row.unit}`,
-        subtitle: `Penyesuaian Audit / Opname Fisik (${row.sku}) • ${branchToUpdate}`,
-        time: nowStr,
-        type: diff > 0 ? "in" : "replace",
-        branch: branchToUpdate,
-      });
-
-      return {
-        ...row,
-        stock: nextStock,
-        ...metrics,
-      };
-    });
-
-    setBranchInventories((prev) => ({
-      ...prev,
-      [branchToUpdate]: nextList,
-    }));
-
-    contextUpdates.forEach((u) => {
-      updateStok(u.id, u.nextStock);
-    });
-
-    if (hasNewCritical) {
-      setReorderMarkedByBranch((prev) => ({
-        ...prev,
-        [branchToUpdate]: false,
-        "Semua Cabang": false,
-      }));
-    }
-
-    if (newLogs.length > 0) {
-      setBranchLogs((prev) => ({
-        ...prev,
-        [branchToUpdate]: [...newLogs, ...prev[branchToUpdate]],
-      }));
+      await loadStocksFromDB();
+      await fetchStocks();
+      setShowOpnameModal(false);
       showToast(
-        `Hasil Opname Fisik ${branchToUpdate} disimpan (${newLogs.length} bahan disesuaikan)!`
+        `Hasil audit fisik ${updatedCount} bahan berhasil disimpan ke database!`
       );
-    } else {
-      showToast("Stok fisik sesuai sistem, tidak ada selisih opname.");
+    } catch {
+      showToast("Gagal menyimpan hasil opname fisik ke server!");
     }
-    setShowOpnameModal(false);
   };
 
-  // Buka Modal Pesan ke Supplier Sekarang (Quick PO Lintas Cabang)
+  // 5. HANDLER QUICK PO RESTOCK MODAL
   const handleOpenPoModal = () => {
-    const branchesToInspect: SingleBranchName[] =
-      selectedBranch === "Semua Cabang"
-        ? SINGLE_BRANCHES
-        : [selectedBranch as SingleBranchName];
-
-    const initialPo: Record<string, string> = {};
-
-    branchesToInspect.forEach((bName) => {
-      const list = branchInventories[bName];
-      const criticalOrLow = list.filter(
-        (item) => item.status === "KRITIS" || item.status === "MENIPIS"
+    const initialMap: Record<string, string> = {};
+    const criticals = inventory.filter(
+      (item) => item.status === "KRITIS" || item.status === "MENIPIS"
+    );
+    const targetList = criticals.length > 0 ? criticals : inventory;
+    targetList.forEach((item) => {
+      const deficit = Math.max(
+        0,
+        Number((item.safetyStock * 1.5 - item.stock).toFixed(1))
       );
-      criticalOrLow.forEach((item) => {
-        const key = `${bName}::${item.sku}`;
-        const recommended = Math.max(
-          item.unit === "Pcs" ? 100 : 10,
-          Number((item.safetyStock * 1.5 - item.stock).toFixed(1))
-        );
-        initialPo[key] = String(recommended);
-      });
+      const suggested = deficit > 0 ? deficit : 10;
+      initialMap[item.sku] = String(
+        item.unit === "Pcs" ? Math.round(suggested) : suggested
+      );
     });
-
-    // Fallback jika semua aman di cabang terpilih
-    if (Object.keys(initialPo).length === 0) {
-      const fallbackBranch = targetWriteBranch;
-      branchInventories[fallbackBranch].slice(0, 3).forEach((item) => {
-        const key = `${fallbackBranch}::${item.sku}`;
-        const recommended = item.unit === "Pcs" ? 100 : 10;
-        initialPo[key] = String(recommended);
-      });
-    }
-
-    setPoQuantities(initialPo);
+    setPoQuantities(initialMap);
     setShowPoModal(true);
   };
 
-  // Daftar item yang ditampilkan di dalam Modal Quick PO
-  const poModalEntries = useMemo(() => {
-    const entries: {
-      key: string;
-      branchName: SingleBranchName;
-      branchShort: string;
-      item: InventoryDetailItem;
-    }[] = [];
-
-    SINGLE_BRANCHES.forEach((bName) => {
-      const bShort = bName.replace("Cabang ", "");
-      branchInventories[bName].forEach((item) => {
-        const key = `${bName}::${item.sku}`;
-        if (key in poQuantities) {
-          entries.push({ key, branchName: bName, branchShort: bShort, item });
-        }
-      });
-    });
-
-    return entries;
-  }, [branchInventories, poQuantities]);
-
-  // Kirim Pesanan PO ke Supplier (Mendukung Multi-Cabang sekaligus)
-  const handleSendPo = (e: React.FormEvent) => {
+  const handleSendPo = async (e: React.FormEvent) => {
     e.preventDefault();
-    const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
-    const uid = createUid();
-
-    const nextInventories: Record<SingleBranchName, InventoryDetailItem[]> = {
-      "Cabang Sudirman Utama": [...branchInventories["Cabang Sudirman Utama"]],
-      "Cabang Tebet Eco Park": [...branchInventories["Cabang Tebet Eco Park"]],
-      "Cabang Dago Heritage": [...branchInventories["Cabang Dago Heritage"]],
-    };
-
-    const newLogsByBranch: Record<SingleBranchName, MutationLog[]> = {
-      "Cabang Sudirman Utama": [],
-      "Cabang Tebet Eco Park": [],
-      "Cabang Dago Heritage": [],
-    };
-
-    const contextRestocks: { id: string; orderQty: number }[] = [];
-    const updatedBranches = new Set<SingleBranchName>();
-
-    SINGLE_BRANCHES.forEach((bName) => {
-      nextInventories[bName] = branchInventories[bName].map((row) => {
-        const key = `${bName}::${row.sku}`;
-        if (!(key in poQuantities)) return row;
-        const orderQty = parseFloat(poQuantities[key]);
-        if (isNaN(orderQty) || orderQty <= 0) return row;
-
-        const nextStock =
-          row.unit === "Pcs"
-            ? Math.round(row.stock + orderQty)
-            : Number((row.stock + orderQty).toFixed(1));
-        const metrics = computeStockMetrics(nextStock, row.safetyStock);
-
-        if (bName === "Cabang Sudirman Utama" && row.contextId) {
-          contextRestocks.push({ id: row.contextId, orderQty });
+    let count = 0;
+    try {
+      for (const [sku, qtyStr] of Object.entries(poQuantities)) {
+        const qty = parseFloat(qtyStr);
+        if (!isNaN(qty) && qty > 0) {
+          const item = inventory.find((i) => i.sku === sku);
+          if (item) {
+            await fetch(`http://localhost:5000/api/stocks/${item.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ amount: qty, action: "add" }),
+            });
+            count++;
+          }
         }
-
-        updatedBranches.add(bName);
-        newLogsByBranch[bName].push({
-          id: `LOG-PO-${uid}-${bName.slice(7, 10).toUpperCase()}-${row.sku}`,
-          title: `${row.name.split(" ").slice(0, 3).join(" ")} • +${orderQty} ${row.unit}`,
-          subtitle: `Purchase Order Cepat (${row.supplier.replace("Supplier: ", "")}) • ${bName}`,
-          time: nowStr,
-          type: "in",
-          branch: bName,
-        });
-
-        return {
-          ...row,
-          stock: nextStock,
-          ...metrics,
-        };
-      });
-    });
-
-    setBranchInventories(nextInventories);
-
-    contextRestocks.forEach((r) => {
-      restockItem(r.id, r.orderQty);
-    });
-
-    setBranchLogs((prev) => ({
-      "Cabang Sudirman Utama": [
-        ...newLogsByBranch["Cabang Sudirman Utama"],
-        ...prev["Cabang Sudirman Utama"],
-      ],
-      "Cabang Tebet Eco Park": [
-        ...newLogsByBranch["Cabang Tebet Eco Park"],
-        ...prev["Cabang Tebet Eco Park"],
-      ],
-      "Cabang Dago Heritage": [
-        ...newLogsByBranch["Cabang Dago Heritage"],
-        ...prev["Cabang Dago Heritage"],
-      ],
-    }));
-
-    const nextMarked: Record<string, boolean> = {
-      ...reorderMarkedByBranch,
-      [selectedBranch]: true,
-    };
-    updatedBranches.forEach((b) => {
-      nextMarked[b] = true;
-    });
-    setReorderMarkedByBranch(nextMarked);
-
-    setShowPoModal(false);
-    showToast(
-      `Pesanan PO (${selectedBranch}) berhasil dikirim & stok masuk telah diperbarui!`
-    );
+      }
+      await loadStocksFromDB();
+      await fetchStocks();
+      setReorderMarked(true);
+      setShowPoModal(false);
+      showToast(`Pesanan PO (${count} bahan) berhasil dikirim ke database!`);
+    } catch {
+      showToast("Gagal memproses pesanan PO ke server!");
+    }
   };
 
-  // Handler Tambah Bahan Baku Baru
-  const handleAddNewIngredient = (e: React.FormEvent) => {
+  // 6. HANDLER TAMBAH BAHAN BAKU BARU KE DATABASE
+  const handleAddNewIngredient = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanName = newItemName.trim();
-    const cleanSku = newItemSku.trim().toUpperCase();
-    const cleanSupplier = newItemSupplier.trim();
     const initStock = parseFloat(newItemStock);
     const safetyVal = parseFloat(newItemSafety);
-    const priceVal = parseFloat(newItemPrice);
 
-    if (!cleanName || !cleanSku) {
-      showToast("Nama bahan dan kode SKU wajib diisi!");
+    if (!cleanName) {
+      showToast("Nama bahan baku wajib diisi!");
       return;
     }
     if (isNaN(initStock) || initStock < 0) {
@@ -1230,118 +626,68 @@ export default function StokPage() {
       showToast("Batas aman (Safety Stock) harus lebih dari 0!");
       return;
     }
-    if (isNaN(priceVal) || priceVal <= 0) {
-      showToast("Harga satuan harus lebih dari Rp 0!");
-      return;
+
+    try {
+      const res = await fetch("http://localhost:5000/api/stocks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: cleanName,
+          stock: initStock,
+          unit: newItemUnit,
+          minStock: safetyVal,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        await loadStocksFromDB();
+        await fetchStocks();
+        setNewItemName("");
+        setNewItemStock("");
+        setNewItemSafety("");
+        setShowAddModal(false);
+        showToast(
+          `Bahan baku "${cleanName}" berhasil ditambahkan ke database!`
+        );
+      } else {
+        showToast(json.message || "Gagal menambah bahan ke database!");
+      }
+    } catch {
+      showToast("Gagal menghubungi server untuk menambah bahan!");
     }
-
-    const branchToUpdate = targetWriteBranch;
-    const existsInAny = SINGLE_BRANCHES.some((bName) =>
-      branchInventories[bName].some((i) => i.sku.toUpperCase() === cleanSku)
-    );
-    if (existsInAny) {
-      showToast(`Kode SKU ${cleanSku} sudah terdaftar di katalog inventaris!`);
-      return;
-    }
-
-    const baseProps = {
-      sku: cleanSku,
-      name: cleanName,
-      supplier: cleanSupplier.startsWith("Supplier:")
-        ? cleanSupplier
-        : `Supplier: ${cleanSupplier || "Mitra Pangan Utama"}`,
-      category: newItemCategory,
-      filterTab: mapCategoryToFilterTab(newItemCategory),
-      unit: newItemUnit,
-      safetyStock:
-        newItemUnit === "Pcs"
-          ? Math.round(safetyVal)
-          : Number(safetyVal.toFixed(1)),
-      safetyUnit: newItemUnit,
-      unitPrice: Math.round(priceVal),
-      priceUnit: `/${newItemUnit}`,
-      icon: "📦",
-      iconBg: "bg-amber-50 border-amber-200",
-    };
-
-    const formattedInitStock =
-      newItemUnit === "Pcs"
-        ? Math.round(initStock)
-        : Number(initStock.toFixed(1));
-
-    const createdTargetItem = buildItem({
-      ...baseProps,
-      stock: formattedInitStock,
-    });
-
-    const createdZeroItem = buildItem({
-      ...baseProps,
-      stock: 0,
-    });
-
-    if (selectedBranch === "Semua Cabang") {
-      setBranchInventories((prev) => ({
-        "Cabang Sudirman Utama": [
-          branchToUpdate === "Cabang Sudirman Utama"
-            ? createdTargetItem
-            : createdZeroItem,
-          ...prev["Cabang Sudirman Utama"],
-        ],
-        "Cabang Tebet Eco Park": [
-          branchToUpdate === "Cabang Tebet Eco Park"
-            ? createdTargetItem
-            : createdZeroItem,
-          ...prev["Cabang Tebet Eco Park"],
-        ],
-        "Cabang Dago Heritage": [
-          branchToUpdate === "Cabang Dago Heritage"
-            ? createdTargetItem
-            : createdZeroItem,
-          ...prev["Cabang Dago Heritage"],
-        ],
-      }));
-    } else {
-      setBranchInventories((prev) => ({
-        ...prev,
-        [branchToUpdate]: [createdTargetItem, ...prev[branchToUpdate]],
-      }));
-    }
-
-    const uid = createUid();
-    const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
-    const newLog: MutationLog = {
-      id: `LOG-NEW-${uid}-${cleanSku}`,
-      title: `${cleanName} • +${createdTargetItem.stock} ${newItemUnit}`,
-      subtitle: `Registrasi SKU Bahan Baru (${cleanSku}) • ${branchToUpdate}`,
-      time: nowStr,
-      type: "in",
-      branch: branchToUpdate,
-    };
-
-    setBranchLogs((prev) => ({
-      ...prev,
-      [branchToUpdate]: [newLog, ...prev[branchToUpdate]],
-    }));
-
-    setSelectedSku(cleanSku);
-    setNewItemName("");
-    setNewItemSku("");
-    setNewItemSupplier("");
-    setNewItemStock("");
-    setNewItemSafety("");
-    setNewItemPrice("");
-    setShowAddModal(false);
-    showToast(
-      `Bahan baku baru "${cleanName}" [${cleanSku}] berhasil ditambahkan ke ${branchToUpdate}!`
-    );
   };
 
-  // Fungsi Export Excel (.csv UTF-8 BOM)
+  // 7. HANDLER HAPUS BAHAN DARI DATABASE
+  const handleDeleteStock = async (item: InventoryDetailItem) => {
+    if (
+      !confirm(
+        `Yakin ingin menghapus ${item.name} (${item.sku}) dari database?`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await fetch(`http://localhost:5000/api/stocks/${item.id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (json.success) {
+        await loadStocksFromDB();
+        await fetchStocks();
+        showToast(`Bahan baku ${item.name} berhasil dihapus dari database!`);
+      } else {
+        showToast(json.message || "Gagal menghapus bahan dari database!");
+      }
+    } catch {
+      showToast("Gagal menghubungi server untuk menghapus bahan!");
+    }
+  };
+
+  // 8. FUNGSI EXPORT EXCEL (.csv UTF-8 BOM)
   const handleExportExcel = () => {
     const headers = [
       "Kode SKU",
       "Nama Bahan Baku",
-      "Cabang",
       "Kategori",
       "Supplier",
       "Stok Aktual",
@@ -1355,7 +701,6 @@ export default function StokPage() {
     const rows = filteredInventory.map((item) => [
       item.sku,
       item.name,
-      selectedBranch,
       item.category,
       item.supplier.replace("Supplier: ", ""),
       `${item.unit === "Pcs" ? item.stock : item.stock.toFixed(1)} ${item.unit}`,
@@ -1371,25 +716,24 @@ export default function StokPage() {
       [
         headers.join(","),
         ...rows.map((r) =>
-          r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")
+          r
+            .map((field) => `"${String(field).replace(/"/g, '""')}"`)
+            .join(",")
         ),
       ].join("\r\n");
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    const branchSlug = selectedBranch.replace(/\s+/g, "_");
-    link.href = url;
-    link.setAttribute(
-      "download",
-      `Laporan_Stok_PrekDuaDara_${branchSlug}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Laporan_Stok_Gerai_Utama_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
-    showToast(`Laporan stok (${selectedBranch}) berhasil diunduh ke Excel!`);
+    showToast("Laporan stok Gerai Utama berhasil diunduh ke Excel!");
   };
 
   const filteredModalLogs = useMemo(() => {
@@ -1398,11 +742,9 @@ export default function StokPage() {
     return logs.filter((l) => l.type === "out" || l.type === "replace");
   }, [logs, logModalFilter]);
 
-  const opnameSourceList = branchInventories[targetWriteBranch];
-
   return (
     <div className="min-h-screen print:min-h-0 bg-[#FAF6E9] print:bg-white flex p-4 sm:p-6 print:p-0 gap-6 font-sans items-start text-gray-900">
-      {/* Toast Notification Seragam di Pojok Kanan Bawah */}
+      {/* Toast Notification */}
       {toastMsg && (
         <div className="print:hidden fixed bottom-6 right-6 z-50 bg-[#2D452B] text-white border border-[#415C3E] px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-xs sm:text-sm font-bold transition-all">
           <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300 shrink-0">
@@ -1427,11 +769,10 @@ export default function StokPage() {
                 <ClipboardCheck size={18} className="text-[#F3A712]" />
                 <div>
                   <h3 className="text-sm sm:text-base font-extrabold">
-                    Lembar Kerja Audit / Opname Fisik ({targetWriteBranch})
+                    Lembar Kerja Audit / Opname Fisik (Gerai Utama)
                   </h3>
                   <p className="text-[11px] text-emerald-200 font-medium">
-                    Masukkan hasil hitung fisik aktual untuk menyesuaikan stok
-                    sistem
+                    Masukkan hasil hitung fisik aktual untuk menyesuaikan stok sistem
                   </p>
                 </div>
               </div>
@@ -1449,7 +790,7 @@ export default function StokPage() {
               className="flex flex-col flex-1 overflow-hidden"
             >
               <div className="p-5 overflow-y-auto space-y-3">
-                {opnameSourceList.map((item) => {
+                {inventory.map((item) => {
                   const valNum = parseFloat(opnameValues[item.sku] ?? "");
                   const diff = isNaN(valNum)
                     ? 0
@@ -1539,7 +880,7 @@ export default function StokPage() {
         </div>
       )}
 
-      {/* MODAL 2: PESAN KE SUPPLIER SEKARANG (QUICK PO) */}
+      {/* MODAL 2: PESAN KE SUPPLIER (QUICK PO) */}
       {showPoModal && (
         <div
           className="print:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
@@ -1554,7 +895,7 @@ export default function StokPage() {
                 <ShoppingCart size={18} />
                 <div>
                   <h3 className="text-sm sm:text-base font-extrabold">
-                    Form Re-Order Cepat ({selectedBranch})
+                    Form Re-Order Cepat (Gerai Utama)
                   </h3>
                   <p className="text-[11px] text-red-100 font-medium">
                     Daftar otomatis bahan baku berstatus Kritis &amp; Menipis
@@ -1575,12 +916,12 @@ export default function StokPage() {
               className="flex flex-col flex-1 overflow-hidden"
             >
               <div className="p-5 overflow-y-auto space-y-3">
-                {poModalEntries.map(({ key, branchShort, item }) => {
-                  const qty = parseFloat(poQuantities[key] || "0") || 0;
+                {inventory.map((item) => {
+                  const qty = parseFloat(poQuantities[item.sku] || "0") || 0;
                   const subtotal = Math.round(qty * item.unitPrice);
                   return (
                     <div
-                      key={key}
+                      key={item.sku}
                       className="p-4 rounded-xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
                       <div>
@@ -1588,42 +929,47 @@ export default function StokPage() {
                           <span className="text-xs sm:text-sm font-extrabold text-gray-900">
                             {item.name}
                           </span>
-                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-gray-200 text-gray-800">
-                            {branchShort}
-                          </span>
                           <span
                             className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
                               item.status === "KRITIS"
-                                ? "bg-red-100 text-[#DC2626]"
-                                : "bg-amber-100 text-[#B45309]"
+                                ? "bg-red-100 text-red-700"
+                                : item.status === "MENIPIS"
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-emerald-100 text-emerald-800"
                             }`}
                           >
                             {item.status}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-500 font-medium mt-0.5">
-                          {item.supplier} • Sisa: {item.stock} {item.unit}{" "}
-                          (Safety: {item.safetyStock} {item.safetyUnit})
-                        </p>
-                        <p className="text-xs font-extrabold text-emerald-700 mt-1">
-                          Estimasi Biaya: Rp {subtotal.toLocaleString("id-ID")}
-                        </p>
+                        <div className="text-xs text-gray-600 mt-1 font-medium">
+                          Stok: <strong>{item.stock} {item.unit}</strong> • Safety:{" "}
+                          <strong>{item.safetyStock} {item.safetyUnit}</strong>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          {item.supplier}
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-2 self-end sm:self-center">
-                        <span className="text-xs font-bold text-gray-600">
-                          Order:
-                        </span>
-                        <div className="flex items-center border border-gray-300 rounded-xl bg-white px-3 py-1.5 w-32">
+                      <div className="flex items-center gap-3 self-end sm:self-center">
+                        <div className="text-right">
+                          <div className="text-xs text-gray-500 font-semibold">
+                            Est. Biaya:
+                          </div>
+                          <div className="text-xs font-black text-gray-900 tabular-nums">
+                            Rp {subtotal.toLocaleString("id-ID")}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center border border-gray-300 rounded-xl bg-white px-3 py-1.5 w-28">
                           <input
                             type="number"
-                            step="0.5"
+                            step="0.1"
                             min="0"
-                            value={poQuantities[key] ?? ""}
+                            value={poQuantities[item.sku] || ""}
                             onChange={(e) =>
                               setPoQuantities((prev) => ({
                                 ...prev,
-                                [key]: e.target.value,
+                                [item.sku]: e.target.value,
                               }))
                             }
                             className="w-full text-xs sm:text-sm font-extrabold text-gray-900 outline-none bg-transparent"
@@ -1638,59 +984,44 @@ export default function StokPage() {
                 })}
               </div>
 
-              <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
-                <div className="text-xs font-bold text-gray-700">
-                  Total Estimasi PO:{" "}
-                  <strong className="text-sm font-black text-gray-900">
-                    Rp{" "}
-                    {poModalEntries
-                      .reduce((sum, { key, item }) => {
-                        const q = parseFloat(poQuantities[key] || "0") || 0;
-                        return sum + Math.round(q * item.unitPrice);
-                      }, 0)
-                      .toLocaleString("id-ID")}
-                  </strong>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowPoModal(false)}
-                    className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 transition cursor-pointer"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl bg-[#E11D48] hover:bg-[#BE123C] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
-                  >
-                    <ShoppingCart size={14} />
-                    <span>Kirim Pesanan PO</span>
-                  </button>
-                </div>
+              <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowPoModal(false)}
+                  className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 transition cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-extrabold flex items-center gap-2 shadow-xs transition cursor-pointer"
+                >
+                  <ShoppingCart size={14} />
+                  <span>Kirim PO Restock ke Database</span>
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL 3: LIHAT SEMUA LOG MUTASI HARI INI */}
+      {/* MODAL 3: RIWAYAT LENGKAP LOG MUTASI STOK */}
       {showLogsModal && (
         <div
           className="print:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
           onClick={() => setShowLogsModal(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]"
+            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[88vh]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-[#2D452B] text-white px-5 py-4 flex items-center justify-between">
               <div>
                 <h3 className="text-sm sm:text-base font-extrabold">
-                  Riwayat Lengkap Log Mutasi Stok ({selectedBranch})
+                  Riwayat Lengkap Log Mutasi Stok (Gerai Utama)
                 </h3>
                 <p className="text-[11px] text-emerald-200 font-medium">
-                  Total {logs.length} aktivitas tercatat hari ini
+                  Total {logs.length} aktivitas tercatat
                 </p>
               </div>
               <button
@@ -1734,43 +1065,49 @@ export default function StokPage() {
             </div>
 
             <div className="p-5 overflow-y-auto space-y-3 flex-1">
-              {filteredModalLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="p-3.5 rounded-xl bg-[#F8F9FA] border border-gray-200 flex items-start justify-between gap-3"
-                >
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 mt-0.5 ${
-                        log.type === "in"
-                          ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                          : log.type === "replace"
-                            ? "bg-amber-100 text-[#B45309] border border-amber-300"
-                            : "bg-red-100 text-[#DC2626] border border-red-300"
-                      }`}
-                    >
-                      {log.type === "in" ? (
-                        "+"
-                      ) : log.type === "replace" ? (
-                        <RotateCcw size={12} />
-                      ) : (
-                        "-"
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs sm:text-sm font-extrabold text-gray-900">
-                        {log.title}
-                      </p>
-                      <p className="text-xs text-gray-600 font-medium mt-0.5">
-                        {log.subtitle}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-extrabold text-gray-500 shrink-0">
-                    {log.time}
-                  </span>
+              {filteredModalLogs.length === 0 ? (
+                <div className="py-12 text-center text-gray-500 font-medium text-xs">
+                  Belum ada catatan mutasi stok tercatat.
                 </div>
-              ))}
+              ) : (
+                filteredModalLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="p-3.5 rounded-xl bg-[#F8F9FA] border border-gray-200 flex items-start justify-between gap-3"
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 mt-0.5 ${
+                          log.type === "in"
+                            ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                            : log.type === "replace"
+                              ? "bg-amber-100 text-[#B45309] border border-amber-300"
+                              : "bg-red-100 text-[#DC2626] border border-red-300"
+                        }`}
+                      >
+                        {log.type === "in" ? (
+                          "+"
+                        ) : log.type === "replace" ? (
+                          <RotateCcw size={12} />
+                        ) : (
+                          "-"
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs sm:text-sm font-extrabold text-gray-900">
+                          {log.title}
+                        </p>
+                        <p className="text-xs text-gray-600 font-medium mt-0.5">
+                          {log.subtitle}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-extrabold text-gray-500 shrink-0">
+                      {log.time}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
 
             <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 flex justify-end">
@@ -1786,7 +1123,7 @@ export default function StokPage() {
         </div>
       )}
 
-      {/* MODAL 4: TAMBAH BAHAN BAKU / SKU BARU */}
+      {/* MODAL 4: TAMBAH BAHAN BAKU BARU KE DATABASE */}
       {showAddModal && (
         <div
           className="print:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
@@ -1801,10 +1138,10 @@ export default function StokPage() {
                 <PackagePlus size={18} className="text-[#F3A712]" />
                 <div>
                   <h3 className="text-sm sm:text-base font-extrabold">
-                    Tambah Bahan Baku / SKU Baru
+                    Tambah Bahan Baku Baru
                   </h3>
                   <p className="text-[11px] text-emerald-200 font-medium">
-                    Daftarkan item inventaris baru ke {targetWriteBranch}
+                    Daftarkan item inventaris baru langsung ke database MariaDB
                   </p>
                 </div>
               </div>
@@ -1821,68 +1158,39 @@ export default function StokPage() {
               onSubmit={handleAddNewIngredient}
               className="p-5 overflow-y-auto space-y-3.5"
             >
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1">
-                    Nama Bahan Baku *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Contoh: Saus Keju Spesial"
-                    value={newItemName}
-                    onChange={(e) => setNewItemName(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-900 focus:outline-none focus:border-[#D97706]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1">
-                    Kode SKU *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Mis: KJU-02"
-                    value={newItemSku}
-                    onChange={(e) => setNewItemSku(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-extrabold uppercase text-gray-900 focus:outline-none focus:border-[#D97706]"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-extrabold text-gray-800 mb-1">
+                  Nama Bahan Baku *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Contoh: Saus Keju Spesial"
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                  className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-900 focus:outline-none focus:border-[#D97706]"
+                />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1">
-                    Kategori Bahan
-                  </label>
-                  <select
-                    value={newItemCategory}
-                    onChange={(e) =>
-                      setNewItemCategory(e.target.value as InventoryCategory)
-                    }
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-900 bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
-                  >
-                    <option value="Protein & Unggas">Protein &amp; Unggas</option>
-                    <option value="Bumbu & Sambal">Bumbu &amp; Sambal</option>
-                    <option value="Tepung & Minyak">Tepung &amp; Minyak</option>
-                    <option value="Minuman & Pelengkap">
-                      Minuman &amp; Pelengkap
-                    </option>
-                    <option value="Kemasan / Box">Kemasan / Box</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1">
-                    Nama Supplier
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Contoh: PT Pangan Nusantara"
-                    value={newItemSupplier}
-                    onChange={(e) => setNewItemSupplier(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-gray-900 focus:outline-none focus:border-[#D97706]"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-extrabold text-gray-800 mb-1">
+                  Kategori Bahan
+                </label>
+                <select
+                  value={newItemCategory}
+                  onChange={(e) =>
+                    setNewItemCategory(e.target.value as InventoryCategory)
+                  }
+                  className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-900 bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
+                >
+                  <option value="Protein & Unggas">Protein &amp; Unggas</option>
+                  <option value="Bumbu & Sambal">Bumbu &amp; Sambal</option>
+                  <option value="Tepung & Minyak">Tepung &amp; Minyak</option>
+                  <option value="Minuman & Pelengkap">
+                    Minuman &amp; Pelengkap
+                  </option>
+                  <option value="Kemasan / Box">Kemasan / Box</option>
+                </select>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1895,15 +1203,16 @@ export default function StokPage() {
                     step="0.1"
                     min="0"
                     required
-                    placeholder="Mis: 20"
+                    placeholder="Misal: 10"
                     value={newItemStock}
                     onChange={(e) => setNewItemStock(e.target.value)}
                     className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-900 focus:outline-none focus:border-[#D97706]"
                   />
                 </div>
+
                 <div>
                   <label className="block text-xs font-extrabold text-gray-800 mb-1">
-                    Satuan
+                    Satuan *
                   </label>
                   <select
                     value={newItemUnit}
@@ -1912,21 +1221,22 @@ export default function StokPage() {
                   >
                     <option value="kg">kg</option>
                     <option value="Liter">Liter</option>
-                    <option value="Block">Block</option>
-                    <option value="Bungkus">Bungkus</option>
                     <option value="Pcs">Pcs</option>
+                    <option value="Bungkus">Bungkus</option>
+                    <option value="Block">Block</option>
                   </select>
                 </div>
+
                 <div>
                   <label className="block text-xs font-extrabold text-gray-800 mb-1">
-                    Safety Stock *
+                    Batas Aman (Min) *
                   </label>
                   <input
                     type="number"
                     step="0.1"
-                    min="0.5"
+                    min="1"
                     required
-                    placeholder="Mis: 10"
+                    placeholder="Misal: 5"
                     value={newItemSafety}
                     onChange={(e) => setNewItemSafety(e.target.value)}
                     className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-900 focus:outline-none focus:border-[#D97706]"
@@ -1934,23 +1244,7 @@ export default function StokPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-extrabold text-gray-800 mb-1">
-                  Harga Satuan (Rp) *
-                </label>
-                <input
-                  type="number"
-                  min="100"
-                  step="50"
-                  required
-                  placeholder="Contoh: 45000"
-                  value={newItemPrice}
-                  onChange={(e) => setNewItemPrice(e.target.value)}
-                  className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-900 focus:outline-none focus:border-[#D97706]"
-                />
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-gray-200">
+              <div className="pt-2 flex justify-end gap-2.5 border-t border-gray-200 mt-2">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
@@ -1960,10 +1254,10 @@ export default function StokPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#F3A712] hover:bg-[#df980e] text-gray-950 text-xs font-extrabold flex items-center gap-2 shadow-xs transition cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-[#2D452B] hover:bg-[#1E562F] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
                 >
-                  <PlusCircle size={14} />
-                  <span>Tambahkan Bahan</span>
+                  <Save size={14} />
+                  <span>Simpan ke Database</span>
                 </button>
               </div>
             </form>
@@ -1971,16 +1265,14 @@ export default function StokPage() {
         </div>
       )}
 
-      {/* 1. SIDEBAR KIRI (FIXED & PATEN) */}
-      <div className="print:hidden shrink-0">
-        <Sidebar />
-      </div>
+      {/* SIDEBAR NAVIGASI UTAMA */}
+      <Sidebar />
 
-      {/* 2. AREA KONTEN UTAMA MANAJEMEN STOK */}
-      <main className="flex-1 flex flex-col gap-5 overflow-x-hidden max-w-full print:overflow-visible">
+      {/* KONTEN UTAMA */}
+      <main className="flex-1 min-w-0 flex flex-col gap-6">
         {/* TOP NAVBAR HEADER (SERAGAM DI SELURUH HALAMAN DASHBOARD) */}
         <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
-          {/* Brand */}
+          {/* Logo & Subtitle */}
           <div className="flex items-center gap-3">
             <img
               src="/logo.png"
@@ -1997,71 +1289,22 @@ export default function StokPage() {
             </div>
           </div>
 
-          {/* Info Cetak Saat Mode Print */}
-          <div className="hidden print:block text-right text-xs text-gray-700">
-            <div className="font-bold text-gray-900">
-              Laporan Inventaris Dapur • {selectedBranch}
-            </div>
-            <div className="mt-0.5">
-              Total SKU: {inventory.length} Bahan • Nilai Inventaris: Rp{" "}
-              {Math.round(kpiStats.totalValue).toLocaleString("id-ID")}
-            </div>
-          </div>
-
-          {/* Right Controls: Interactive Branch Selector, Online Sync & Profile */}
+          {/* Right Controls: Online Sync & Admin Profile */}
           <div className="print:hidden flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
-            {/* Interactive Branch Dropdown with Click-Outside Ref */}
-            <div ref={branchDropdownRef} className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowBranchMenu((prev) => !prev)}
-                className="h-9 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 flex items-center gap-2 bg-[#F8F9FA] border border-gray-200 text-gray-800 cursor-pointer hover:bg-gray-100 transition"
-              >
-                <Store size={14} className="text-[#EA8E18] shrink-0" />
-                <span>{selectedBranch}</span>
-                <ChevronDown size={14} className="text-gray-500 shrink-0" />
-              </button>
-
-              {showBranchMenu && (
-                <div className="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-30 text-xs">
-                  {BRANCH_OPTIONS.map((branch) => (
-                    <button
-                      key={branch}
-                      type="button"
-                      onClick={() => {
-                        setSelectedBranch(branch);
-                        setActivePage(1);
-                        setShowBranchMenu(false);
-                        showToast(`Menampilkan inventaris dapur: ${branch}`);
-                      }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-2 hover:bg-amber-50/60 transition cursor-pointer ${
-                        selectedBranch === branch
-                          ? "font-extrabold text-[#EA8E18] bg-amber-50/40"
-                          : "font-semibold text-gray-700"
-                      }`}
-                    >
-                      <Store size={13} className="shrink-0" />
-                      <span>{branch}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Online Sync Pill */}
             <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
-            {/* User Profile */}
+            {/* User Profile: Admin / Owner */}
             <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
               <div className="text-right">
                 <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
-                  Rian Pratama
+                  Admin
                 </div>
                 <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
-                  Supervisor Kasir
+                  Owner
                 </div>
               </div>
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
@@ -2080,13 +1323,13 @@ export default function StokPage() {
               </h2>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-[11px] font-extrabold">
                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                Sinkronisasi POS &amp; Dapur Otomatis
+                Tersambung ke Database MariaDB
               </span>
             </div>
             <p className="text-xs text-gray-600 mt-1.5 max-w-2xl leading-relaxed font-medium">
               Pantau ketersediaan bahan utama ayam geprek, peringatan stok
-              menipis, pencatatan barang masuk (inflow), dan kalkulasi HPP
-              harian ({selectedBranch}).
+              menipis, pencatatan mutasi barang, dan audit opname fisik secara
+              real-time.
             </p>
           </div>
 
@@ -2129,10 +1372,10 @@ export default function StokPage() {
           </div>
         </section>
 
-        {/* 4 SUMMARY KPI CARDS (DINAMIS DARI STATE INVENTORY CABANG) */}
+        {/* 4 SUMMARY KPI CARDS */}
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4 gap-4 print:gap-3">
           {/* Card 1: TOTAL ITEM AKTIF */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none print:break-inside-avoid border border-gray-200 flex items-center justify-between gap-3">
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-gray-200 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 TOTAL ITEM AKTIF
@@ -2142,12 +1385,12 @@ export default function StokPage() {
                   {kpiStats.totalItems}
                 </span>
                 <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
-                  Bahan
+                  Bahan Baku
                 </span>
               </div>
               <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-semibold min-w-0">
                 <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                <span className="truncate">5 Kategori operasional</span>
+                <span className="truncate">Database `stocks` Aktif</span>
               </div>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-gray-100 border border-gray-200 text-gray-700 flex items-center justify-center shrink-0">
@@ -2157,7 +1400,7 @@ export default function StokPage() {
 
           {/* Card 2: STOK KRITIS / RESTOCK */}
           <div
-            className={`rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none print:break-inside-avoid border flex items-center justify-between gap-3 ${
+            className={`rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border flex items-center justify-between gap-3 ${
               kpiStats.criticalCount > 0
                 ? "bg-[#FFF5F5] border-red-300"
                 : "bg-emerald-50/60 border-emerald-300"
@@ -2217,7 +1460,7 @@ export default function StokPage() {
           </div>
 
           {/* Card 3: KETAHANAN OPERASIONAL */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none print:break-inside-avoid border border-gray-200 flex items-center justify-between gap-3">
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-gray-200 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 KETAHANAN OPERASIONAL
@@ -2241,7 +1484,7 @@ export default function StokPage() {
           </div>
 
           {/* Card 4: NILAI TOTAL INVENTARIS */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none print:break-inside-avoid border border-gray-200 flex items-center justify-between gap-3">
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-gray-200 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 NILAI TOTAL INVENTARIS
@@ -2253,7 +1496,7 @@ export default function StokPage() {
               </div>
               <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-600 font-semibold min-w-0">
                 <Box size={14} className="text-emerald-600 shrink-0" />
-                <span className="truncate">{selectedBranch}</span>
+                <span className="truncate">Gerai Utama</span>
               </div>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
@@ -2272,8 +1515,7 @@ export default function StokPage() {
               <div>
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <h3 className="text-sm sm:text-base font-extrabold text-gray-900">
-                    Peringatan Kritis ({selectedBranch}): {kpiStats.criticalCount}{" "}
-                    Bahan Memerlukan Re-Order Mendesak
+                    Peringatan Kritis: {kpiStats.criticalCount} Bahan Memerlukan Re-Order Mendesak
                   </h3>
                   <span className="bg-[#DC2626] text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-md uppercase tracking-wider">
                     RUSH SIANG–MALAM
@@ -2281,13 +1523,10 @@ export default function StokPage() {
                 </div>
                 <p className="text-xs sm:text-sm text-gray-700 mt-1.5 leading-relaxed font-medium">
                   {kpiStats.criticalItems.map((ci, idx) => (
-                    <React.Fragment key={`${ci.branchName}-${ci.sku}`}>
+                    <React.Fragment key={ci.sku}>
                       {idx > 0 && " • "}
                       <strong className="text-[#DC2626] font-extrabold">
                         {ci.name}
-                        {selectedBranch === "Semua Cabang"
-                          ? ` (${ci.branchShort})`
-                          : ""}
                       </strong>{" "}
                       tersisa{" "}
                       <strong className="text-gray-900">
@@ -2296,7 +1535,7 @@ export default function StokPage() {
                       (Batas Aman: {ci.safetyStock} {ci.safetyUnit})
                     </React.Fragment>
                   ))}
-                  . Segera lakukan pengadaan ulang sebelum jam ramai malam.
+                  . Segera lakukan pengadaan ulang sebelum jam sibuk operasional.
                 </p>
               </div>
             </div>
@@ -2314,14 +1553,11 @@ export default function StokPage() {
                 type="button"
                 onClick={() => {
                   const nextState = !reorderMarked;
-                  setReorderMarkedByBranch((prev) => ({
-                    ...prev,
-                    [selectedBranch]: nextState,
-                  }));
+                  setReorderMarked(nextState);
                   showToast(
                     nextState
-                      ? `Ditandai sudah dipesan ke supplier (${selectedBranch})!`
-                      : `Status pesanan (${selectedBranch}) direset.`
+                      ? "Ditandai sudah dipesan ke supplier!"
+                      : "Status pesanan supplier direset."
                   );
                 }}
                 className={`px-4 py-2.5 border rounded-xl text-xs font-extrabold transition cursor-pointer whitespace-nowrap ${
@@ -2342,85 +1578,66 @@ export default function StokPage() {
               </div>
               <div>
                 <h3 className="text-sm sm:text-base font-extrabold text-emerald-950">
-                  Semua Stok Bahan Baku dalam Batas Aman ({selectedBranch})
+                  Semua Stok Bahan Baku dalam Batas Aman
                 </h3>
                 <p className="text-xs sm:text-sm text-emerald-800 font-medium mt-1.5">
-                  Tidak ada bahan baku yang berstatus kritis saat ini. Operasional
-                  dapur siap melayani jam sibuk.
+                  Tidak ada bahan baku yang berstatus kritis di database MariaDB saat ini. Operasional
+                  dapur siap melayani pelanggan.
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleOpenPoModal}
-              className="px-4 py-2 bg-white border border-emerald-300 hover:bg-emerald-100 text-emerald-900 rounded-xl text-xs font-extrabold flex items-center gap-2 transition cursor-pointer shrink-0"
-            >
-              <ShoppingCart size={14} />
-              <span>Buat PO Tambahan</span>
-            </button>
           </section>
         )}
 
-        {/* 2-COLUMN MAIN CONTENT: LEFT (INVENTORY TABLE) & RIGHT (QUICK ADJUSTMENT + LOGS) */}
+        {/* 2-COLUMN MAIN CONTENT: LEFT (TABLE) & RIGHT (MUTATION FORM & LOGS) */}
         <section className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-          {/* LEFT COLUMN: INVENTORY TABLE (8 COLS, FULL 12 COLS ON PRINT) */}
-          <div className="xl:col-span-8 print:col-span-12 bg-white rounded-2xl p-6 print:p-3 shadow-sm print:shadow-none border border-gray-200 flex flex-col gap-5">
-            {/* Search & Status Filter Bar */}
-            <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
-              <div className="relative flex-1 max-w-md">
+          {/* LEFT COLUMN: TABLE (8 COLS) */}
+          <div className="xl:col-span-8 print:col-span-12 bg-white rounded-2xl p-3.5 sm:p-4 md:p-5 shadow-sm border border-gray-200 flex flex-col gap-4">
+            {/* SEARCH & STATUS FILTER */}
+            <div className="print:hidden flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+              <div className="relative flex-1">
                 <Search
                   size={15}
-                  className="text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2"
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
                 />
                 <input
                   type="text"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setActivePage(1);
-                  }}
                   placeholder="Cari nama bahan, supplier, atau kode SKU..."
-                  className="w-full pl-9 pr-9 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-xs sm:text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#D97706]"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-xl text-xs font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#D97706] bg-gray-50/50"
                 />
-                {searchQuery !== "" && (
+                {searchQuery && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setSearchQuery("");
-                      setActivePage(1);
-                    }}
-                    title="Hapus pencarian"
-                    aria-label="Hapus pencarian"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition cursor-pointer"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 cursor-pointer"
                   >
-                    <X size={14} />
+                    <X size={13} />
                   </button>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-xs font-extrabold text-gray-600 uppercase tracking-wider">
-                  STATUS:
-                </span>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setActivePage(1);
-                  }}
-                  className="border border-gray-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-800 bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
-                >
-                  <option value="Semua Status">Semua Status</option>
-                  <option value="KRITIS">KRITIS</option>
-                  <option value="MENIPIS">MENIPIS</option>
-                  <option value="AMAN">AMAN</option>
-                </select>
+              <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
+                <div className="flex items-center gap-1.5 text-xs font-extrabold text-gray-600">
+                  <span>STATUS:</span>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="border border-gray-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
+                  >
+                    <option value="Semua Status">Semua Status</option>
+                    <option value="KRITIS">KRITIS</option>
+                    <option value="MENIPIS">MENIPIS</option>
+                    <option value="AMAN">AMAN</option>
+                  </select>
+                </div>
+
                 <button
                   type="button"
                   onClick={handleResetFilters}
                   title="Reset Filter"
-                  aria-label="Reset Filter"
-                  className="px-3 py-2 border border-gray-300 bg-white hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                  className="p-1.5 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-100 transition cursor-pointer flex items-center gap-1 text-xs font-bold"
                 >
                   <RotateCcw size={13} />
                   <span>Reset</span>
@@ -2428,266 +1645,222 @@ export default function StokPage() {
               </div>
             </div>
 
-            {/* Category Tabs */}
-            <div className="print:hidden flex flex-wrap items-center gap-2.5 pb-1 mb-2">
-              {[
-                {
-                  key: "Semua Bahan",
-                  label: `Semua Bahan (${inventory.length})`,
-                },
-                { key: "Protein & Unggas", label: "Protein & Unggas" },
-                { key: "Bumbu & Sambal", label: "Bumbu & Sambal" },
-                { key: "Tepung & Minyak", label: "Tepung & Minyak" },
-                { key: "Minuman & Pelengkap", label: "Minuman & Pelengkap" },
-                { key: "Kemasan / Box", label: "Kemasan / Box" },
-              ].map((tab) => {
-                const isActive = activeCategory === tab.key;
+            {/* CATEGORY TABS */}
+            <div className="print:hidden flex items-center gap-1.5 flex-wrap pb-1 text-[11px] font-extrabold border-b border-gray-100">
+              {(
+                [
+                  "Semua Bahan",
+                  "Protein & Unggas",
+                  "Bumbu & Sambal",
+                  "Tepung & Minyak",
+                  "Minuman & Pelengkap",
+                  "Kemasan / Box",
+                ] as const
+              ).map((cat) => {
+                const count =
+                  cat === "Semua Bahan"
+                    ? inventory.length
+                    : inventory.filter((i) => i.filterTab === cat).length;
                 return (
                   <button
-                    key={tab.key}
+                    key={cat}
                     type="button"
                     onClick={() => {
-                      setActiveCategory(tab.key);
+                      setActiveCategory(cat);
                       setActivePage(1);
                     }}
-                    className={`px-3.5 py-2 rounded-xl text-xs transition cursor-pointer ${
-                      isActive
-                        ? "bg-[#F3A712] text-gray-950 font-extrabold shadow-xs"
-                        : "bg-gray-100 hover:bg-gray-200/70 text-gray-700 font-bold border border-gray-200"
+                    className={`px-2.5 py-1 rounded-lg whitespace-nowrap transition cursor-pointer ${
+                      activeCategory === cat
+                        ? "bg-[#F3A712] text-gray-950 shadow-2xs font-black"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     }`}
                   >
-                    {tab.label}
+                    {cat} ({count})
                   </button>
                 );
               })}
             </div>
 
-            {/* Table with fixed column widths */}
+            {/* TABEL INVENTARIS */}
             <div className="overflow-x-auto print:overflow-visible">
-              <table className="table-fixed w-full min-w-[950px] print:min-w-0 print:w-full print:text-[10px] text-left border-collapse text-xs sm:text-sm">
+              <table className="table-fixed w-full text-left border-collapse text-xs">
                 <colgroup>
-                  <col className="w-[230px]" />
-                  <col className="w-[155px]" />
-                  <col className="w-[120px]" />
-                  <col className="w-[175px]" />
-                  <col className="w-[120px]" />
-                  <col className="w-[105px]" />
-                  <col className="w-[95px] print:hidden" />
+                  <col className="w-[28%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[7%] print:hidden" />
                 </colgroup>
                 <thead>
-                  <tr className="border-y border-gray-200 bg-gray-50 print:text-[9px]">
-                    <th className="px-4 py-3.5 pl-5 w-[230px] text-left text-[11px] font-extrabold uppercase tracking-wider text-gray-500 whitespace-nowrap">
-                      BAHAN BAKU &amp; SKU
-                    </th>
-                    <th className="px-4 py-3.5 w-[155px] text-left text-[11px] font-extrabold uppercase tracking-wider text-gray-500 whitespace-nowrap">
-                      KATEGORI
-                    </th>
-                    <th className="px-4 py-3.5 w-[120px] text-center text-[11px] font-extrabold uppercase tracking-wider text-gray-500 whitespace-nowrap">
-                      STOK AKTUAL
-                    </th>
-                    <th className="px-4 py-3.5 pr-6 w-[175px] text-left text-[11px] font-extrabold uppercase tracking-wider text-gray-500 whitespace-nowrap">
-                      KETAHANAN &amp; SAFETY
-                    </th>
-                    <th className="px-4 py-3.5 pl-6 w-[120px] text-right text-[11px] font-extrabold uppercase tracking-wider text-gray-500 whitespace-nowrap">
-                      HARGA SATUAN
-                    </th>
-                    <th className="px-4 py-3.5 w-[105px] text-center text-[11px] font-extrabold uppercase tracking-wider text-gray-500 whitespace-nowrap">
-                      STATUS
-                    </th>
-                    <th className="px-4 py-3.5 pr-5 w-[95px] text-right text-[11px] font-extrabold uppercase tracking-wider text-gray-500 whitespace-nowrap print:hidden">
-                      AKSI
-                    </th>
+                  <tr className="border-b border-gray-200 text-[10px] font-black text-gray-500 uppercase tracking-wider bg-gray-50/50">
+                    <th className="py-2.5 px-2.5">BAHAN BAKU</th>
+                    <th className="py-2.5 px-1.5">KATEGORI</th>
+                    <th className="py-2.5 px-1.5">STOK</th>
+                    <th className="py-2.5 px-1.5">KETAHANAN</th>
+                    <th className="py-2.5 px-1.5">HARGA</th>
+                    <th className="py-2.5 px-1 text-center">STATUS</th>
+                    <th className="py-2.5 px-1 text-center print:hidden">AKSI</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 text-gray-800">
-                  {filteredInventory.map((item, idx) => {
-                    const isOutsideCurrentPage =
-                      idx < (currentPage - 1) * ITEMS_PER_PAGE ||
-                      idx >= currentPage * ITEMS_PER_PAGE;
-                    return (
+                  {isLoading ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="py-12 text-center text-gray-500 font-medium"
+                      >
+                        Memuat data inventaris dari database MariaDB...
+                      </td>
+                    </tr>
+                  ) : paginatedInventory.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="py-12 text-center text-gray-500 font-medium"
+                      >
+                        Tidak ada data bahan baku yang sesuai dengan filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedInventory.map((item) => (
                       <tr
                         key={item.sku}
-                        className={`hover:bg-amber-50/30 transition-colors ${
-                          isOutsideCurrentPage ? "hidden print:table-row" : ""
-                        }`}
+                        className="hover:bg-amber-50/30 transition-colors"
                       >
-                        {/* 1. BAHAN BAKU & SKU */}
-                        <td className="px-4 py-3.5 pl-5 text-left whitespace-normal break-words">
-                          <div className="flex items-start gap-2.5 min-w-0">
-                            <div
-                              className={`w-9 h-9 rounded-xl border ${item.iconBg} flex items-center justify-center text-base shrink-0 mt-0.5 print:hidden`}
-                            >
-                              {item.icon}
-                            </div>
-                            <div className="min-w-0 flex-1 whitespace-normal break-words">
-                              <div className="font-extrabold text-gray-900 text-xs sm:text-sm leading-snug break-words">
+                        {/* Bahan Baku & SKU */}
+                        <td className="py-2.5 px-2.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-base shrink-0">{item.icon}</span>
+                            <div className="min-w-0 flex-1">
+                              <div
+                                className="font-extrabold text-gray-900 text-xs truncate"
+                                title={item.name}
+                              >
                                 {item.name}
                               </div>
-                              <div className="mt-1">
-                                <span className="inline-block px-2 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-700 font-extrabold text-[10px]">
+                              <div className="flex items-center gap-1 mt-0.5 min-w-0">
+                                <span className="inline-block px-1 py-0.2 rounded bg-gray-100 border border-gray-200 text-gray-700 font-extrabold text-[9px] shrink-0">
                                   {item.sku}
                                 </span>
+                                <span
+                                  className="text-[10px] text-gray-500 font-medium truncate"
+                                  title={item.supplier}
+                                >
+                                  {item.supplier.replace(/^Supplier:\s*/i, "")}
+                                </span>
                               </div>
-                              <p
-                                className="text-xs text-gray-500 font-medium mt-1 break-words"
-                                title={item.supplier}
-                              >
-                                {item.supplier}
-                              </p>
                             </div>
                           </div>
                         </td>
 
-                        {/* 2. KATEGORI */}
-                        <td className="px-4 py-3.5 text-left font-bold text-gray-900 whitespace-normal break-words">
-                          {item.category}
+                        {/* Kategori */}
+                        <td className="py-2.5 px-1.5">
+                          <span
+                            className="font-bold text-gray-700 text-xs truncate block"
+                            title={item.category}
+                          >
+                            {item.category}
+                          </span>
                         </td>
 
-                        {/* 3. STOK AKTUAL */}
-                        <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                          <div
-                            className={`font-black text-sm whitespace-nowrap ${
-                              item.status === "KRITIS"
-                                ? "text-[#DC2626]"
-                                : item.status === "MENIPIS"
-                                  ? "text-[#D97706]"
-                                  : "text-gray-900"
-                            }`}
-                          >
+                        {/* Stok Aktual */}
+                        <td className="py-2.5 px-1.5">
+                          <div className="font-black text-gray-900 text-xs tabular-nums">
                             {item.unit === "Pcs"
                               ? item.stock
                               : item.stock.toFixed(1)}{" "}
                             {item.unit}
                           </div>
-                          <div className="text-xs text-gray-500 font-medium whitespace-nowrap mt-1">
-                            Safety: {item.safetyStock} {item.safetyUnit}
+                          <div className="text-[10px] text-gray-500 font-medium">
+                            Min: {item.safetyStock} {item.safetyUnit}
                           </div>
                         </td>
 
-                        {/* 4. KETAHANAN & SAFETY */}
-                        <td className="px-4 py-3.5 pr-6 text-left">
-                          <div className="flex items-center justify-between text-xs mb-1.5 gap-2 whitespace-nowrap">
-                            <span className="text-gray-600 font-bold">
-                              {item.pct}%
-                            </span>
-                            <span
-                              className={`font-extrabold ${
-                                item.status === "KRITIS"
-                                  ? "text-[#DC2626]"
-                                  : item.status === "MENIPIS"
-                                    ? "text-[#D97706]"
-                                    : "text-emerald-700"
-                              }`}
-                            >
+                        {/* Ketahanan & Safety */}
+                        <td className="py-2.5 px-1.5">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1">
+                              <div className="w-9 sm:w-11 h-1.5 rounded-full bg-gray-200 overflow-hidden shrink-0">
+                                <div
+                                  style={{
+                                    width: `${Math.min(item.pct, 100)}%`,
+                                  }}
+                                  className={`h-full rounded-full transition-all ${
+                                    item.status === "KRITIS"
+                                      ? "bg-red-500"
+                                      : item.status === "MENIPIS"
+                                        ? "bg-amber-500"
+                                        : "bg-emerald-500"
+                                  }`}
+                                />
+                              </div>
+                              <span className="text-[10px] font-bold text-gray-700 tabular-nums shrink-0">
+                                {item.pct}%
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-semibold text-emerald-800 tabular-nums">
                               {item.daysLeft}
                             </span>
                           </div>
-                          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${
-                                item.status === "KRITIS"
-                                  ? "bg-[#DC2626]"
-                                  : item.status === "MENIPIS"
-                                    ? "bg-[#F59E0B]"
-                                    : "bg-emerald-600"
-                              }`}
-                              style={{ width: `${item.pct}%` }}
-                            />
-                          </div>
                         </td>
 
-                        {/* 5. HARGA SATUAN */}
-                        <td className="px-4 py-3.5 pl-6 text-right whitespace-nowrap">
-                          <div className="font-extrabold text-gray-900 text-xs sm:text-sm whitespace-nowrap">
+                        {/* Harga Unit */}
+                        <td className="py-2.5 px-1.5">
+                          <div className="font-extrabold text-gray-900 text-xs tabular-nums whitespace-nowrap">
                             Rp {item.unitPrice.toLocaleString("id-ID")}
                           </div>
-                          <div className="text-xs text-gray-500 font-medium whitespace-nowrap mt-1">
+                          <div className="text-[10px] text-gray-500 font-medium">
                             {item.priceUnit}
                           </div>
                         </td>
 
-                        {/* 6. STATUS */}
-                        <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                        {/* Status */}
+                        <td className="py-2.5 px-1 text-center">
                           <span
-                            className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide whitespace-nowrap ${
+                            className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase ${
                               item.status === "KRITIS"
-                                ? "bg-red-50 text-[#DC2626] border border-red-300"
+                                ? "bg-red-100 text-red-700 border border-red-200"
                                 : item.status === "MENIPIS"
-                                  ? "bg-amber-50 text-[#B45309] border border-amber-300"
-                                  : "bg-emerald-50 text-emerald-800 border border-emerald-300"
+                                  ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                  : "bg-emerald-100 text-emerald-800 border border-emerald-200"
                             }`}
                           >
                             {item.status}
                           </span>
                         </td>
 
-                        {/* 7. AKSI */}
-                        <td className="px-4 py-3.5 pr-5 whitespace-nowrap print:hidden">
-                          <div className="flex items-center justify-end gap-2">
+                        {/* Aksi (+ Quick Add & Delete) */}
+                        <td className="py-2.5 px-1 text-center print:hidden">
+                          <div className="inline-flex items-center justify-center gap-1">
                             <button
                               type="button"
                               onClick={() => handleQuickRestockRow(item)}
-                              title="Tambah Stok Cepat"
-                              className="w-7 h-7 shrink-0 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-300 text-[#B45309] flex items-center justify-center transition cursor-pointer"
+                              title={`Tambah cepat +2 ${item.unit}`}
+                              className="w-6.5 h-6.5 rounded-lg border border-gray-200 hover:border-[#F3A712] hover:bg-amber-50 text-gray-700 hover:text-amber-800 flex items-center justify-center transition cursor-pointer"
                             >
-                              <Plus size={14} />
+                              <Plus size={12} />
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
-                                setSelectedSku(item.sku);
-                                const el =
-                                  document.getElementById("form-mutasi-cepat");
-                                el?.scrollIntoView({ behavior: "smooth" });
-                                showToast(`Memilih ${item.name} untuk diedit.`);
-                              }}
-                              title="Edit / Mutasi Bahan"
-                              className="w-7 h-7 shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center transition cursor-pointer"
+                              onClick={() => handleDeleteStock(item)}
+                              title="Hapus Bahan Baku dari Database"
+                              className="w-6.5 h-6.5 rounded-lg border border-gray-200 hover:border-red-400 hover:bg-red-50 text-gray-500 hover:text-red-600 flex items-center justify-center transition cursor-pointer"
                             >
-                              <Edit3 size={13} />
+                              <Trash2 size={12} />
                             </button>
                           </div>
                         </td>
                       </tr>
-                    );
-                  })}
-
-                  {filteredInventory.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className="py-10 text-center text-gray-500 font-medium"
-                      >
-                        <p>Tidak ada bahan baku yang sesuai dengan filter.</p>
-                        <button
-                          type="button"
-                          onClick={handleResetFilters}
-                          className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-xs font-extrabold text-gray-700 transition cursor-pointer"
-                        >
-                          <RotateCcw size={13} />
-                          <span>Reset Semua Filter</span>
-                        </button>
-                      </td>
-                    </tr>
+                    ))
                   )}
                 </tbody>
               </table>
             </div>
 
-            {filteredInventory.length > 0 && (
-              <div className="px-5 py-3.5 bg-[#F8F9FA] border-t border-gray-200 flex items-center justify-between gap-4 text-xs sm:text-sm print:text-[10px]">
-                <span className="font-extrabold text-gray-800">
-                  Total Valuasi Stok Terfilter ({filteredInventory.length}{" "}
-                  Bahan • {selectedBranch})
-                </span>
-                <span className="font-black text-[#EA8E18] whitespace-nowrap shrink-0">
-                  Rp {Math.round(filteredTotalValue).toLocaleString("id-ID")}
-                </span>
-              </div>
-            )}
-
-            {/* Table Footer / Pagination */}
-            <div className="print:hidden pt-4 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-600 font-medium">
+            {/* Pagination & Summary */}
+            <div className="print:hidden pt-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-600 font-medium">
               <div>
                 Menampilkan{" "}
                 <strong className="text-gray-900 font-extrabold">
@@ -2701,7 +1874,7 @@ export default function StokPage() {
                   type="button"
                   disabled={currentPage <= 1}
                   onClick={() => setActivePage((p) => Math.max(1, p - 1))}
-                  className="px-3.5 py-1.5 border border-gray-300 rounded-lg text-gray-600 font-semibold hover:text-gray-900 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-600 font-semibold hover:text-gray-900 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
                 >
                   Sebelumnya
                 </button>
@@ -2710,7 +1883,7 @@ export default function StokPage() {
                     key={p}
                     type="button"
                     onClick={() => setActivePage(p)}
-                    className={`w-8 h-8 rounded-lg font-extrabold transition cursor-pointer ${
+                    className={`w-7 h-7 rounded-lg font-extrabold transition cursor-pointer ${
                       currentPage === p
                         ? "bg-[#F3A712] text-gray-950 shadow-2xs"
                         : "border border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -2725,7 +1898,7 @@ export default function StokPage() {
                   onClick={() =>
                     setActivePage((p) => Math.min(totalPages, p + 1))
                   }
-                  className="px-3.5 py-1.5 border border-gray-300 rounded-lg text-gray-800 font-bold hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-800 font-bold hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
                 >
                   Selanjutnya
                 </button>
@@ -2733,14 +1906,11 @@ export default function StokPage() {
             </div>
           </div>
 
-          {/* RIGHT COLUMN: PENYESUAIAN CEPAT & LOG MUTASI (4 COLS, HIDDEN ON PRINT) */}
-          <div
-            id="form-mutasi-cepat"
-            className="print:hidden xl:col-span-4 flex flex-col gap-6"
-          >
+          {/* RIGHT COLUMN: PENYESUAIAN CEPAT (DAPUR & KASIR) & LOG MUTASI (4 COLS) */}
+          <div className="print:hidden xl:col-span-4 flex flex-col gap-6">
             {/* CARD 1: PENYESUAIAN CEPAT */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col gap-4">
-              <div className="flex items-start justify-between gap-2 pb-4 border-b border-gray-200">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col gap-4">
+              <div className="flex items-start justify-between gap-2 pb-3.5 border-b border-gray-200">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-gray-950 flex items-center justify-center shrink-0 shadow-xs">
                     <SlidersHorizontal size={18} />
@@ -2749,7 +1919,7 @@ export default function StokPage() {
                     <h3 className="font-extrabold text-base text-gray-900">
                       Penyesuaian Cepat
                     </h3>
-                    <p className="text-xs text-gray-600 font-medium mt-1.5">
+                    <p className="text-xs text-gray-600 font-medium mt-1">
                       Catat stok masuk, keluar, atau sisa basi
                     </p>
                   </div>
@@ -2765,29 +1935,6 @@ export default function StokPage() {
                 onSubmit={handleSaveMutation}
                 className="flex flex-col gap-4"
               >
-                {selectedBranch === "Semua Cabang" && (
-                  <div>
-                    <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
-                      Cabang Tujuan Mutasi
-                    </label>
-                    <select
-                      value={mutationTargetBranch}
-                      onChange={(e) =>
-                        setMutationTargetBranch(
-                          e.target.value as SingleBranchName
-                        )
-                      }
-                      className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-gray-900 bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
-                    >
-                      {SINGLE_BRANCHES.map((bName) => (
-                        <option key={bName} value={bName}>
-                          {bName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
                 <div>
                   <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
                     Pilih Bahan Baku
@@ -2804,38 +1951,37 @@ export default function StokPage() {
                     ))}
                   </select>
 
-                  {/* Kotak Info Live Stok Aktual, Batas Aman, & Status Bahan Terpilih */}
-                  {targetBranchSelectedItem && (
+                  {/* Kotak Info Live Stok Aktual, Batas Aman & Status */}
+                  {selectedItemObj && (
                     <div className="mt-2.5 p-3 rounded-xl bg-[#FAF8F3] border border-gray-200 flex items-center justify-between gap-2 text-xs">
                       <div>
                         <span className="text-gray-500 font-semibold">
-                          Stok ({targetWriteBranch.replace("Cabang ", "")}):{" "}
+                          Stok Saat Ini:{" "}
                         </span>
                         <strong className="font-black text-gray-900">
-                          {targetBranchSelectedItem.unit === "Pcs"
-                            ? targetBranchSelectedItem.stock
-                            : targetBranchSelectedItem.stock.toFixed(1)}{" "}
-                          {targetBranchSelectedItem.unit}
+                          {selectedItemObj.unit === "Pcs"
+                            ? selectedItemObj.stock
+                            : selectedItemObj.stock.toFixed(1)}{" "}
+                          {selectedItemObj.unit}
                         </strong>
                         <span className="text-gray-400 mx-1.5">•</span>
                         <span className="text-gray-500 font-semibold">
                           Safety:{" "}
                           <strong className="text-gray-800">
-                            {targetBranchSelectedItem.safetyStock}{" "}
-                            {targetBranchSelectedItem.safetyUnit}
+                            {selectedItemObj.safetyStock} {selectedItemObj.safetyUnit}
                           </strong>
                         </span>
                       </div>
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase shrink-0 ${
-                          targetBranchSelectedItem.status === "KRITIS"
+                          selectedItemObj.status === "KRITIS"
                             ? "bg-red-100 text-[#DC2626] border border-red-200"
-                            : targetBranchSelectedItem.status === "MENIPIS"
+                            : selectedItemObj.status === "MENIPIS"
                               ? "bg-amber-100 text-[#B45309] border border-amber-200"
                               : "bg-emerald-100 text-emerald-800 border border-emerald-200"
                         }`}
                       >
-                        {targetBranchSelectedItem.status}
+                        {selectedItemObj.status}
                       </span>
                     </div>
                   )}
@@ -2862,15 +2008,20 @@ export default function StokPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
-                      Jumlah
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-extrabold text-gray-800">
+                        Jumlah
+                      </label>
+                      <span className="text-[10px] font-bold text-amber-700">
+                        Min. 2 {selectedItemObj?.unit || "kg"}
+                      </span>
+                    </div>
                     <div className="flex items-center border border-gray-300 rounded-xl bg-white px-3.5 py-2.5 focus-within:border-[#D97706]">
                       <input
                         type="number"
                         step="0.1"
-                        min="0.1"
-                        placeholder="Misal: 5"
+                        min="2"
+                        placeholder="Misal: 2"
                         value={mutationAmount}
                         onChange={(e) => setMutationAmount(e.target.value)}
                         className="w-full text-xs sm:text-sm font-bold text-gray-900 outline-none bg-transparent"
@@ -2891,29 +2042,29 @@ export default function StokPage() {
                     placeholder="Contoh: Pengiriman Supplier Pagi / No. DO-8812"
                     value={mutationNote}
                     onChange={(e) => setMutationNote(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium text-gray-900 bg-white focus:outline-none focus:border-[#D97706]"
+                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:border-[#D97706]"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full mt-1 py-3 px-4 bg-[#F3A712] hover:bg-[#df980e] text-gray-950 font-extrabold text-xs sm:text-sm rounded-xl shadow-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                  className="w-full py-3 bg-[#F3A712] hover:bg-[#df980e] text-gray-950 font-extrabold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-xs transition cursor-pointer mt-1"
                 >
-                  <Save size={16} />
+                  <Save size={15} />
                   <span>Simpan Mutasi Stok</span>
                 </button>
               </form>
             </div>
 
-            {/* CARD 2: LOG MUTASI HARI INI */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col gap-4">
-              <div className="flex items-center justify-between pb-4 border-b border-gray-200">
+            {/* CARD 2: LOG MUTASI */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col gap-4">
+              <div className="flex items-center justify-between pb-3.5 border-b border-gray-200">
                 <div>
                   <h3 className="font-extrabold text-base text-gray-900">
                     Log Mutasi Hari Ini
                   </h3>
-                  <p className="text-xs text-gray-600 font-medium mt-1.5">
-                    Sinkron otomatis POS &amp; Penerimaan ({selectedBranch})
+                  <p className="text-xs text-gray-600 font-medium mt-1">
+                    Sinkron otomatis POS &amp; Dapur MariaDB
                   </p>
                 </div>
                 <button
@@ -2925,68 +2076,54 @@ export default function StokPage() {
                 </button>
               </div>
 
-              <div className="flex flex-col gap-3.5">
-                {logs.slice(0, 5).map((log) => (
-                  <div
-                    key={log.id}
-                    className="p-3.5 rounded-xl bg-[#F8F9FA] border border-gray-200 flex items-start justify-between gap-3"
-                  >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 mt-0.5 ${
-                          log.type === "in"
-                            ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                            : log.type === "replace"
-                              ? "bg-amber-100 text-[#B45309] border border-amber-300"
-                              : "bg-red-100 text-[#DC2626] border border-red-300"
-                        }`}
-                      >
-                        {log.type === "in" ? (
-                          "+"
-                        ) : log.type === "replace" ? (
-                          <RotateCcw size={12} />
-                        ) : (
-                          "-"
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs sm:text-sm font-extrabold text-gray-900">
-                          {log.title}
-                        </p>
-                        <p className="text-xs text-gray-600 font-medium mt-1 leading-snug">
-                          {log.subtitle}
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className={`text-xs font-extrabold shrink-0 ${
-                        log.type === "in"
-                          ? "text-emerald-700"
-                          : log.type === "replace"
-                            ? "text-[#D97706]"
-                            : "text-gray-500"
-                      }`}
-                    >
-                      {log.time}
-                    </span>
+              <div className="flex flex-col gap-3">
+                {logs.length === 0 ? (
+                  <div className="py-8 text-center text-gray-400 text-xs font-medium">
+                    Belum ada log mutasi tercatat hari ini.
                   </div>
-                ))}
+                ) : (
+                  logs.slice(0, 5).map((log) => (
+                    <div
+                      key={log.id}
+                      className="p-3 rounded-xl bg-[#F8F9FA] border border-gray-200 flex items-start justify-between gap-3"
+                    >
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <div
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5 ${
+                            log.type === "in"
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                              : log.type === "replace"
+                                ? "bg-amber-100 text-[#B45309] border border-amber-300"
+                                : "bg-red-100 text-[#DC2626] border border-red-300"
+                          }`}
+                        >
+                          {log.type === "in" ? (
+                            "+"
+                          ) : log.type === "replace" ? (
+                            <RotateCcw size={11} />
+                          ) : (
+                            "-"
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-extrabold text-gray-900 truncate">
+                            {log.title}
+                          </p>
+                          <p className="text-[11px] text-gray-600 font-medium mt-0.5 leading-snug truncate">
+                            {log.subtitle}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-extrabold text-gray-500 shrink-0">
+                        {log.time}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
         </section>
-
-        {/* Footer Khusus Dokumen Cetak */}
-        <div className="hidden print:flex items-center justify-between text-[10px] text-gray-500 pt-2 border-t border-gray-200">
-          <span>
-            Sistem Manajemen Inventaris &amp; Dapur POS PrekDuaDara • Dicetak
-            otomatis
-          </span>
-          <span>
-            Total SKU Tercetak: {filteredInventory.length} Bahan Baku (
-            {selectedBranch})
-          </span>
-        </div>
 
         {/* FOOTER SYSTEM */}
         <footer className="print:hidden pt-3 pb-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-600 font-medium gap-2">
@@ -2999,7 +2136,7 @@ export default function StokPage() {
             <span>•</span>
             <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              MySQL (prekduadara_db) Terhubung
+              MariaDB (prekduadara_db.stocks) Terhubung
             </span>
           </div>
           <div>

@@ -104,12 +104,12 @@ const STORAGE_KEY = "prekduadara_store_settings_v1";
 
 const DEFAULT_BRANCH_SETTINGS: Record<SingleBranchName, BranchStoreSettings> = {
   "Cabang Sudirman Utama": {
-    outletId: "OUT-SUD-001",
-    namaWarung: "Ayam Geprek PrekDuaDara - Cabang Sudirman",
+    outletId: "OUT-001",
+    namaWarung: "Ayam Geprek PrekDuaDara",
     slogan: "Spesial Ayam Geprek Cobek & Sambal Uleg Asli",
     alamat: "Jl. Jend. Sudirman No. 45 (Samping Gerbang UM/Matos)",
     whatsapp: "0812-8899-7766",
-    emailResto: "halo.cabang@prekduadara.id",
+    emailResto: "halo@prekduadara.id",
     nib: "9120003491824",
     logoUrl: "/logo.png",
     jamBukaWeekday: "09:00 WIB",
@@ -264,34 +264,119 @@ export default function PengaturanTokoPage() {
     };
   }, []);
 
-  // Muat dari localStorage saat halaman pertama kali dibuka
+  // State Scroll untuk Floating Action Buttons yang selalu mengikuti layar sampai paling bawah
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPos = window.scrollY || document.documentElement.scrollTop;
+      setIsScrolled(scrollPos > 120);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Muat dari localStorage dan backend MariaDB saat halaman pertama kali dibuka
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
+      const local = localStorage.getItem(STORAGE_KEY);
+      if (local) {
+        const parsed = JSON.parse(local);
         if (parsed && typeof parsed === "object") {
-          const merged: Record<SingleBranchName, BranchStoreSettings> = {
-            "Cabang Sudirman Utama": {
-              ...DEFAULT_BRANCH_SETTINGS["Cabang Sudirman Utama"],
-              ...(parsed["Cabang Sudirman Utama"] || {}),
-            },
-            "Cabang Tebet Eco Park": {
-              ...DEFAULT_BRANCH_SETTINGS["Cabang Tebet Eco Park"],
-              ...(parsed["Cabang Tebet Eco Park"] || {}),
-            },
-            "Cabang Dago Heritage": {
-              ...DEFAULT_BRANCH_SETTINGS["Cabang Dago Heritage"],
-              ...(parsed["Cabang Dago Heritage"] || {}),
-            },
-          };
-          setConfigsByBranch(merged);
-          setSavedConfigsByBranch(merged);
+          setConfigsByBranch(parsed);
+          setSavedConfigsByBranch(parsed);
         }
       }
-    } catch {
-      // Gunakan default jika localStorage tidak tersedia / korup
-    }
+    } catch {}
+
+    const fetchBackendSettings = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/settings");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            const d = json.data;
+            setConfigsByBranch((prev) => {
+              const updated = { ...prev };
+              Object.keys(updated).forEach((k) => {
+                const branchKey = k as SingleBranchName;
+                updated[branchKey] = {
+                  ...updated[branchKey],
+                  namaWarung: d.namaWarung || updated[branchKey].namaWarung,
+                  slogan: d.slogan || updated[branchKey].slogan,
+                  alamat: d.alamat || updated[branchKey].alamat,
+                  whatsapp: d.whatsapp || updated[branchKey].whatsapp,
+                  emailResto: d.emailResto || updated[branchKey].emailResto,
+                  nib: d.nib || updated[branchKey].nib,
+                  jamBukaWeekday: d.jamBukaWeekday || updated[branchKey].jamBukaWeekday,
+                  jamTutupWeekday: d.jamTutupWeekday || updated[branchKey].jamTutupWeekday,
+                  jamBukaWeekend: d.jamBukaWeekend || updated[branchKey].jamBukaWeekend,
+                  jamTutupWeekend: d.jamTutupWeekend || updated[branchKey].jamTutupWeekend,
+                  autoCloseKasir:
+                    d.autoCloseKasir !== undefined
+                      ? Boolean(d.autoCloseKasir)
+                      : updated[branchKey].autoCloseKasir,
+                  istirahatSore:
+                    d.istirahatSore !== undefined
+                      ? Boolean(d.istirahatSore)
+                      : updated[branchKey].istirahatSore,
+                  pajakPersen: String(d.pajakPersen || updated[branchKey].pajakPersen),
+                  pajakTipe: (d.pajakTipe as "termasuk" | "akhir") || updated[branchKey].pajakTipe,
+                  biayaKemasan: String(d.biayaKemasan || updated[branchKey].biayaKemasan),
+                  aturanPembulatan:
+                    (d.aturanPembulatan as RoundingOption) ||
+                    updated[branchKey].aturanPembulatan,
+                  cetakLogo:
+                    d.cetakLogo !== undefined
+                      ? Boolean(d.cetakLogo)
+                      : updated[branchKey].cetakLogo,
+                  cetakAlamat:
+                    d.cetakAlamat !== undefined
+                      ? Boolean(d.cetakAlamat)
+                      : updated[branchKey].cetakAlamat,
+                  nomorAntrianBesar:
+                    d.nomorAntrianBesar !== undefined
+                      ? Boolean(d.nomorAntrianBesar)
+                      : updated[branchKey].nomorAntrianBesar,
+                  kodeQrisDinamis:
+                    d.kodeQrisDinamis !== undefined
+                      ? Boolean(d.kodeQrisDinamis)
+                      : updated[branchKey].kodeQrisDinamis,
+                  pesanFooter: d.pesanFooter || updated[branchKey].pesanFooter,
+                  autoPrintLunas:
+                    d.autoPrintLunas !== undefined
+                      ? Boolean(d.autoPrintLunas)
+                      : updated[branchKey].autoPrintLunas,
+                  channelTunai:
+                    d.channelTunai !== undefined
+                      ? Boolean(d.channelTunai)
+                      : updated[branchKey].channelTunai,
+                  channelQris:
+                    d.channelQris !== undefined
+                      ? Boolean(d.channelQris)
+                      : updated[branchKey].channelQris,
+                  channelEdc:
+                    d.channelEdc !== undefined
+                      ? Boolean(d.channelEdc)
+                      : updated[branchKey].channelEdc,
+                  channelOjol:
+                    d.channelOjol !== undefined
+                      ? Boolean(d.channelOjol)
+                      : updated[branchKey].channelOjol,
+                };
+              });
+              setSavedConfigsByBranch(updated);
+              return updated;
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("Gagal memuat pengaturan dari backend:", e);
+      }
+    };
+    fetchBackendSettings();
   }, []);
 
   // Tutup dropdown cabang saat klik di luar
@@ -413,69 +498,76 @@ export default function PengaturanTokoPage() {
     e.target.value = "";
   };
 
-  // Handler Simpan Konfigurasi ke localStorage
-  const handleSave = () => {
+  // Handler Simpan Konfigurasi ke Backend & localStorage
+  const handleSave = async () => {
     try {
-      if (selectedBranch === "Semua Cabang") {
-        const globalSource = configsByBranch["Cabang Sudirman Utama"];
-        const syncedAll: Record<SingleBranchName, BranchStoreSettings> = {
-          "Cabang Sudirman Utama": globalSource,
-          "Cabang Tebet Eco Park": {
-            ...globalSource,
-            outletId: configsByBranch["Cabang Tebet Eco Park"].outletId,
-            namaWarung: configsByBranch["Cabang Tebet Eco Park"].namaWarung,
-            alamat: configsByBranch["Cabang Tebet Eco Park"].alamat,
-            whatsapp: configsByBranch["Cabang Tebet Eco Park"].whatsapp,
-            emailResto: configsByBranch["Cabang Tebet Eco Park"].emailResto,
-            nib: configsByBranch["Cabang Tebet Eco Park"].nib,
-          },
-          "Cabang Dago Heritage": {
-            ...globalSource,
-            outletId: configsByBranch["Cabang Dago Heritage"].outletId,
-            namaWarung: configsByBranch["Cabang Dago Heritage"].namaWarung,
-            alamat: configsByBranch["Cabang Dago Heritage"].alamat,
-            whatsapp: configsByBranch["Cabang Dago Heritage"].whatsapp,
-            emailResto: configsByBranch["Cabang Dago Heritage"].emailResto,
-            nib: configsByBranch["Cabang Dago Heritage"].nib,
-          },
-        };
-        setConfigsByBranch(syncedAll);
-        setSavedConfigsByBranch(syncedAll);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(syncedAll));
-        showToast("Konfigurasi global berhasil diterapkan ke seluruh cabang!");
-      } else {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(configsByBranch));
-        setSavedConfigsByBranch(configsByBranch);
-        showToast(
-          `Perubahan konfigurasi ${activeBranchKey} berhasil disimpan!`
-        );
+      setIsSaving(true);
+      const payload = {
+        namaWarung: currentConfig.namaWarung,
+        slogan: currentConfig.slogan,
+        alamat: currentConfig.alamat,
+        whatsapp: currentConfig.whatsapp,
+        emailResto: currentConfig.emailResto,
+        nib: currentConfig.nib,
+        jamBukaWeekday: currentConfig.jamBukaWeekday,
+        jamTutupWeekday: currentConfig.jamTutupWeekday,
+        jamBukaWeekend: currentConfig.jamBukaWeekend,
+        jamTutupWeekend: currentConfig.jamTutupWeekend,
+        autoCloseKasir: currentConfig.autoCloseKasir,
+        istirahatSore: currentConfig.istirahatSore,
+        pajakPersen: currentConfig.pajakPersen,
+        pajakTipe: currentConfig.pajakTipe,
+        biayaKemasan: currentConfig.biayaKemasan,
+        aturanPembulatan: currentConfig.aturanPembulatan,
+        cetakLogo: currentConfig.cetakLogo,
+        cetakAlamat: currentConfig.cetakAlamat,
+        nomorAntrianBesar: currentConfig.nomorAntrianBesar,
+        kodeQrisDinamis: currentConfig.kodeQrisDinamis,
+        pesanFooter: currentConfig.pesanFooter,
+        autoPrintLunas: currentConfig.autoPrintLunas,
+        channelTunai: currentConfig.channelTunai,
+        channelQris: currentConfig.channelQris,
+        channelEdc: currentConfig.channelEdc,
+        channelOjol: currentConfig.channelOjol,
+      };
+
+      try {
+        await fetch("http://localhost:5000/api/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (e) {
+        console.warn("Gagal sinkronisasi pengaturan ke backend:", e);
       }
+
+      setSavedConfigsByBranch(configsByBranch);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(configsByBranch));
+      } catch {}
+      showToast("Perubahan konfigurasi toko berhasil disimpan!");
     } catch {
       showToast("Gagal menyimpan ke penyimpanan lokal browser.", "warning");
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Handler Konfirmasi Reset ke Default
-  const handleConfirmResetDefault = () => {
-    const updatedAll =
+  // Handler Konfirmasi Reset ke Data Terakhir Disimpan
+  const handleConfirmResetSaved = () => {
+    const updated =
       selectedBranch === "Semua Cabang"
-        ? DEFAULT_BRANCH_SETTINGS
+        ? savedConfigsByBranch
         : {
             ...configsByBranch,
-            [activeBranchKey]: DEFAULT_BRANCH_SETTINGS[activeBranchKey],
+            [activeBranchKey]: savedConfigsByBranch[activeBranchKey],
           };
-    setConfigsByBranch(updatedAll);
-    setSavedConfigsByBranch(updatedAll);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedAll));
-    } catch {
-      // Abaikan jika gagal tulis storage
-    }
+    setConfigsByBranch(updated);
     setShowResetModal(false);
     showToast(
       selectedBranch === "Semua Cabang"
-        ? "Konfigurasi seluruh cabang dikembalikan ke pengaturan awal (Default)."
-        : `Konfigurasi ${activeBranchKey} dikembalikan ke pengaturan awal (Default).`
+        ? "Konfigurasi seluruh cabang berhasil dikembalikan ke data yang terakhir disimpan."
+        : `Konfigurasi ${activeBranchKey} berhasil dikembalikan ke data yang terakhir disimpan.`
     );
   };
 
@@ -534,7 +626,7 @@ export default function PengaturanTokoPage() {
         </div>
       )}
 
-      {/* Modal Konfirmasi Reset ke Default */}
+      {/* Modal Konfirmasi Reset ke Data Terakhir Disimpan */}
       {showResetModal && (
         <div
           onClick={() => setShowResetModal(false)}
@@ -551,12 +643,10 @@ export default function PengaturanTokoPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-gray-900">
-                    Reset Konfigurasi ke Default?
+                    Reset ke Data Terakhir Disimpan?
                   </h3>
                   <p className="text-xs text-gray-500 font-semibold mt-0.5">
-                    {selectedBranch === "Semua Cabang"
-                      ? "Semua Cabang (OUT-SUD-001, OUT-TBT-002, OUT-DGO-003)"
-                      : `${activeBranchKey} (${currentConfig.outletId})`}
+                    PrekDuaDara ({currentConfig.outletId || "OUT-001"})
                   </p>
                 </div>
               </div>
@@ -570,14 +660,8 @@ export default function PengaturanTokoPage() {
             </div>
 
             <p className="text-xs sm:text-sm text-gray-600 leading-relaxed font-medium mb-6">
-              Seluruh perubahan profil gerai, jam operasional, pajak PB1,
-              template struk 80mm, dan kapasitas meja untuk{" "}
-              <strong className="text-gray-900">
-                {selectedBranch === "Semua Cabang"
-                  ? "Seluruh Cabang PrekDuaDara"
-                  : activeBranchKey}
-              </strong>{" "}
-              akan dikembalikan ke pengaturan standar pabrik.
+              Seluruh perubahan konfigurasi yang belum disimpan akan dibatalkan
+              dan dikembalikan ke data yang terakhir Anda simpan di database.
             </p>
 
             <div className="flex items-center justify-end gap-2.5">
@@ -590,11 +674,11 @@ export default function PengaturanTokoPage() {
               </button>
               <button
                 type="button"
-                onClick={handleConfirmResetDefault}
-                className="px-4 py-2.5 rounded-xl bg-[#EF4444] hover:bg-[#DC2626] text-xs font-extrabold text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                onClick={handleConfirmResetSaved}
+                className="px-4 py-2.5 rounded-xl bg-[#EA8E18] hover:bg-[#d67f12] text-xs font-extrabold text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer"
               >
                 <RotateCcw size={14} />
-                <span>Ya, Reset ke Default</span>
+                <span>Ya, Kembalikan Data</span>
               </button>
             </div>
           </div>
@@ -606,6 +690,42 @@ export default function PengaturanTokoPage() {
 
       {/* 2. AREA KONTEN UTAMA */}
       <main className="flex-1 flex flex-col gap-5 overflow-x-hidden max-w-full">
+        {/* FLOATING ACTION BUTTONS (MURNI HANYA DUA TOMBOL, SELALU MENGIKUTI SCROLL SAMPAI PALING DASAR HALAMAN) */}
+        <div
+          className={`fixed top-4 sm:top-5 right-4 sm:right-6 lg:right-10 z-50 flex items-center gap-2.5 transition-all duration-300 ${
+            isScrolled
+              ? "opacity-100 pointer-events-auto translate-y-0"
+              : "opacity-0 pointer-events-none -translate-y-3"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setShowResetModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 transition shadow-lg cursor-pointer"
+          >
+            <RotateCcw size={14} />
+            <span>Reset ke Data Terakhir</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#2D452B] hover:bg-[#223520] disabled:opacity-60 rounded-xl text-xs font-extrabold text-white transition shadow-lg cursor-pointer"
+          >
+            {isSaving ? (
+              <>
+                <RefreshCw size={14} className="animate-spin" />
+                <span>Menyimpan...</span>
+              </>
+            ) : (
+              <>
+                <Save size={14} />
+                <span>Simpan Perubahan</span>
+              </>
+            )}
+          </button>
+        </div>
+
         {/* TOP NAVBAR HEADER (SERAGAM DENGAN MANAJEMEN KASIR & STOK) */}
         <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
           {/* Brand */}
@@ -625,59 +745,22 @@ export default function PengaturanTokoPage() {
             </div>
           </div>
 
-          {/* Right Controls: Branch Selector, Online Sync & User Profile */}
+          {/* Right Controls: Online Sync & Admin Owner Profile */}
           <div className="print:hidden flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
-            {/* Interactive Branch Selector */}
-            <div ref={branchDropdownRef} className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowBranchMenu((prev) => !prev)}
-                className="h-9 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 flex items-center gap-2 bg-[#F8F9FA] border border-gray-200 text-gray-800 cursor-pointer hover:bg-gray-100 transition"
-              >
-                <Store size={14} className="text-[#EA8E18] shrink-0" />
-                <span>{selectedBranch}</span>
-                <ChevronDown size={14} className="text-gray-500 shrink-0" />
-              </button>
-
-              {showBranchMenu && (
-                <div className="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-30 text-xs">
-                  {BRANCH_OPTIONS.map((branch) => (
-                    <button
-                      key={branch}
-                      type="button"
-                      onClick={() => {
-                        setSelectedBranch(branch);
-                        setShowBranchMenu(false);
-                        showToast(`Menampilkan pengaturan: ${branch}`);
-                      }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-2 hover:bg-amber-50/60 transition cursor-pointer ${
-                        selectedBranch === branch
-                          ? "font-extrabold text-[#EA8E18] bg-amber-50/40"
-                          : "font-semibold text-gray-700"
-                      }`}
-                    >
-                      <Store size={13} className="shrink-0" />
-                      <span className="truncate">{branch}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Online Sync Pill */}
             <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
-            {/* User Profile */}
+            {/* User Profile: Admin / Owner */}
             <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
               <div className="text-right">
                 <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
-                  Rian Pratama
+                  Admin
                 </div>
                 <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
-                  Supervisor Kasir
+                  Owner
                 </div>
               </div>
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
@@ -702,13 +785,7 @@ export default function PengaturanTokoPage() {
 
             <div className="flex items-center gap-1.5 mt-2 text-xs font-extrabold text-gray-800">
               <MapPin size={14} className="text-[#D97706] shrink-0" />
-              <span>
-                {selectedBranch === "Semua Cabang"
-                  ? "Semua Cabang • Konfigurasi Utama (Cabang Sudirman Utama)"
-                  : activeBranchKey === "Cabang Sudirman Utama"
-                    ? "Cabang Sudirman Utama (Pusat)"
-                    : activeBranchKey}
-              </span>
+              <span>Gerai Utama PrekDuaDara</span>
             </div>
 
             <p className="text-xs text-gray-600 mt-1 max-w-2xl leading-relaxed font-medium">
@@ -738,37 +815,40 @@ export default function PengaturanTokoPage() {
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 transition shadow-2xs cursor-pointer"
             >
               <RotateCcw size={14} />
-              <span>Reset ke Default</span>
+              <span>Reset ke Data Terakhir</span>
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#2D452B] hover:bg-[#223520] rounded-xl text-xs font-extrabold text-white transition shadow-xs cursor-pointer"
+              disabled={isSaving}
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#2D452B] hover:bg-[#223520] disabled:opacity-60 rounded-xl text-xs font-extrabold text-white transition shadow-xs cursor-pointer"
             >
-              <Save size={14} />
-              <span>Simpan Perubahan</span>
+              {isSaving ? (
+                <>
+                  <RefreshCw size={14} className="animate-spin" />
+                  <span>Menyimpan...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={14} />
+                  <span>Simpan Perubahan</span>
+                </>
+              )}
             </button>
           </div>
         </section>
 
-        {/* Banner Mode Konfigurasi Global (Semua Cabang) */}
-        {selectedBranch === "Semua Cabang" && (
-          <div className="bg-amber-50/90 border border-amber-300 rounded-2xl px-4 py-3 flex items-start sm:items-center gap-3 shadow-2xs">
-            <Info size={16} className="text-[#D97706] shrink-0 mt-0.5 sm:mt-0" />
-            <p className="text-xs text-amber-950 font-medium leading-relaxed">
-              <strong className="font-extrabold">
-                Mode Konfigurasi Global (Berlaku untuk Semua Cabang):
-              </strong>{" "}
-              Perubahan kebijakan operasional, pajak PB1, biaya kemasan,
-              template struk, dan metode pembayaran akan diterapkan ke seluruh
-              gerai saat disimpan, sementara identitas masing-masing outlet (
-              <span className="font-bold">
-                ID Outlet, Nama Warung, Alamat, WhatsApp, Email, NIB
-              </span>
-              ) tetap terjaga per cabang.
-            </p>
-          </div>
-        )}
+        {/* Banner Informasi Konfigurasi Gerai */}
+        <div className="bg-amber-50/90 border border-amber-300 rounded-2xl px-4 py-3 flex items-start sm:items-center gap-3 shadow-2xs">
+          <Info size={16} className="text-[#D97706] shrink-0 mt-0.5 sm:mt-0" />
+          <p className="text-xs text-amber-950 font-medium leading-relaxed">
+            <strong className="font-extrabold">
+              Konfigurasi Operasional &amp; POS PrekDuaDara:
+            </strong>{" "}
+            Perubahan pengaturan profil gerai, pajak PB1, biaya kemasan, template struk kasir,
+            dan metode pembayaran akan langsung tersinkronisasi ke sistem kasir POS saat disimpan.
+          </p>
+        </div>
 
         {/* A. Profil Gerai & Identitas Restoran */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
@@ -1835,8 +1915,7 @@ export default function PengaturanTokoPage() {
           <div className="flex items-center gap-3 text-xs font-semibold text-gray-700">
             <Info size={16} className="text-[#2D452B] shrink-0" />
             <span>
-              Perubahan konfigurasi tersimpan otomatis di perangkat lokal
-              server ({activeBranchKey}).
+              Perubahan konfigurasi tersimpan otomatis ke database server MariaDB.
             </span>
           </div>
 
@@ -1856,10 +1935,20 @@ export default function PengaturanTokoPage() {
             <button
               type="button"
               onClick={handleSave}
-              className="flex items-center gap-2 text-xs font-extrabold text-white bg-[#2D452B] hover:bg-[#223520] px-5 py-2.5 rounded-xl transition cursor-pointer shadow-xs"
+              disabled={isSaving}
+              className="flex items-center gap-2 text-xs font-extrabold text-white bg-[#2D452B] hover:bg-[#223520] disabled:opacity-60 px-5 py-2.5 rounded-xl transition cursor-pointer shadow-xs"
             >
-              <Save size={15} />
-              <span>Simpan Konfigurasi Lengkap</span>
+              {isSaving ? (
+                <>
+                  <RefreshCw size={15} className="animate-spin" />
+                  <span>Menyimpan...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={15} />
+                  <span>Simpan Konfigurasi Lengkap</span>
+                </>
+              )}
             </button>
           </div>
         </section>

@@ -38,10 +38,7 @@ import {
   X,
 } from "lucide-react";
 
-type SingleBranchName =
-  | "Cabang Sudirman Utama"
-  | "Cabang Tebet Eco Park"
-  | "Cabang Dago Heritage";
+type SingleBranchName = "Gerai Utama";
 
 type ShiftMainType =
   | "Shift Pagi"
@@ -81,7 +78,7 @@ interface ApiCashierRow {
   status_live?: LiveStatusType;
   isActive?: boolean | number;
   is_active?: boolean | number;
-  branch?: SingleBranchName;
+  branch?: string;
   createdAt?: string;
 }
 
@@ -97,146 +94,17 @@ interface BranchDrawerState {
   lastClosedInfo?: string;
 }
 
-const BRANCH_OPTIONS = [
-  "Semua Cabang",
-  "Cabang Sudirman Utama",
-  "Cabang Tebet Eco Park",
-  "Cabang Dago Heritage",
-] as const;
-
-const SINGLE_BRANCHES: SingleBranchName[] = [
-  "Cabang Sudirman Utama",
-  "Cabang Tebet Eco Park",
-  "Cabang Dago Heritage",
-];
-
-// Data Default (Sinkron dengan tabel `kasir` MariaDB prekduadara_db + profil cabang)
-const INITIAL_KASIR: KasirItem[] = [
-  {
-    id: "#KSR-001",
-    dbId: 1,
-    name: "Rian",
-    roleTitle: "Kasir",
-    shift: "Shift Pagi (08:00 - 12:00)",
-    shiftMain: "Shift Pagi",
-    shiftHours: "08:00 - 12:00",
-    statusLive: "Aktif Melayani",
-    isActive: true,
-    branch: "Cabang Sudirman Utama",
-    avatarColor: "bg-amber-100 text-amber-800 border-amber-300",
-    initials: "RN",
-  },
-  {
-    id: "#KSR-002",
-    dbId: 2,
-    name: "Siti",
-    roleTitle: "Kasir",
-    shift: "Shift Siang (12:00 - 17:00)",
-    shiftMain: "Shift Siang",
-    shiftHours: "12:00 - 17:00",
-    statusLive: "Standby / Rehat",
-    isActive: true,
-    branch: "Cabang Sudirman Utama",
-    avatarColor: "bg-orange-100 text-orange-800 border-orange-300",
-    initials: "ST",
-  },
-  {
-    id: "#KSR-003",
-    dbId: 3,
-    name: "Budi",
-    roleTitle: "Kasir",
-    shift: "Shift Malam (17:00 - 22:00)",
-    shiftMain: "Shift Malam",
-    shiftHours: "17:00 - 22:00",
-    statusLive: "Standby / Rehat",
-    isActive: true,
-    branch: "Cabang Sudirman Utama",
-    avatarColor: "bg-slate-100 text-slate-700 border-slate-300",
-    initials: "BD",
-  },
-  {
-    id: "#KSR-004",
-    name: "Dimas",
-    roleTitle: "Kepala Kasir",
-    shift: "Shift Pagi (08:00 - 12:00)",
-    shiftMain: "Shift Pagi",
-    shiftHours: "08:00 - 12:00",
-    statusLive: "Aktif Melayani",
-    isActive: true,
-    branch: "Cabang Tebet Eco Park",
-    avatarColor: "bg-emerald-100 text-emerald-800 border-emerald-300",
-    initials: "DM",
-  },
-  {
-    id: "#KSR-005",
-    name: "Nabila",
-    roleTitle: "Kasir",
-    shift: "Shift Siang (12:00 - 17:00)",
-    shiftMain: "Shift Siang",
-    shiftHours: "12:00 - 17:00",
-    statusLive: "Standby / Rehat",
-    isActive: true,
-    branch: "Cabang Tebet Eco Park",
-    avatarColor: "bg-blue-100 text-blue-800 border-blue-300",
-    initials: "NB",
-  },
-  {
-    id: "#KSR-006",
-    name: "Fajar",
-    roleTitle: "Kasir",
-    shift: "Shift Pagi (08:00 - 12:00)",
-    shiftMain: "Shift Pagi",
-    shiftHours: "08:00 - 12:00",
-    statusLive: "Aktif Melayani",
-    isActive: true,
-    branch: "Cabang Dago Heritage",
-    avatarColor: "bg-amber-100 text-amber-800 border-amber-300",
-    initials: "FJ",
-  },
-  {
-    id: "#KSR-007",
-    name: "Citra",
-    roleTitle: "Kasir",
-    shift: "Shift Malam (17:00 - 22:00)",
-    shiftMain: "Shift Malam",
-    shiftHours: "17:00 - 22:00",
-    statusLive: "Selesai Shift / Off",
-    isActive: false,
-    branch: "Cabang Dago Heritage",
-    avatarColor: "bg-gray-100 text-gray-700 border-gray-300",
-    initials: "CT",
-  },
-];
+const SINGLE_BRANCHES: SingleBranchName[] = ["Gerai Utama"];
 
 const INITIAL_DRAWERS: Record<SingleBranchName, BranchDrawerState> = {
-  "Cabang Sudirman Utama": {
+  "Gerai Utama": {
     counter: "Counter #01",
-    operatorId: "#KSR-001",
-    operatorName: "Rian",
-    shiftInfo: "Shift Pagi (08:00 - 12:00) • Login Aktif",
+    operatorId: "-",
+    operatorName: "Memuat kasir...",
+    shiftInfo: "Menghubungkan ke database...",
     modalAwal: 500000,
-    totalSales: 3842500,
-    totalNotes: 94,
-    isOpen: true,
-  },
-  "Cabang Tebet Eco Park": {
-    counter: "Counter #02",
-    operatorId: "#KSR-004",
-    operatorName: "Dimas",
-    shiftInfo: "Shift Pagi (08:00 - 12:00) • Login 07:58 WIB",
-    modalAwal: 500000,
-    totalSales: 2915000,
-    totalNotes: 71,
-    isOpen: true,
-  },
-  "Cabang Dago Heritage": {
-    counter: "Counter #03",
-    operatorId: "#KSR-006",
-    operatorName: "Fajar",
-    shiftInfo: "Shift Pagi (08:00 - 12:00) • Login 08:01 WIB",
-    modalAwal: 400000,
-    totalSales: 2480000,
-    totalNotes: 63,
+    totalSales: 0,
+    totalNotes: 0,
     isOpen: true,
   },
 };
@@ -283,12 +151,12 @@ function generateNextCashierCode(list: KasirItem[]): string {
 }
 
 export default function KasirShiftPage() {
-  const [kasirList, setKasirList] = useState<KasirItem[]>(INITIAL_KASIR);
+  const [kasirList, setKasirList] = useState<KasirItem[]>([]);
   const [drawersByBranch, setDrawersByBranch] =
     useState<Record<SingleBranchName, BranchDrawerState>>(INITIAL_DRAWERS);
 
   // Filter Header & Tabel
-  const [selectedBranch, setSelectedBranch] = useState<string>("Semua Cabang");
+  const [selectedBranch, setSelectedBranch] = useState<string>("Gerai Utama");
   const [showBranchMenu, setShowBranchMenu] = useState(false);
   const branchDropdownRef = useRef<HTMLDivElement | null>(null);
 
@@ -298,7 +166,7 @@ export default function KasirShiftPage() {
   const [showShiftDropdown, setShowShiftDropdown] = useState(false);
   const shiftDropdownRef = useRef<HTMLDivElement | null>(null);
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [dbConnected, setDbConnected] = useState(false);
 
   // Toast Notification dengan useRef Timer
@@ -333,10 +201,8 @@ export default function KasirShiftPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
   const [formRole, setFormRole] = useState("Kasir");
-  const [formId, setFormId] = useState("#KSR-008");
-  const [formBranch, setFormBranch] = useState<SingleBranchName>(
-    "Cabang Sudirman Utama"
-  );
+  const [formId, setFormId] = useState("#KSR-001");
+  const [formBranch, setFormBranch] = useState<SingleBranchName>("Gerai Utama");
   const [formShift, setFormShift] = useState<"Pagi" | "Siang" | "Malam">(
     "Pagi"
   );
@@ -383,13 +249,19 @@ export default function KasirShiftPage() {
   const formNameRef = useRef<string>(formName);
   formNameRef.current = formName;
 
-  // 1. FETCH DATA DARI API BACKEND MARIADB (`Cabang Sudirman Utama`)
+  // 1. FETCH DATA DARI API BACKEND MARIADB
   const loadCashiersFromDB = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await fetch("http://localhost:5000/api/cashiers");
       const json = await res.json();
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+      if (json.success && Array.isArray(json.data)) {
+        if (json.data.length === 0) {
+          setKasirList([]);
+          setDbConnected(true);
+          return;
+        }
+
         const avatarBgs = [
           "bg-amber-100 text-amber-800 border-amber-300",
           "bg-orange-100 text-orange-800 border-orange-300",
@@ -416,7 +288,7 @@ export default function KasirShiftPage() {
               shiftHours,
               statusLive: liveStatus,
               isActive: activeFlag,
-              branch: c.branch || "Cabang Sudirman Utama",
+              branch: "Gerai Utama",
               avatarColor: avatarBgs[idx % avatarBgs.length],
               initials: getInitials(c.name),
               createdAt: c.createdAt,
@@ -424,38 +296,49 @@ export default function KasirShiftPage() {
           }
         );
 
-        const otherBranches = kasirListRef.current.filter(
-          (item) => item.branch !== "Cabang Sudirman Utama"
-        );
-        const nextList = [...mappedDbItems, ...otherBranches];
-
         setDbConnected(true);
-        setKasirList(nextList);
+        setKasirList(mappedDbItems);
 
         if (!editingIdRef.current && formNameRef.current === "") {
-          setFormId(generateNextCashierCode(nextList));
+          setFormId(generateNextCashierCode(mappedDbItems));
         }
 
-        const activeSudirman = mappedDbItems.find(
-          (item) => item.statusLive === "Aktif Melayani" && item.isActive
-        );
-        if (activeSudirman) {
+        // Ambil data transaksi langsung dari database MariaDB
+        let salesSum = 0;
+        let notesCount = 0;
+        try {
+          const trxRes = await fetch("http://localhost:5000/api/transactions");
+          const trxJson = await trxRes.json();
+          if (trxJson.success && Array.isArray(trxJson.data)) {
+            notesCount = trxJson.data.length;
+            salesSum = trxJson.data.reduce(
+              (sum: number, t: { total?: number | string }) =>
+                sum + (Number(t.total) || 0),
+              0
+            );
+          }
+        } catch {
+          // Abaikan jika server transaksi sedang offline
+        }
+
+        const activeKasir =
+          mappedDbItems.find(
+            (item) => item.statusLive === "Aktif Melayani" && item.isActive
+          ) || mappedDbItems[0];
+
+        if (activeKasir) {
           setDrawersByBranch((prev) => {
-            const prevDrawer = prev["Cabang Sudirman Utama"];
-            if (
-              prevDrawer.operatorId === activeSudirman.id &&
-              prevDrawer.operatorName === activeSudirman.name &&
-              prevDrawer.shiftInfo.startsWith(activeSudirman.shift)
-            ) {
-              return prev;
-            }
+            const prevDrawer =
+              prev["Gerai Utama"] || INITIAL_DRAWERS["Gerai Utama"];
             return {
               ...prev,
-              "Cabang Sudirman Utama": {
+              "Gerai Utama": {
                 ...prevDrawer,
-                operatorId: activeSudirman.id,
-                operatorName: activeSudirman.name,
-                shiftInfo: `${activeSudirman.shift} • Login Aktif`,
+                operatorId: activeKasir.id,
+                operatorName: activeKasir.name,
+                shiftInfo: `${activeKasir.shift} • Login Aktif`,
+                totalSales: salesSum > 0 ? salesSum : prevDrawer.totalSales,
+                totalNotes: notesCount > 0 ? notesCount : prevDrawer.totalNotes,
               },
             };
           });
@@ -472,19 +355,15 @@ export default function KasirShiftPage() {
     loadCashiersFromDB();
   }, [loadCashiersFromDB]);
 
-  // Cabang target untuk Laci Kasir & aksi tulis
-  const activeDrawerBranch: SingleBranchName =
-    selectedBranch === "Semua Cabang"
-      ? formBranch
-      : (selectedBranch as SingleBranchName);
+  // Cabang target untuk Laci Kasir (Gerai Utama Pusat)
+  const activeDrawerBranch: SingleBranchName = "Gerai Utama";
+  const activeDrawer =
+    drawersByBranch[activeDrawerBranch] || INITIAL_DRAWERS["Gerai Utama"];
 
-  const activeDrawer = drawersByBranch[activeDrawerBranch];
-
-  // Daftar kasir sesuai pilihan cabang di header
+  // Daftar kasir dari database backend
   const branchScopedKasir = useMemo(() => {
-    if (selectedBranch === "Semua Cabang") return kasirList;
-    return kasirList.filter((k) => k.branch === selectedBranch);
-  }, [kasirList, selectedBranch]);
+    return kasirList;
+  }, [kasirList]);
 
   // Filter Data Berdasarkan Cabang, Pencarian & Shift
   const filteredKasir = useMemo(() => {
@@ -527,10 +406,10 @@ export default function KasirShiftPage() {
 
   // Reset seluruh filter tabel
   const handleResetFilters = () => {
-    setSelectedBranch("Semua Cabang");
+    setSelectedBranch("Gerai Utama");
     setSearchQuery("");
     setSelectedShiftFilter("Semua");
-    showToast("Seluruh filter telah direset ke Semua Cabang.", "info");
+    showToast("Seluruh filter telah direset.", "info");
   };
 
   // 2. TOGGLE STATUS AKSES KASIR (Sinkron ke Database)
@@ -639,7 +518,7 @@ export default function KasirShiftPage() {
     setFormName(kasir.name);
     setFormRole(kasir.roleTitle || "Kasir");
     setFormId(kasir.id);
-    setFormBranch(kasir.branch);
+    setFormBranch(kasir.branch || "Gerai Utama");
     if (kasir.shift.includes("Siang")) setFormShift("Siang");
     else if (kasir.shift.includes("Malam")) setFormShift("Malam");
     else setFormShift("Pagi");
@@ -656,14 +535,10 @@ export default function KasirShiftPage() {
     setFormName("");
     setFormRole("Kasir");
     setFormId(generateNextCashierCode(kasirList));
-    setFormBranch(
-      selectedBranch === "Semua Cabang"
-        ? "Cabang Sudirman Utama"
-        : (selectedBranch as SingleBranchName)
-    );
+    setFormBranch("Gerai Utama");
     setFormShift("Pagi");
     setFormIsActive(true);
-  }, [kasirList, selectedBranch]);
+  }, [kasirList]);
 
   // 5. SIMPAN KASIR (POST / PUT ke Database + State Multi-Cabang)
   const handleSaveKasir = async (e: React.FormEvent) => {
@@ -809,6 +684,7 @@ export default function KasirShiftPage() {
             }),
           }
         );
+        loadCashiersFromDB();
       } catch {
         // Tetap tersimpan di state lokal
       }
@@ -833,7 +709,7 @@ export default function KasirShiftPage() {
         shiftHours: chosen.hours,
         statusLive,
         isActive: formIsActive,
-        branch: formBranch,
+        branch: "Gerai Utama",
         avatarColor: "bg-emerald-100 text-emerald-800 border-emerald-300",
         initials: getInitials(cleanName),
       };
@@ -841,34 +717,32 @@ export default function KasirShiftPage() {
       const nextList = [newKasir, ...kasirList];
       setKasirList(nextList);
 
-      if (formBranch === "Cabang Sudirman Utama") {
-        try {
-          const res = await fetch("http://localhost:5000/api/cashiers", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify({
-              cashier_code: cleanCode,
-              name: cleanName,
-              role_title: cleanRole,
-              shift: chosen.label,
-              status_live: statusLive,
-              is_active: formIsActive,
-            }),
-          });
-          const resJson = await res.json();
-          if (resJson.success) {
-            loadCashiersFromDB();
-          }
-        } catch {
-          // Tetap tersimpan di state lokal
+      try {
+        const res = await fetch("http://localhost:5000/api/cashiers", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            cashier_code: cleanCode,
+            name: cleanName,
+            role_title: cleanRole,
+            shift: chosen.label,
+            status_live: statusLive,
+            is_active: formIsActive,
+          }),
+        });
+        const resJson = await res.json();
+        if (resJson.success) {
+          loadCashiersFromDB();
         }
+      } catch {
+        // Tetap tersimpan di state lokal
       }
 
       showToast(
-        `Staf kasir baru ${cleanName} (${cleanCode}) berhasil ditambahkan ke ${formBranch}!`,
+        `Staf kasir baru ${cleanName} (${cleanCode}) berhasil didaftarkan ke sistem!`,
         "success"
       );
       setEditingId(null);
@@ -949,6 +823,7 @@ export default function KasirShiftPage() {
           },
         }
       );
+      loadCashiersFromDB();
     } catch {
       // Tetap terhapus di UI
     }
@@ -1290,7 +1165,7 @@ export default function KasirShiftPage() {
                 >
                   {availableBranchCashiers.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name} ({c.id}) — {c.shiftMain} [{c.branch.replace("Cabang ", "")}]
+                      {c.name} ({c.id}) — {c.shiftMain}
                     </option>
                   ))}
                 </select>
@@ -1476,7 +1351,7 @@ export default function KasirShiftPage() {
           {/* Info Cetak Saat Mode Print */}
           <div className="hidden print:block text-right text-xs text-gray-700">
             <div className="font-bold text-gray-900">
-              Laporan Staf Kasir &amp; Shift • {selectedBranch}
+              Laporan Staf Kasir &amp; Shift • Gerai Utama
             </div>
             <div className="mt-0.5">
               Total Kasir Terfilter: {filteredKasir.length} Staf • Online:{" "}
@@ -1484,62 +1359,22 @@ export default function KasirShiftPage() {
             </div>
           </div>
 
-          {/* Right Controls: Branch Selector, Online Sync & User Profile */}
+          {/* Right Controls: Online Sync & Admin Owner Profile */}
           <div className="print:hidden flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
-            {/* Interactive Branch Selector */}
-            <div ref={branchDropdownRef} className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowBranchMenu((prev) => !prev)}
-                className="h-9 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 flex items-center gap-2 bg-[#F8F9FA] border border-gray-200 text-gray-800 cursor-pointer hover:bg-gray-100 transition"
-              >
-                <Store size={14} className="text-[#EA8E18] shrink-0" />
-                <span>{selectedBranch}</span>
-                <ChevronDown size={14} className="text-gray-500 shrink-0" />
-              </button>
-
-              {showBranchMenu && (
-                <div className="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-30 text-xs">
-                  {BRANCH_OPTIONS.map((branch) => (
-                    <button
-                      key={branch}
-                      type="button"
-                      onClick={() => {
-                        setSelectedBranch(branch);
-                        if (branch !== "Semua Cabang") {
-                          setFormBranch(branch as SingleBranchName);
-                        }
-                        setShowBranchMenu(false);
-                        showToast(`Menampilkan staf kasir: ${branch}`, "info");
-                      }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-2 hover:bg-amber-50/60 transition cursor-pointer ${
-                        selectedBranch === branch
-                          ? "font-extrabold text-[#EA8E18] bg-amber-50/40"
-                          : "font-semibold text-gray-700"
-                      }`}
-                    >
-                      <Store size={13} className="shrink-0" />
-                      <span className="truncate">{branch}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Online Sync Pill */}
             <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
-            {/* User Profile */}
+            {/* User Profile: Admin / Owner */}
             <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
               <div className="text-right">
                 <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
-                  Rian Pratama
+                  Admin
                 </div>
                 <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
-                  Supervisor Kasir
+                  Owner
                 </div>
               </div>
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
@@ -1561,13 +1396,12 @@ export default function KasirShiftPage() {
                 DATABASE KASIR
               </span>
               <span className="px-2.5 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-700 text-[11px] font-bold shrink-0">
-                Tabel `kasir` • {selectedBranch}
+                Tabel `kasir` • Gerai Utama
               </span>
             </div>
             <p className="text-xs text-gray-600 mt-1.5 font-medium leading-relaxed">
               Kelola data kasir dari database MariaDB (tabel `kasir`), pantau
-              status shift lintas cabang, dan atur hak akses akun secara
-              real-time.
+              status shift kasir, dan atur hak akses akun secara real-time.
             </p>
           </div>
 
@@ -1683,7 +1517,7 @@ export default function KasirShiftPage() {
               </div>
               <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-semibold min-w-0">
                 <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                <span className="truncate">{selectedBranch}</span>
+                <span className="truncate">Gerai Utama • Database MariaDB</span>
               </div>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-amber-50 border border-amber-200 text-[#EA8E18] flex items-center justify-center shrink-0">
@@ -1882,9 +1716,9 @@ export default function KasirShiftPage() {
         <section className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           {/* KOLOM KIRI: TABEL DAFTAR KASIR (8 cols, 12 on print) */}
           <div className="xl:col-span-8 print:col-span-12 flex flex-col gap-6">
-            <div className="bg-white rounded-2xl p-6 print:p-3 shadow-sm print:shadow-none border border-gray-200 flex flex-col gap-5">
+            <div className="bg-white rounded-2xl p-4 sm:p-5 print:p-3 shadow-sm print:shadow-none border border-gray-200 flex flex-col gap-4">
               {/* Header Tabel & Search */}
-              <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+              <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 shrink-0">
                   <h3 className="text-base sm:text-lg font-extrabold text-gray-900 whitespace-nowrap">
                     Daftar Staf Kasir POS
@@ -1896,14 +1730,14 @@ export default function KasirShiftPage() {
 
                 {/* Search Input */}
                 <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                  <div className="relative h-9 flex-1 sm:w-[270px] sm:flex-none shrink-0">
+                  <div className="relative h-9 flex-1 sm:w-[250px] sm:flex-none shrink-0">
                     <Search
                       size={15}
                       className="text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
                     />
                     <input
                       type="text"
-                      placeholder="Cari nama, kode, atau cabang..."
+                      placeholder="Cari nama atau kode staf kasir..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="h-9 w-full pl-9 pr-8 bg-gray-50 border border-gray-300 rounded-xl text-xs sm:text-sm font-medium text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-[#EA8E18]"
@@ -1925,31 +1759,23 @@ export default function KasirShiftPage() {
 
               {/* Tabel Sinkron dengan Database `kasir` */}
               <div className="overflow-x-auto print:overflow-visible">
-                <table className="table-fixed w-full min-w-[740px] print:table-auto print:w-full print:text-[10px] text-left border-collapse text-xs sm:text-sm">
-                  <colgroup>
-                    <col className="w-[27%] print:w-auto" />
-                    <col className="w-[15%] print:w-auto" />
-                    <col className="w-[20%] print:w-auto" />
-                    <col className="w-[20%] print:w-auto" />
-                    <col className="w-[9%] print:w-auto" />
-                    <col className="w-[9%] print:hidden" />
-                  </colgroup>
+                <table className="w-full print:table-auto print:w-full print:text-[10px] text-left border-collapse text-xs sm:text-sm">
                   <thead>
                     <tr className="border-y border-gray-200 bg-gray-50 text-[11px] print:text-[9px] font-extrabold text-gray-600 uppercase tracking-wider">
-                      <th className="py-3.5 px-3.5 whitespace-nowrap">
-                        STAF KASIR &amp; CABANG
+                      <th className="py-2.5 px-2.5 whitespace-nowrap">
+                        STAF KASIR
                       </th>
-                      <th className="py-3.5 px-3 whitespace-nowrap">PERAN</th>
-                      <th className="py-3.5 px-3 whitespace-nowrap">
+                      <th className="py-2.5 px-2 whitespace-nowrap">PERAN</th>
+                      <th className="py-2.5 px-2 whitespace-nowrap">
                         SHIFT TERJADWAL
                       </th>
-                      <th className="py-3.5 px-3 whitespace-nowrap">
+                      <th className="py-2.5 px-2 whitespace-nowrap">
                         STATUS LIVE
                       </th>
-                      <th className="py-3.5 px-2.5 text-center whitespace-nowrap">
+                      <th className="py-2.5 px-1.5 text-center whitespace-nowrap">
                         AKSES AKTIF
                       </th>
-                      <th className="py-3.5 px-3 text-center whitespace-nowrap print:hidden">
+                      <th className="py-2.5 px-2 text-center whitespace-nowrap print:hidden">
                         AKSI
                       </th>
                     </tr>
@@ -1961,10 +1787,10 @@ export default function KasirShiftPage() {
                         className="hover:bg-amber-50/30 transition-colors"
                       >
                         {/* 1. Staf Kasir (Avatar, Nama, ID/cashier_code, Cabang) */}
-                        <td className="py-4 px-3.5">
-                          <div className="flex items-start gap-3 min-w-0">
+                        <td className="py-3 px-2.5">
+                          <div className="flex items-center gap-2.5 min-w-0">
                             <div
-                              className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs border ${kasir.avatarColor} shrink-0 mt-0.5 print:hidden`}
+                              className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border ${kasir.avatarColor} shrink-0 print:hidden`}
                             >
                               {kasir.initials}
                             </div>
@@ -1972,12 +1798,12 @@ export default function KasirShiftPage() {
                               <div className="font-extrabold text-gray-900 text-xs sm:text-sm truncate">
                                 {kasir.name}
                               </div>
-                              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                                <span className="inline-block px-2 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-700 font-extrabold text-[10px] shrink-0">
+                              <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                <span className="inline-block px-1.5 py-0.2 rounded bg-gray-100 border border-gray-200 text-gray-700 font-extrabold text-[10px] shrink-0">
                                   {kasir.id}
                                 </span>
-                                <span className="text-xs text-gray-500 font-medium truncate">
-                                  {kasir.branch.replace("Cabang ", "")}
+                                <span className="text-[11px] text-emerald-700 font-bold truncate">
+                                  Gerai Utama
                                 </span>
                               </div>
                             </div>
@@ -1985,12 +1811,12 @@ export default function KasirShiftPage() {
                         </td>
 
                         {/* 2. Peran (role_title) */}
-                        <td className="py-4 px-3 font-bold text-gray-900 whitespace-nowrap truncate">
+                        <td className="py-3 px-2 font-bold text-gray-900 text-xs sm:text-sm whitespace-nowrap">
                           {kasir.roleTitle || "Kasir"}
                         </td>
 
                         {/* 3. Shift Terjadwal (shift) */}
-                        <td className="py-4 px-3 whitespace-nowrap">
+                        <td className="py-3 px-2 whitespace-nowrap">
                           <div
                             className={`font-extrabold text-xs sm:text-sm ${
                               kasir.shift.includes("Pagi")
@@ -2004,33 +1830,33 @@ export default function KasirShiftPage() {
                           >
                             {kasir.shiftMain}
                           </div>
-                          <div className="text-xs text-gray-500 font-medium mt-1 tabular-nums">
+                          <div className="text-[11px] text-gray-500 font-medium mt-0.5 tabular-nums">
                             {kasir.shiftHours}
                           </div>
                         </td>
 
                         {/* 4. Status Live (status_live) */}
-                        <td className="py-4 px-3 whitespace-nowrap">
+                        <td className="py-3 px-2 whitespace-nowrap">
                           {kasir.statusLive === "Aktif Melayani" ? (
-                            <span className="inline-flex items-center justify-center gap-1.5 w-[136px] py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 whitespace-nowrap">
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200 whitespace-nowrap">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
                               <span>Aktif Melayani</span>
                             </span>
                           ) : kasir.statusLive === "Standby / Rehat" ? (
-                            <span className="inline-flex items-center justify-center gap-1.5 w-[136px] py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200 whitespace-nowrap">
-                              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 text-[11px] font-bold border border-amber-200 whitespace-nowrap">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
                               <span>Standby / Rehat</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center justify-center gap-1.5 w-[136px] py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold border border-gray-200 whitespace-nowrap">
-                              <span className="w-2 h-2 rounded-full bg-gray-400 shrink-0"></span>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-[11px] font-semibold border border-gray-200 whitespace-nowrap">
+                              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0"></span>
                               <span>Selesai Shift / Off</span>
                             </span>
                           )}
                         </td>
 
                         {/* 5. Akses Aktif (is_active) Toggle Switch */}
-                        <td className="py-4 px-2.5 text-center whitespace-nowrap">
+                        <td className="py-3 px-1.5 text-center whitespace-nowrap">
                           <button
                             type="button"
                             title="Nyalakan / Matikan Hak Akses Kasir"
@@ -2050,23 +1876,23 @@ export default function KasirShiftPage() {
                         </td>
 
                         {/* 6. Aksi (Edit & Delete) */}
-                        <td className="py-4 px-3 text-center whitespace-nowrap print:hidden">
-                          <div className="inline-flex items-center justify-center gap-2 text-gray-500">
+                        <td className="py-3 px-2 text-center whitespace-nowrap print:hidden">
+                          <div className="inline-flex items-center justify-center gap-1.5 text-gray-500">
                             <button
                               type="button"
                               onClick={() => handleStartEdit(kasir)}
                               title="Edit Data Kasir"
-                              className="w-8 h-8 shrink-0 border border-gray-200 hover:border-[#EA8E18] hover:text-[#EA8E18] hover:bg-amber-50 rounded-lg flex items-center justify-center transition cursor-pointer"
+                              className="w-7.5 h-7.5 shrink-0 border border-gray-200 hover:border-[#EA8E18] hover:text-[#EA8E18] hover:bg-amber-50 rounded-lg flex items-center justify-center transition cursor-pointer"
                             >
-                              <Edit3 size={14} />
+                              <Edit3 size={13} />
                             </button>
                             <button
                               type="button"
                               onClick={() => setDeleteTarget(kasir)}
                               title="Hapus Kasir"
-                              className="w-8 h-8 shrink-0 border border-gray-200 hover:border-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg flex items-center justify-center transition cursor-pointer"
+                              className="w-7.5 h-7.5 shrink-0 border border-gray-200 hover:border-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg flex items-center justify-center transition cursor-pointer"
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={13} />
                             </button>
                           </div>
                         </td>
@@ -2174,24 +2000,17 @@ export default function KasirShiftPage() {
                 onSubmit={handleSaveKasir}
                 className="flex flex-col gap-3.5"
               >
-                {/* Cabang Penugasan */}
+                {/* Gerai Penugasan */}
                 <div>
                   <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1">
-                    CABANG PENUGASAN *
+                    GERAI PENUGASAN
                   </label>
-                  <select
-                    value={formBranch}
-                    onChange={(e) =>
-                      setFormBranch(e.target.value as SingleBranchName)
-                    }
-                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-bold text-gray-900 bg-white focus:outline-none focus:border-[#EA8E18] cursor-pointer"
-                  >
-                    {SINGLE_BRANCHES.map((bName) => (
-                      <option key={bName} value={bName}>
-                        {bName}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="w-full px-3.5 py-2 border border-gray-200 bg-gray-50 rounded-xl text-xs sm:text-sm font-bold text-gray-800 flex items-center justify-between">
+                    <span>PrekDuaDara (Gerai Utama)</span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Pusat
+                    </span>
+                  </div>
                 </div>
 
                 {/* 1. Nama Lengkap Kasir */}
@@ -2207,7 +2026,7 @@ export default function KasirShiftPage() {
                     <input
                       type="text"
                       required
-                      placeholder="Contoh: Rian, Siti, Budi..."
+                      placeholder="Masukkan nama staf kasir..."
                       value={formName}
                       onChange={(e) => setFormName(e.target.value)}
                       className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#EA8E18]"

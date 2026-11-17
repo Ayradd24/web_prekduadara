@@ -2,17 +2,19 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
-import { useTransactions } from "@/context/TransactionContext";
+import { useTransactions, Transaction } from "@/context/TransactionContext";
 import {
   Calendar,
   CheckCircle2,
   ChevronDown,
+  Eye,
   FileSpreadsheet,
   FileText,
   Filter,
   Info,
   Printer,
   RefreshCw,
+  RotateCcw,
   Search,
   Store,
   User,
@@ -85,7 +87,7 @@ interface BranchProfile {
   weekendSplit: [number, number, number];
   stockInsightBoost: string;
   heatmapMaxCap: string;
-  categoryShares: [number, number, number, number, number];
+  categoryShares: [number, number]; // [Ayam Geprek Bakar, Ayam Geprek Biasa]
   hourlyCurveWeights: number[]; // 13 jam operasional (09:00 - 22:00)
   heatmapSlotWeights: [number, number, number, number, number, number];
   heatmapWeekendBoost: number;
@@ -102,7 +104,7 @@ const BRANCH_PROFILES: Record<string, BranchProfile> = {
     rushDinnerTag: "Malam",
     rushContribution: "72,8% Harian",
     prepTime: "4,2 Menit",
-    topMenuLabel: "Top: Geprek Bawang",
+    topMenuLabel: "Top: Ayam Geprek Bakar",
     addonRate: "Add-on Es Teh: 88%",
     spicyLevel: "Level 3",
     baseWeekendPct: 42,
@@ -114,7 +116,7 @@ const BRANCH_PROFILES: Record<string, BranchProfile> = {
     weekendSplit: [42, 43, 15],
     stockInsightBoost: "35% pada hari Kamis malam",
     heatmapMaxCap: "94% terisi saat Sabtu Malam",
-    categoryShares: [38, 24, 16, 14, 8],
+    categoryShares: [58, 42],
     hourlyCurveWeights: [
       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
     ],
@@ -131,7 +133,7 @@ const BRANCH_PROFILES: Record<string, BranchProfile> = {
     rushDinnerTag: "Pulang Kantor",
     rushContribution: "78,4% Harian",
     prepTime: "3,8 Menit",
-    topMenuLabel: "Top: Paket Komplit",
+    topMenuLabel: "Top: Ayam Geprek Bakar",
     addonRate: "Add-on Es Teh: 92%",
     spicyLevel: "Level 3",
     baseWeekendPct: 26,
@@ -143,7 +145,7 @@ const BRANCH_PROFILES: Record<string, BranchProfile> = {
     weekendSplit: [48, 36, 16],
     stockInsightBoost: "30% pada hari Senin & Kamis pagi",
     heatmapMaxCap: "96% terisi saat Jumat Siang",
-    categoryShares: [41, 21, 14, 16, 8],
+    categoryShares: [62, 38],
     hourlyCurveWeights: [
       1.15, 1.2, 1.28, 1.35, 1.38, 1.15, 0.95, 0.9, 0.88, 0.82, 0.78, 0.72,
       0.68,
@@ -161,7 +163,7 @@ const BRANCH_PROFILES: Record<string, BranchProfile> = {
     rushDinnerTag: "Malam (Peak)",
     rushContribution: "71,2% Harian",
     prepTime: "4,3 Menit",
-    topMenuLabel: "Top: Geprek Mozarella",
+    topMenuLabel: "Top: Ayam Geprek Bakar",
     addonRate: "Add-on Es Teh: 86%",
     spicyLevel: "Level 4",
     baseWeekendPct: 45,
@@ -173,7 +175,7 @@ const BRANCH_PROFILES: Record<string, BranchProfile> = {
     weekendSplit: [38, 48, 14],
     stockInsightBoost: "40% pada hari Jumat pagi",
     heatmapMaxCap: "92% terisi saat Sabtu Malam",
-    categoryShares: [34, 24, 21, 13, 8],
+    categoryShares: [54, 46],
     hourlyCurveWeights: [
       0.85, 0.9, 0.95, 0.92, 0.94, 1.0, 1.05, 1.14, 1.22, 1.28, 1.2, 1.1, 1.05,
     ],
@@ -190,7 +192,7 @@ const BRANCH_PROFILES: Record<string, BranchProfile> = {
     rushDinnerTag: "Malam (Peak)",
     rushContribution: "74,5% Harian",
     prepTime: "4,5 Menit",
-    topMenuLabel: "Top: Sambal Korek Lv 5",
+    topMenuLabel: "Top: Ayam Geprek Bakar",
     addonRate: "Add-on Es Teh: 84%",
     spicyLevel: "Level 5",
     baseWeekendPct: 64,
@@ -202,7 +204,7 @@ const BRANCH_PROFILES: Record<string, BranchProfile> = {
     weekendSplit: [50, 34, 16],
     stockInsightBoost: "50% pada hari Jumat sore",
     heatmapMaxCap: "95% terisi saat Sabtu & Minggu Malam",
-    categoryShares: [35, 28, 17, 12, 8],
+    categoryShares: [56, 44],
     hourlyCurveWeights: [
       0.75, 0.8, 0.86, 0.84, 0.86, 0.96, 1.08, 1.18, 1.28, 1.36, 1.3, 1.2, 1.14,
     ],
@@ -311,27 +313,12 @@ const CATEGORY_META = [
   {
     color: "bg-[#DC2626]",
     stroke: "#DC2626",
-    name: "Geprek Sambal Bawang Original",
+    name: "Ayam Geprek Bakar + Es Teh",
   },
   {
-    color: "bg-[#EA580C]",
-    stroke: "#EA580C",
-    name: "Geprek Sambal Korek Merah",
-  },
-  {
-    color: "bg-[#F59E0B]",
-    stroke: "#F59E0B",
-    name: "Geprek Keju Melt Mozarella",
-  },
-  {
-    color: "bg-[#1E562F]",
-    stroke: "#1E562F",
-    name: "Paket Hemat Komplit + Tempe/Tahu",
-  },
-  {
-    color: "bg-[#10B981]",
-    stroke: "#10B981",
-    name: "Es Teh Jumbo & Minuman Dingin",
+    color: "bg-[#EA8E18]",
+    stroke: "#EA8E18",
+    name: "Ayam Geprek Biasa + Es Teh",
   },
 ];
 
@@ -463,8 +450,16 @@ export default function TransaksiPage() {
   const {
     transactions,
     filteredTransactions,
+    isLoading,
     searchQuery,
     setSearchQuery,
+    filterPayment,
+    setFilterPayment,
+    filterTerminal,
+    setFilterTerminal,
+    filterStatus,
+    setFilterStatus,
+    resetFilters,
   } = useTransactions();
 
   const { todayStr, firstDayOfMonthStr, daysElapsedInMonth } = useMemo(
@@ -475,7 +470,33 @@ export default function TransaksiPage() {
   // State Kontrol Header (Cabang, Periode, Rentang Kustom, Sync POS)
   const [selectedBranch, setSelectedBranch] = useState<string>("Semua Cabang");
   const [showBranchMenu, setShowBranchMenu] = useState<boolean>(false);
-  const [selectedPeriod, setSelectedPeriod] = useState<string>("Bulan Ini");
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("Hari Ini");
+  const [isClientReady, setIsClientReady] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("prekduadara_transaksi_period");
+      if (
+        saved &&
+        ["Hari Ini", "7 Hari", "Bulan Ini", "Kuartal", "Kustom"].includes(saved)
+      ) {
+        setSelectedPeriod(saved);
+      }
+    } catch {
+      // ignore
+    }
+    setIsClientReady(true);
+  }, []);
+
+  const handleSelectPeriod = (period: string) => {
+    setSelectedPeriod(period);
+    try {
+      localStorage.setItem("prekduadara_transaksi_period", period);
+    } catch {
+      // ignore
+    }
+  };
+
   const [customStartDate, setCustomStartDate] =
     useState<string>(firstDayOfMonthStr);
   const [customEndDate, setCustomEndDate] = useState<string>(todayStr);
@@ -502,15 +523,44 @@ export default function TransaksiPage() {
   } | null>(null);
 
   // State Tabel, Filter, Pagination & Modal Detail Struk
-  const [activePage, setActivePage] = useState<number>(1);
-  const [localPaymentFilter, setLocalPaymentFilter] = useState<string>("Semua");
-  const [showFilterMenu, setShowFilterMenu] = useState<boolean>(false);
-  const [selectedOrderModal, setSelectedOrderModal] =
-    useState<RecentOrderRow | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const branchDropdownRef = useRef<HTMLDivElement>(null);
-  const filterDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterPayment, filterTerminal, filterStatus]);
+
+  const displayedTransactions = filteredTransactions;
+  const ITEMS_PER_PAGE = 5;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(displayedTransactions.length / ITEMS_PER_PAGE)
+  );
+  const activePage = Math.min(currentPage, totalPages);
+
+  const paginatedTransactions = useMemo(() => {
+    const start = (activePage - 1) * ITEMS_PER_PAGE;
+    return displayedTransactions.slice(start, start + ITEMS_PER_PAGE);
+  }, [displayedTransactions, activePage]);
+
+  const displayedTotalNominal = useMemo(() => {
+    return displayedTransactions.reduce(
+      (acc, tx) => (tx.status === "Berhasil" ? acc + tx.total : acc),
+      0
+    );
+  }, [displayedTransactions]);
+
+  const handleResetAllFilters = () => {
+    resetFilters();
+    setCurrentPage(1);
+  };
+
+  const handlePrintReceipt = (id: string) => {
+    showToast(`Mengirim struk ${id} ke printer thermal...`);
+  };
 
   useEffect(() => {
     const now = new Date();
@@ -527,12 +577,6 @@ export default function TransaksiPage() {
         !branchDropdownRef.current.contains(target)
       ) {
         setShowBranchMenu(false);
-      }
-      if (
-        filterDropdownRef.current &&
-        !filterDropdownRef.current.contains(target)
-      ) {
-        setShowFilterMenu(false);
       }
     };
 
@@ -562,54 +606,20 @@ export default function TransaksiPage() {
 
   const formatRupiah = (val: number) => "Rp " + val.toLocaleString("id-ID");
 
-  // Single Source of Truth: Ambil seluruh daftar transaksi langsung dari TransactionContext
-  const allCombinedOrders = useMemo<RecentOrderRow[]>(() => {
-    const sourceTx =
-      transactions && transactions.length > 0
-        ? transactions
-        : filteredTransactions;
-    return sourceTx.map((tx) => ({
-      id: tx.id,
-      time: tx.time.includes("WIB") ? tx.time : `${tx.time} WIB`,
-      date: tx.date,
-      relativeTime: tx.relativeTime || tx.date || "Hari ini",
-      mainMenu: tx.itemsSummary,
-      addons: tx.addons || `+ Sambal Uleg Asli (${tx.terminal})`,
-      portions: tx.totalItems,
-      branch: tx.branch || resolveBranchFromTerminal(tx.terminal),
-      cashier: tx.cashier,
-      terminal: tx.terminal,
-      paymentMethod: tx.paymentMethod,
-      paymentBadge:
-        tx.paymentMethod === "QRIS" ? "QRIS Dinamis" : "Tunai / Cash",
-      orderType: tx.orderType || "Dine-In",
-      subtotal: tx.subtotal,
-      diskon: tx.diskon,
-      total: tx.total,
-      status: tx.status,
-    }));
-  }, [transactions, filteredTransactions]);
-
-  // Filter berdasarkan Cabang yang sedang dipilih
-  const branchFilteredOrders = useMemo(() => {
-    if (selectedBranch === "Semua Cabang") return allCombinedOrders;
-    return allCombinedOrders.filter((row) => row.branch === selectedBranch);
-  }, [allCombinedOrders, selectedBranch]);
-
-  // Akumulasi kontribusi aktual dari transaksi aktif di TransactionContext sesuai cabang
+  // Akumulasi kontribusi aktual dari transaksi aktif di TransactionContext
   const liveBranchContextTotals = useMemo(() => {
     let omzet = 0;
     let porsi = 0;
     let txCount = 0;
-    branchFilteredOrders.forEach((row) => {
-      if (row.status === "Berhasil") {
-        omzet += row.total;
-        porsi += row.portions;
+    transactions.forEach((tx) => {
+      if (tx.status === "Berhasil") {
+        omzet += tx.total;
+        porsi += tx.totalItems;
         txCount += 1;
       }
     });
     return { omzet, porsi, txCount };
-  }, [branchFilteredOrders]);
+  }, [transactions]);
 
   // Hitung jumlah hari inklusif pada rentang tanggal Kustom yang telah diterapkan
   const customDays = useMemo(() => {
@@ -658,6 +668,32 @@ export default function TransaksiPage() {
   }, [selectedPeriod, daysElapsedInMonth, customDays]);
 
   const activeMetrics = useMemo(() => {
+    if (!isClientReady || isLoading) {
+      return {
+        periodBadge: basePeriod.periodBadge,
+        omzetTitle: basePeriod.omzetTitle,
+        omzetValue: "Rp 0",
+        omzetGrowth: "+0,0%",
+        omzetTarget: "Target: Rp 0",
+        omzetAchieved: "0% Tercapai",
+        porsiValue: "0",
+        porsiNumber: 0,
+        porsiGrowth: "+0,0%",
+        porsiAvg: "Target: 0 porsi/hr",
+        aovValue: "Rp 0",
+        aovGrowth: "+0,0%",
+        totalTx: "0",
+        cabaiKg: "0 Kg Rawit Merah",
+        categories: CATEGORY_META.map((meta) => ({
+          ...meta,
+          pct: "0%",
+          qty: 0,
+          dashArray: "0 276.46",
+          dashOffset: "0",
+        })),
+      };
+    }
+
     const scaledOmzet =
       Math.round((basePeriod.baseOmzet * branchProfile.scale) / 10000) *
         10000 +
@@ -751,7 +787,7 @@ export default function TransaksiPage() {
       cabaiKg: `${cabaiFormatted} Kg Rawit Merah`,
       categories,
     };
-  }, [basePeriod, branchProfile, liveBranchContextTotals]);
+  }, [basePeriod, branchProfile, liveBranchContextTotals, isClientReady, isLoading]);
 
   // 1B. KALKULASI DINAMIS KOMPARASI HARI KERJA VS WEEKEND (selectedBranch + selectedPeriod + basePeriod)
   const comparisonData = useMemo(() => {
@@ -984,90 +1020,28 @@ export default function TransaksiPage() {
     );
   };
 
-  // Hitung jumlah metode bayar secara akurat dari data cabang yang sedang aktif
-  const paymentCounts = useMemo(() => {
-    const total = branchFilteredOrders.length;
-    const tunai = branchFilteredOrders.filter(
-      (r) => r.paymentMethod === "Tunai"
-    ).length;
-    const qris = branchFilteredOrders.filter(
-      (r) => r.paymentMethod === "QRIS"
-    ).length;
-    const grab = branchFilteredOrders.filter(
-      (r) => r.orderType === "Ojol Delivery"
-    ).length;
-    return { total, tunai, qris, grab };
-  }, [branchFilteredOrders]);
-
-  // Filter akhir berdasarkan pencarian dan metode pembayaran
-  const displayOrders = useMemo(() => {
-    return branchFilteredOrders.filter((row) => {
-      const q = searchQuery.trim().toLowerCase();
-      const matchQuery =
-        q === "" ||
-        row.id.toLowerCase().includes(q) ||
-        row.mainMenu.toLowerCase().includes(q) ||
-        row.addons.toLowerCase().includes(q) ||
-        row.branch.toLowerCase().includes(q) ||
-        row.cashier.toLowerCase().includes(q);
-
-      const matchPay =
-        localPaymentFilter === "Semua" ||
-        (localPaymentFilter === "Tunai" && row.paymentMethod === "Tunai") ||
-        (localPaymentFilter === "QRIS" && row.paymentMethod === "QRIS") ||
-        (localPaymentFilter === "GrabFood POS" &&
-          row.orderType === "Ojol Delivery");
-
-      return matchQuery && matchPay;
-    });
-  }, [branchFilteredOrders, searchQuery, localPaymentFilter]);
-
-  // Pagination: Slice 5 baris per halaman & batasi maksimal 5 tombol halaman
-  const totalPages = Math.max(
-    1,
-    Math.ceil(displayOrders.length / ITEMS_PER_PAGE)
-  );
-  const currentPage = Math.min(activePage, totalPages);
-  const visiblePages = useMemo(() => {
-    const startPage = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
-    const endPage = Math.min(totalPages, startPage + 4);
-    const pages: number[] = [];
-    for (let p = startPage; p <= endPage; p += 1) {
-      pages.push(p);
-    }
-    return pages;
-  }, [currentPage, totalPages]);
-  const paginatedOrders = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return displayOrders.slice(start, start + ITEMS_PER_PAGE);
-  }, [displayOrders, currentPage]);
-
   // Fungsi Export CSV kompatibel Microsoft Excel (UTF-8 BOM)
   const handleExportExcel = () => {
     const headers = [
-      "ID Transaksi",
+      "ID Struk",
       "Waktu",
-      "Kasir & Cabang",
-      "Menu/Item",
-      "Porsi",
-      "Metode Bayar",
+      "Kasir",
+      "Ringkasan Item",
       "Subtotal",
-      "Diskon",
-      "Total",
+      "Total Akhir",
+      "Metode",
       "Status",
     ];
 
-    const rows = displayOrders.map((order) => [
-      order.id,
-      `${order.time} (${order.relativeTime})`,
-      `${order.cashier} - ${order.branch}`,
-      `${order.mainMenu} (${order.addons})`,
-      order.portions,
-      `${order.paymentBadge} - ${order.orderType}`,
-      formatRupiah(order.subtotal),
-      order.diskon === 0 ? "Rp 0" : formatRupiah(order.diskon),
-      formatRupiah(order.total),
-      order.status,
+    const rows = displayedTransactions.map((tx) => [
+      tx.id,
+      `${tx.date}, ${tx.time} WIB`,
+      tx.cashier,
+      `${tx.itemsSummary} (${tx.totalItems} item)`,
+      formatRupiah(tx.subtotal),
+      formatRupiah(tx.total),
+      tx.paymentMethod,
+      tx.status,
     ]);
 
     const csvContent =
@@ -1083,13 +1057,9 @@ export default function TransaksiPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    const branchSlug =
-      selectedBranch === "Semua Cabang"
-        ? "Semua_Cabang"
-        : selectedBranch.replace(/\s+/g, "_");
     link.setAttribute(
       "download",
-      `Laporan_Transaksi_PrekDuaDara_${branchSlug}.csv`
+      `Laporan_Transaksi_PrekDuaDara_${new Date().toISOString().split("T")[0]}.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -1138,153 +1108,144 @@ export default function TransaksiPage() {
         </div>
       )}
 
-      {/* Modal Detail Struk Transaksi */}
-      {selectedOrderModal && (
-        <div
-          className="print:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
-          onClick={() => setSelectedOrderModal(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
+      {/* MODAL PREVIEW STRUK THERMAL 80MM */}
+      {selectedTx && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl border border-gray-200 animate-in fade-in zoom-in-95 duration-150">
             {/* Header Modal */}
             <div className="bg-[#2D452B] text-white px-5 py-3.5 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <Printer size={16} className="text-[#F59E0B]" />
-                <span className="text-xs sm:text-sm font-extrabold tracking-wide uppercase">
-                  Detail Struk Transaksi POS
-                </span>
+              <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider">
+                <Printer size={16} />
+                <span>Preview Struk Thermal (80mm)</span>
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedOrderModal(null)}
-                className="p-1 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                title="Tutup"
+                onClick={() => setSelectedTx(null)}
+                className="text-white/80 hover:text-white p-1 rounded-lg cursor-pointer transition"
               >
                 <X size={16} />
               </button>
             </div>
 
-            {/* Isi Struk Thermal */}
-            <div className="p-5 bg-[#FAF8F3]">
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs font-mono text-xs text-gray-800">
-                <div className="text-center border-b border-dashed border-gray-300 pb-3.5 mb-3.5">
-                  <div className="font-black text-sm text-[#EA8E18] tracking-wider">
+            {/* Konten Kertas Struk Thermal */}
+            <div className="p-5 bg-[#FCFBF7] font-mono text-xs">
+              <div className="border border-gray-300 bg-white p-4 rounded-xl shadow-xs">
+                {/* Logo & Judul Struk */}
+                <div className="text-center pb-3 border-b border-dashed border-gray-300 mb-3.5">
+                  <div className="font-black text-sm text-gray-900 tracking-wider">
                     PREKDUADARA
                   </div>
-                  <div className="text-[11px] text-gray-700 font-sans font-bold mt-0.5">
-                    {selectedOrderModal.branch}
+                  <div className="text-[11px] text-gray-600 mt-0.5 font-sans font-medium">
+                    Spesial Ayam Geprek Cobek &amp; Sambal Uleg Asli
                   </div>
-                  <div className="text-[10px] text-gray-500 font-sans mt-0.5">
-                    Restoran Spesialis Ayam Geprek Cobek &amp; Sambal Uleg Asli
+                  <div className="text-[11px] text-gray-500 font-sans">
+                    Gerai Utama • Telp: 0812-xxxx-xxxx
                   </div>
                 </div>
 
-                <div className="space-y-1.5 border-b border-dashed border-gray-300 pb-3.5 mb-3.5">
+                {/* Metadata Struk */}
+                <div className="space-y-1.5 border-b border-dashed border-gray-300 pb-3.5 mb-3.5 text-[11px]">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Order ID:</span>
-                    <span className="font-bold text-gray-900">
-                      {selectedOrderModal.id}
-                    </span>
+                    <span className="text-gray-500">ID Struk:</span>
+                    <span className="font-bold text-gray-900">{selectedTx.id}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Waktu Transaksi:</span>
+                    <span className="text-gray-500">Waktu:</span>
                     <span className="font-semibold text-gray-800">
-                      {selectedOrderModal.time} (
-                      {selectedOrderModal.relativeTime})
+                      {selectedTx.date}, {selectedTx.time} WIB
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Kasir / Terminal:</span>
-                    <span className="font-semibold text-gray-800">
-                      {selectedOrderModal.cashier} •{" "}
-                      {selectedOrderModal.terminal}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Tipe Pesanan:</span>
-                    <span className="font-bold text-gray-900">
-                      {selectedOrderModal.orderType}
+                    <span className="text-gray-500">Kasir:</span>
+                    <span className="font-bold text-gray-800">
+                      {selectedTx.cashier}
                     </span>
                   </div>
                 </div>
 
-                {/* Rincian Menu & Add-ons */}
+                {/* Ringkasan Item Pesanan (Per Menu Diturunkan ke Bawah) */}
                 <div className="border-b border-dashed border-gray-300 pb-3.5 mb-3.5">
-                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                    Rincian Menu &amp; Add-Ons
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+                    RINCIAN PESANAN ({selectedTx.totalItems} ITEM)
                   </div>
-                  <div className="font-bold text-gray-900 leading-snug">
-                    {selectedOrderModal.mainMenu}
-                  </div>
-                  <div className="text-[11px] text-gray-600 mt-1">
-                    {selectedOrderModal.addons}
-                  </div>
-                  <div className="text-[11px] font-bold text-[#D97706] mt-1.5">
-                    Jumlah: {selectedOrderModal.portions} Porsi
+                  <div className="space-y-2">
+                    {selectedTx.itemsSummary
+                      .split(/,\s*(?=\d+x|[A-Z])/g)
+                      .map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="font-bold text-gray-900 text-xs leading-relaxed"
+                        >
+                          {item.trim()}
+                        </div>
+                      ))}
                   </div>
                 </div>
 
-                {/* Total & Metode Bayar */}
-                <div className="space-y-1.5">
+                {/* Kalkulasi Harga */}
+                <div className="space-y-1.5 border-b border-dashed border-gray-300 pb-3.5 mb-3.5 text-[11px]">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Subtotal:</span>
                     <span className="font-semibold text-gray-800">
-                      {formatRupiah(selectedOrderModal.subtotal)}
+                      {formatRupiah(selectedTx.subtotal)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Diskon:</span>
-                    <span className="font-semibold text-gray-800">
-                      {selectedOrderModal.diskon === 0
-                        ? "Rp 0"
-                        : `- ${formatRupiah(selectedOrderModal.diskon)}`}
+                  <div className="flex justify-between text-xs font-black text-gray-900 pt-1">
+                    <span>TOTAL AKHIR:</span>
+                    <span className="text-[#EA8E18]">
+                      {formatRupiah(selectedTx.total)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-sm font-black text-gray-900 pt-1">
-                    <span>TOTAL TRANSAKSI</span>
-                    <span className="text-[#1E3A1C]">
-                      {formatRupiah(selectedOrderModal.total)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center pt-1">
-                    <span className="text-gray-500">Metode Pembayaran:</span>
-                    <span className="font-bold px-2 py-0.5 rounded bg-amber-50 text-[#B45309] border border-amber-200">
-                      {selectedOrderModal.paymentBadge}
+                </div>
+
+                {/* Metode & Status */}
+                <div className="space-y-1.5 text-[11px]">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Metode Bayar:</span>
+                    <span className="font-bold text-gray-900">
+                      {selectedTx.paymentMethod}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500">Status Transaksi:</span>
-                    <span className="font-bold text-emerald-700">
-                      ✓ {selectedOrderModal.status}
+                    <span
+                      className={`font-bold px-2 py-0.5 rounded text-[10px] ${
+                        selectedTx.status === "Berhasil"
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-red-50 text-red-700 border border-red-200"
+                      }`}
+                    >
+                      {selectedTx.status}
                     </span>
                   </div>
+                </div>
+
+                {/* Footer Struk */}
+                <div className="text-center text-[10px] text-gray-500 font-sans mt-4 pt-3 border-t border-dashed border-gray-200">
+                  Matur nuwun sampun mampir! Pedasnya bikin nagih.
                 </div>
               </div>
             </div>
 
-            {/* Footer Modal */}
+            {/* Action Buttons Modal */}
             <div className="px-5 py-3.5 bg-white border-t border-gray-200 flex items-center justify-end gap-2.5">
               <button
                 type="button"
-                onClick={() => setSelectedOrderModal(null)}
-                className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold transition cursor-pointer"
+                onClick={() => setSelectedTx(null)}
+                className="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-bold transition cursor-pointer"
               >
                 Tutup
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  showToast(
-                    `Mencetak ulang struk ${selectedOrderModal.id} ke printer kasir...`
-                  );
-                  setSelectedOrderModal(null);
+                  handlePrintReceipt(selectedTx.id);
+                  setSelectedTx(null);
                 }}
-                className="px-4 py-2 rounded-xl bg-[#EA8E18] hover:bg-[#d67f12] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                className="px-4 py-2 bg-[#2D452B] hover:bg-[#223520] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
               >
                 <Printer size={14} />
-                <span>Cetak Ulang Struk</span>
+                <span>Cetak Struk</span>
               </button>
             </div>
           </div>
@@ -1317,62 +1278,22 @@ export default function TransaksiPage() {
             </div>
           </div>
 
-          {/* Right Controls: Branch Selector, Online Sync & User Profile */}
+          {/* Right Controls: Online Sync & Admin Owner Profile */}
           <div className="print:hidden flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
-            {/* Interactive Branch Dropdown */}
-            <div className="relative shrink-0" ref={branchDropdownRef}>
-              <button
-                type="button"
-                onClick={() => setShowBranchMenu((prev) => !prev)}
-                className="h-9 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 flex items-center gap-2 bg-[#F8F9FA] border border-gray-200 text-gray-800 hover:bg-gray-100 transition cursor-pointer"
-              >
-                <Store size={14} className="text-[#EA8E18] shrink-0" />
-                <span>{selectedBranch}</span>
-                <ChevronDown size={14} className="text-gray-500 shrink-0" />
-              </button>
-
-              {showBranchMenu && (
-                <div className="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-30 text-xs">
-                  {BRANCH_OPTIONS.map((branch) => (
-                    <button
-                      key={branch}
-                      type="button"
-                      onClick={() => {
-                        setSelectedBranch(branch);
-                        setShowBranchMenu(false);
-                        setActivePage(1);
-                        showToast(
-                          `Menampilkan analitik & transaksi: ${branch}`
-                        );
-                      }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-2 hover:bg-amber-50/60 transition cursor-pointer ${
-                        selectedBranch === branch
-                          ? "font-extrabold text-[#EA8E18] bg-amber-50/40"
-                          : "font-semibold text-gray-700"
-                      }`}
-                    >
-                      <Store size={13} className="shrink-0" />
-                      <span className="truncate">{branch}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Online Sync Pill */}
             <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
-            {/* User Profile */}
+            {/* User Profile: Admin / Owner */}
             <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
               <div className="text-right">
                 <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
-                  Rian Pratama
+                  Admin
                 </div>
                 <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
-                  Supervisor Kasir
+                  Owner
                 </div>
               </div>
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
@@ -1381,10 +1302,10 @@ export default function TransaksiPage() {
             </div>
           </div>
 
-          {/* Info Cabang & Periode Khusus Saat Print PDF */}
+          {/* Info Periode Khusus Saat Print PDF */}
           <div className="hidden print:flex flex-col items-end text-right text-xs text-gray-700">
             <div className="font-extrabold text-gray-900">
-              {selectedBranch} • Periode: {activeMetrics.periodBadge}
+              PrekDuaDara • Periode: {activeMetrics.periodBadge}
             </div>
             <div>Dicetak dari Sistem POS PrekDuaDara ({lastSyncTime})</div>
           </div>
@@ -1401,7 +1322,7 @@ export default function TransaksiPage() {
                   <button
                     key={period}
                     type="button"
-                    onClick={() => setSelectedPeriod(period)}
+                    onClick={() => handleSelectPeriod(period)}
                     className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
                       selectedPeriod === period
                         ? "bg-white text-gray-900 font-extrabold shadow-xs"
@@ -1414,7 +1335,7 @@ export default function TransaksiPage() {
               )}
               <button
                 type="button"
-                onClick={() => setSelectedPeriod("Kustom")}
+                onClick={() => handleSelectPeriod("Kustom")}
                 className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
                   selectedPeriod === "Kustom"
                     ? "bg-white text-gray-900 font-extrabold shadow-xs"
@@ -2322,221 +2243,260 @@ export default function TransaksiPage() {
           </div>
         </section>
 
-        {/* BOTTOM TABLE: RINCIAN TRANSAKSI PENJUALAN TERKINI BERDASARKAN WAKTU */}
-        <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col gap-5">
-          {/* Header & Search/Filter */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2.5">
-                <span className="w-3 h-3 rounded-full bg-emerald-600 shrink-0"></span>
-                <h3 className="font-extrabold text-base sm:text-lg text-gray-900">
-                  Rincian Transaksi Penjualan Terkini Berdasarkan Waktu
-                </h3>
-              </div>
-              <p className="text-xs text-gray-600 font-medium mt-1 pl-5">
-                Klik pada baris transaksi untuk melihat detail struk POS •
-                Sinkronisasi otomatis ({branchFilteredOrders.length} log kasir
-                aktif)
-              </p>
+        {/* BOTTOM TABLE: RINCIAN TRANSAKSI PENJUALAN TERKINI (SINKRON DENGAN RINGKASAN) */}
+        <section className="bg-white rounded-2xl p-5 sm:p-6 print:p-3 border border-gray-200 shadow-sm print:shadow-none flex flex-col gap-4 min-h-[430px] print:min-h-0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+            <div className="flex items-center gap-2.5">
+              <span className="w-3 h-3 rounded-full bg-emerald-600 shrink-0"></span>
+              <h3 className="font-extrabold text-base sm:text-lg text-gray-900">
+                Rincian Transaksi Penjualan Terkini
+              </h3>
             </div>
-
-            <div className="print:hidden flex items-center gap-2.5 relative">
-              <div className="relative w-full sm:w-64">
-                <Search
-                  size={15}
-                  className="text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2"
-                />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setActivePage(1);
-                  }}
-                  placeholder="Cari Order ID / Menu / Cabang..."
-                  className="w-full pl-9 pr-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-xs sm:text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-
-              <div className="relative" ref={filterDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setShowFilterMenu(!showFilterMenu)}
-                  className="px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs sm:text-sm font-bold text-gray-800 flex items-center gap-2 transition cursor-pointer shrink-0"
-                >
-                  <Filter size={14} className="text-gray-600" />
-                  <span>
-                    Filter
-                    {localPaymentFilter !== "Semua"
-                      ? `: ${localPaymentFilter}`
-                      : ""}
-                  </span>
-                </button>
-
-                {showFilterMenu && (
-                  <div className="absolute right-0 top-12 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1.5 w-52 text-xs sm:text-sm">
-                    {[
-                      {
-                        key: "Semua",
-                        label: `Semua Metode (${paymentCounts.total})`,
-                      },
-                      {
-                        key: "Tunai",
-                        label: `Tunai / Cash (${paymentCounts.tunai})`,
-                      },
-                      {
-                        key: "QRIS",
-                        label: `QRIS Dinamis (${paymentCounts.qris})`,
-                      },
-                      {
-                        key: "GrabFood POS",
-                        label: `GrabFood POS (${paymentCounts.grab})`,
-                      },
-                    ].map((opt) => (
-                      <button
-                        key={opt.key}
-                        type="button"
-                        onClick={() => {
-                          setLocalPaymentFilter(opt.key);
-                          setShowFilterMenu(false);
-                          setActivePage(1);
-                        }}
-                        className={`w-full text-left px-4 py-2.5 hover:bg-gray-50 cursor-pointer ${
-                          localPaymentFilter === opt.key
-                            ? "font-extrabold text-[#1E562F] bg-emerald-50"
-                            : "font-semibold text-gray-700"
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            <p className="text-xs text-gray-600 font-medium">
+              Sinkronisasi real-time dengan database POS ({isLoading ? 0 : displayedTransactions.length} transaksi)
+            </p>
           </div>
 
-          {/* Table (Lebar kolom proporsional dan bebas overlap) */}
-          <div className="overflow-x-auto print:overflow-visible">
-            <table className="w-full min-w-[1040px] print:min-w-0 print:w-full print:text-[10px] text-left border-collapse text-xs sm:text-sm">
-              <colgroup><col className="w-[165px] min-w-[165px] print:w-auto" /><col className="w-[125px] min-w-[125px] print:w-auto" /><col className="min-w-[200px] print:w-auto" /><col className="w-[70px] print:w-auto" /><col className="min-w-[140px] print:w-auto" /><col className="min-w-[205px] print:w-auto" /><col className="w-[135px] min-w-[135px] print:w-auto" /></colgroup>
+          {/* Filter Bar */}
+          <div className="print:hidden flex flex-wrap lg:flex-nowrap items-center gap-2.5 w-full">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="🔍 Cari ID struk, kasir, atau nama menu..."
+              className="flex-1 min-w-[260px] border border-gray-300 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-emerald-600 bg-gray-50/50"
+            />
+            <div className="relative inline-flex items-center shrink-0">
+              <select
+                value={filterTerminal}
+                onChange={(e) => setFilterTerminal(e.target.value)}
+                className="appearance-none w-[150px] shrink-0 truncate bg-white border border-gray-200 rounded-2xl pl-3.5 pr-7 py-2.5 text-xs font-bold text-gray-800 cursor-pointer focus:outline-none focus:border-emerald-600"
+              >
+                <option value="Semua">Semua Kasir</option>
+                <option value="Rian">Rian Pratama</option>
+                <option value="Siti">Siti Rahma</option>
+                <option value="Budi">Budi Santoso</option>
+              </select>
+              <ChevronDown
+                size={14}
+                className="pointer-events-none absolute right-2.5 text-gray-700"
+              />
+            </div>
+            <div className="relative inline-flex items-center shrink-0">
+              <select
+                value={filterPayment}
+                onChange={(e) => setFilterPayment(e.target.value)}
+                className="appearance-none w-[160px] shrink-0 truncate bg-white border border-gray-200 rounded-2xl pl-3.5 pr-7 py-2.5 text-xs font-bold text-gray-800 cursor-pointer focus:outline-none focus:border-emerald-600"
+              >
+                <option value="Semua">Semua Pembayaran</option>
+                <option value="Tunai">Tunai (Cash)</option>
+                <option value="QRIS">QRIS</option>
+              </select>
+              <ChevronDown
+                size={14}
+                className="pointer-events-none absolute right-2.5 text-gray-700"
+              />
+            </div>
+            <div className="relative inline-flex items-center shrink-0">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="appearance-none w-[160px] shrink-0 truncate bg-white border border-gray-200 rounded-2xl pl-3.5 pr-7 py-2.5 text-xs font-bold text-gray-800 cursor-pointer focus:outline-none focus:border-emerald-600"
+              >
+                <option value="Semua">Semua Status</option>
+                <option value="Berhasil">Berhasil</option>
+                <option value="Batal">Batal</option>
+              </select>
+              <ChevronDown
+                size={14}
+                className="pointer-events-none absolute right-2.5 text-gray-700"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleResetAllFilters}
+              title="Reset Filter"
+              aria-label="Reset Filter"
+              className="w-10 h-10 shrink-0 flex items-center justify-center rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 transition cursor-pointer"
+            >
+              <RotateCcw size={16} />
+            </button>
+          </div>
+
+          {/* Table Container */}
+          <div className="overflow-x-auto print:overflow-visible flex-1">
+            <table className="w-full min-w-full print:text-[9px] text-left border-collapse text-xs">
               <thead>
-                <tr className="border-y border-gray-200 bg-gray-50 text-gray-600 font-extrabold text-xs uppercase tracking-wider">
-                  <th className="py-3.5 px-3.5 w-[165px] min-w-[165px] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
-                    Order ID
+                <tr className="border-y border-gray-200 bg-gray-50 text-gray-600 font-extrabold uppercase text-[11px] print:text-[9px] tracking-wider">
+                  <th className="py-2.5 pl-3.5 pr-2 w-[100px] whitespace-nowrap print:px-1.5 print:py-2 text-left">
+                    ID STRUK
                   </th>
-                  <th className="py-3.5 px-3.5 w-[125px] min-w-[125px] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
-                    Waktu Transaksi
+                  <th className="py-2.5 px-2 w-[95px] whitespace-nowrap print:px-1.5 print:py-2 text-left">
+                    WAKTU
                   </th>
-                  <th className="py-3.5 px-3.5 min-w-[200px] print:px-2 print:py-2 print:whitespace-normal">
-                    Menu Utama Dipesan
+                  <th className="py-2.5 px-2 w-[115px] whitespace-nowrap print:px-1.5 print:py-2 text-left">
+                    KASIR
                   </th>
-                  <th className="py-3.5 px-3.5 text-center whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
-                    Porsi
+                  <th className="py-2.5 px-2.5 min-w-[170px] print:px-1.5 print:py-2 text-left">
+                    RINGKASAN ITEM
                   </th>
-                  <th className="py-3.5 px-3.5 min-w-[140px] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
-                    Cabang Outlet
+                  <th className="py-2.5 px-2 w-[90px] text-right whitespace-nowrap print:px-1.5 print:py-2">
+                    SUBTOTAL
                   </th>
-                  <th className="py-3.5 px-3.5 min-w-[205px] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
-                    Tipe &amp; Metode Bayar
+                  <th className="py-2.5 px-2 w-[95px] text-right whitespace-nowrap print:px-1.5 print:py-2">
+                    TOTAL AKHIR
                   </th>
-                  <th className="py-3.5 px-3.5 pr-6 w-[135px] min-w-[135px] text-right whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
-                    Total Transaksi
+                  <th className="py-2.5 px-2 w-[75px] text-center whitespace-nowrap print:px-1.5 print:py-2">
+                    METODE
+                  </th>
+                  <th className="py-2.5 px-2 w-[80px] text-center whitespace-nowrap print:px-1.5 print:py-2">
+                    STATUS
+                  </th>
+                  <th className="py-2.5 pl-2 pr-3.5 w-[70px] text-center whitespace-nowrap print:hidden">
+                    AKSI
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 text-gray-800">
-                {paginatedOrders.map((order) => (
-                  <tr
-                    key={order.id}
-                    onClick={() => setSelectedOrderModal(order)}
-                    title="Klik untuk melihat detail struk transaksi"
-                    className="hover:bg-amber-50/50 transition-colors cursor-pointer"
-                  >
-                    <td className="py-3.5 px-3.5 w-[165px] min-w-[165px] font-extrabold text-[#D97706] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
-                      <div>{order.id}</div>
-                      {order.status === "Batal" && (
-                        <span className="mt-1 inline-block px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-50 text-red-700 border border-red-200">
-                          Batal
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-3.5 w-[125px] min-w-[125px] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
-                      <div className="font-bold text-gray-900">
-                        {order.time}
-                      </div>
-                      <div className="text-xs text-gray-500 font-medium">
-                        {order.relativeTime}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-3.5 min-w-[200px] print:px-2 print:py-2 print:whitespace-normal">
-                      <div className="font-extrabold text-gray-900 truncate max-w-[240px] print:max-w-none">
-                        {order.mainMenu}
-                      </div>
-                      <div className="text-xs text-gray-500 font-medium mt-0.5 truncate max-w-[240px] print:max-w-none">
-                        {order.addons}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-3.5 text-center font-black text-gray-900 whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
-                      {order.portions}
-                    </td>
-                    <td className="py-3.5 px-3.5 min-w-[140px] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
-                      <div className="font-semibold text-gray-800">
-                        {order.branch}
-                      </div>
-                      <div className="text-xs text-gray-500 font-medium mt-0.5">
-                        Kasir: {order.cashier}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-3.5 min-w-[205px] whitespace-nowrap print:px-2 print:py-2 print:whitespace-normal">
-                      <div className="inline-flex items-center gap-2">
-                        <span
-                          className={`text-xs font-extrabold px-2.5 py-1 rounded-lg whitespace-nowrap ${
-                            order.paymentBadge === "QRIS Dinamis"
-                              ? "bg-blue-50 text-blue-800 border border-blue-300"
-                              : order.paymentBadge === "Tunai / Cash"
-                                ? "bg-emerald-50 text-emerald-800 border border-emerald-300"
-                                : "bg-purple-50 text-purple-800 border border-purple-300"
-                          }`}
-                        >
-                          {order.paymentBadge}
-                        </span>
-                        <span className="text-xs text-gray-600 font-semibold whitespace-nowrap">
-                          {order.orderType}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-3.5 pr-6 w-[135px] min-w-[135px] text-right font-black text-gray-900 whitespace-nowrap tabular-nums print:px-2 print:py-2 print:whitespace-normal">
-                      {formatRupiah(order.total)}
-                    </td>
-                  </tr>
-                ))}
-
-                {paginatedOrders.length === 0 && (
+                {isLoading ? (
                   <tr>
                     <td
-                      colSpan={7}
-                      className="py-10 text-center text-gray-500 font-medium"
+                      colSpan={9}
+                      className="h-[280px] text-center text-gray-500 font-medium align-middle"
                     >
-                      Tidak ada rincian transaksi yang cocok dengan filter
-                      pencarian.
+                      Memuat data transaksi dari database MariaDB...
                     </td>
                   </tr>
+                ) : paginatedTransactions.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={9}
+                      className="h-[280px] text-center text-gray-500 font-medium align-middle"
+                    >
+                      Tidak ada transaksi yang cocok dengan filter.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedTransactions.map((tx) => (
+                    <tr
+                      key={tx.id}
+                      className="hover:bg-amber-50/30 transition-colors"
+                    >
+                      <td className="py-3 pl-3.5 pr-2 text-left font-extrabold text-gray-900 whitespace-nowrap">
+                        {tx.id}
+                      </td>
+                      <td className="py-3 px-2 text-left whitespace-nowrap">
+                        <div className="font-bold text-gray-900">
+                          {tx.time} WIB
+                        </div>
+                        <div className="text-[11px] text-gray-500 font-medium">
+                          {tx.date}
+                        </div>
+                      </td>
+                      <td className="py-3 px-2 text-left whitespace-nowrap">
+                        <div className="font-bold text-gray-900">
+                          {tx.cashier}
+                        </div>
+                      </td>
+                      <td className="py-3 px-2.5 text-left">
+                        <div
+                          className="font-bold text-gray-900 truncate max-w-[240px]"
+                          title={tx.itemsSummary}
+                        >
+                          {tx.itemsSummary}
+                        </div>
+                        <div className="text-[11px] text-emerald-700 font-bold mt-0.5">
+                          {tx.totalItems} item total
+                        </div>
+                      </td>
+                      <td className="py-3 px-2 text-right font-semibold text-gray-700 whitespace-nowrap tabular-nums">
+                        {formatRupiah(tx.subtotal)}
+                      </td>
+                      <td className="py-3 px-2 text-right font-extrabold text-gray-900 whitespace-nowrap tabular-nums">
+                        {formatRupiah(tx.total)}
+                      </td>
+                      <td className="py-3 px-2 text-center whitespace-nowrap">
+                        <span
+                          className={`inline-block font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg border ${
+                            tx.paymentMethod === "QRIS"
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                              : "bg-blue-50 text-blue-800 border-blue-300"
+                          }`}
+                        >
+                          {tx.paymentMethod}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 text-center whitespace-nowrap">
+                        <span
+                          className={`inline-block font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg border ${
+                            tx.status === "Berhasil"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                              : "bg-red-50 text-red-700 border-red-300"
+                          }`}
+                        >
+                          {tx.status}
+                        </span>
+                      </td>
+                      <td className="py-3 pl-2 pr-3.5 text-center whitespace-nowrap print:hidden">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handlePrintReceipt(tx.id)}
+                            className="p-1.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 hover:text-gray-900 cursor-pointer transition"
+                            title="Cetak Struk"
+                          >
+                            <Printer size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTx(tx)}
+                            className="p-1.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 hover:text-gray-900 cursor-pointer transition"
+                            title="Lihat Detail"
+                          >
+                            <Eye size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
+              {displayedTransactions.length > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 border-gray-300 bg-gray-50/90 font-extrabold text-gray-900">
+                    <td
+                      colSpan={5}
+                      className="py-2.5 pl-3.5 pr-2 text-left text-xs uppercase tracking-wider text-gray-700"
+                    >
+                      Total Rekapitulasi ({displayedTransactions.length}{" "}
+                      transaksi)
+                    </td>
+                    <td className="py-2.5 px-2 text-right font-black text-[#EA8E18] whitespace-nowrap tabular-nums">
+                      {formatRupiah(displayedTotalNominal)}
+                    </td>
+                    <td
+                      colSpan={2}
+                      className="py-2.5 px-2 text-center text-[11px] font-bold text-emerald-700 whitespace-nowrap"
+                    >
+                      Transaksi Selesai
+                    </td>
+                    <td className="py-2.5 pl-2 pr-3.5 print:hidden"></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
 
-          {/* Pagination Row (Disembunyikan saat Print PDF) */}
-          <div className="print:hidden pt-3.5 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-600 font-medium">
+          {/* Pagination Row */}
+          <div className="print:hidden pt-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-600 font-medium">
             <div>
               Menampilkan{" "}
               <strong className="text-gray-900 font-extrabold">
-                {paginatedOrders.length}
+                {paginatedTransactions.length}
               </strong>{" "}
               dari{" "}
               <strong className="text-gray-900 font-extrabold">
-                {displayOrders.length}
+                {displayedTransactions.length}
               </strong>{" "}
               transaksi
             </div>
@@ -2544,31 +2504,33 @@ export default function TransaksiPage() {
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                disabled={currentPage <= 1}
-                onClick={() => setActivePage((p) => Math.max(1, p - 1))}
+                disabled={activePage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 className="px-3.5 py-1.5 border border-gray-300 rounded-lg text-gray-600 font-semibold hover:text-gray-900 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
               >
                 Sebelumnya
               </button>
-              {visiblePages.map((page) => (
-                <button
-                  key={page}
-                  type="button"
-                  onClick={() => setActivePage(page)}
-                  className={`w-8 h-8 rounded-lg font-extrabold transition cursor-pointer ${
-                    currentPage === page
-                      ? "bg-[#1E3A1C] text-white"
-                      : "border border-gray-300 text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 rounded-lg font-extrabold transition cursor-pointer ${
+                      activePage === page
+                        ? "bg-[#1E3A1C] text-white"
+                        : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )
+              )}
               <button
                 type="button"
-                disabled={currentPage >= totalPages}
+                disabled={activePage >= totalPages}
                 onClick={() =>
-                  setActivePage((p) => Math.min(totalPages, p + 1))
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
                 }
                 className="px-3.5 py-1.5 border border-gray-300 rounded-lg text-gray-800 font-bold hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
               >
@@ -2579,18 +2541,17 @@ export default function TransaksiPage() {
         </section>
 
         {/* FOOTER SISTEM */}
-        <footer className="print:hidden pt-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-500 font-semibold">
+        <footer className="print:hidden bg-white rounded-2xl px-6 py-3.5 shadow-sm border border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-700 font-semibold">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>
-              PrekDuaDara POS v2.4 • Terminal Counter #01 •{" "}
-              <strong className="text-gray-700">
-                MySQL (prekduadara_db) Terhubung
-              </strong>
-            </span>
+            <img src="/logo.png" alt="Logo" className="w-5 h-5 rounded-full object-cover shrink-0" />
+            <span><strong>Sistem Analitik Bisnis PrekDuaDara</strong> &copy; 2025. Seluruh Hak Cipta Dilindungi.</span>
           </div>
-          <div>
-            © 2026 PrekDuaDara Quick-Service Culinary. All rights reserved.
+          <div className="flex items-center gap-3 text-xs">
+            <span>Sinkronisasi Otomatis Terakhir: <strong>14:28 WIB</strong></span>
+            <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Sistem Cloud POS Terkoneksi
+            </span>
           </div>
         </footer>
       </main>

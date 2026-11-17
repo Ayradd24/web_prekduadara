@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
 
 export interface Transaction {
   id: string;
@@ -35,6 +35,7 @@ interface TransactionStats {
 interface TransactionContextType {
   transactions: Transaction[];
   filteredTransactions: Transaction[];
+  isLoading: boolean;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   filterPayment: string;
@@ -49,14 +50,14 @@ interface TransactionContextType {
   stats: TransactionStats;
 }
 
-// Data awal mock sesuai transaksi PrekDuaDara (Single Source of Truth untuk Ringkasan & Transaksi)
+// Data awal fallback sesuai transaksi autentik PrekDuaDara
 const initialTransactions: Transaction[] = [
   {
-    id: '#TRX-202410-0192',
+    id: '#TRX-001',
     time: '14:28:19',
     date: 'Hari ini',
     cashier: 'Rian Pratama',
-    terminal: 'Kasir Pos-01',
+    terminal: 'Pos-01 (Rian)',
     itemsSummary: '2x Ayam Geprek Bakar + Es Teh',
     totalItems: 2,
     subtotal: 36000,
@@ -64,17 +65,17 @@ const initialTransactions: Transaction[] = [
     total: 36000,
     paymentMethod: 'QRIS',
     status: 'Berhasil',
-    branch: 'Cabang Sudirman Utama',
+    branch: 'Gerai Pusat',
     orderType: 'Dine-In',
-    addons: '+ Sambal Korek Lv 3, Lalapan Segar',
+    addons: '+ Sambal Cobek Bakar Lv 2',
     relativeTime: '12 Menit Lalu',
   },
   {
-    id: '#TRX-202410-0191',
+    id: '#TRX-002',
     time: '14:21:05',
     date: 'Hari ini',
     cashier: 'Siti Rahma',
-    terminal: 'Kasir Pos-02',
+    terminal: 'Pos-02 (Siti)',
     itemsSummary: '1x Ayam Geprek Biasa + Es Teh',
     totalItems: 1,
     subtotal: 17000,
@@ -82,17 +83,17 @@ const initialTransactions: Transaction[] = [
     total: 17000,
     paymentMethod: 'Tunai',
     status: 'Berhasil',
-    branch: 'Cabang Tebet Eco Park',
+    branch: 'Gerai Pusat',
     orderType: 'Takeaway',
-    addons: '+ Sambal Bawang Lv 2, Kerupuk Kaleng',
+    addons: '+ Sambal Uleg Asli Lv 1',
     relativeTime: '19 Menit Lalu',
   },
   {
-    id: '#TRX-202410-0190',
+    id: '#TRX-003',
     time: '14:10:44',
     date: 'Hari ini',
     cashier: 'Rian Pratama',
-    terminal: 'Kasir Pos-01',
+    terminal: 'Pos-01 (Rian)',
     itemsSummary: '3x Ayam Geprek Bakar + Es Teh',
     totalItems: 3,
     subtotal: 54000,
@@ -100,17 +101,17 @@ const initialTransactions: Transaction[] = [
     total: 54000,
     paymentMethod: 'QRIS',
     status: 'Berhasil',
-    branch: 'Cabang Sudirman Utama',
-    orderType: 'Ojol Delivery',
-    addons: '+ Tahu/Tempe Crispy, Sambal Pisah',
+    branch: 'Gerai Pusat',
+    orderType: 'Dine-In',
+    addons: '+ Sambal Cobek Bakar Lv 3',
     relativeTime: '30 Menit Lalu',
   },
   {
-    id: '#TRX-202410-0189',
+    id: '#TRX-004',
     time: '13:55:12',
     date: 'Hari ini',
     cashier: 'Budi Santoso',
-    terminal: 'Kasir Pos-03',
+    terminal: 'Pos-03 (Budi)',
     itemsSummary: '2x Ayam Geprek Biasa + Es Teh',
     totalItems: 2,
     subtotal: 34000,
@@ -118,17 +119,17 @@ const initialTransactions: Transaction[] = [
     total: 34000,
     paymentMethod: 'Tunai',
     status: 'Berhasil',
-    branch: 'Cabang Dago Heritage',
+    branch: 'Gerai Pusat',
     orderType: 'Dine-In',
-    addons: '+ Sambal Bawang Original Lv 4',
+    addons: '+ Sambal Uleg Asli Lv 2',
     relativeTime: '45 Menit Lalu',
   },
   {
-    id: '#TRX-202410-0188',
+    id: '#TRX-005',
     time: '13:42:00',
     date: 'Hari ini',
     cashier: 'Siti Rahma',
-    terminal: 'Kasir Pos-02',
+    terminal: 'Pos-02 (Siti)',
     itemsSummary: '1x Ayam Geprek Bakar + Es Teh',
     totalItems: 1,
     subtotal: 18000,
@@ -136,99 +137,74 @@ const initialTransactions: Transaction[] = [
     total: 18000,
     paymentMethod: 'Tunai',
     status: 'Berhasil',
-    branch: 'Cabang Tebet Eco Park',
+    branch: 'Gerai Pusat',
     orderType: 'Dine-In',
-    addons: '+ Sambal Matah Segar, Nasi Pulen',
+    addons: '+ Sambal Cobek Bakar Lv 1',
     relativeTime: '58 Menit Lalu',
   },
 ];
 
-const SIMULATED_CASHIERS = [
-  {
-    cashier: 'Rian Pratama',
-    terminal: 'Kasir Pos-01',
-    branch: 'Cabang Sudirman Utama',
-  },
-  {
-    cashier: 'Siti Rahma',
-    terminal: 'Kasir Pos-02',
-    branch: 'Cabang Tebet Eco Park',
-  },
-  {
-    cashier: 'Budi Santoso',
-    terminal: 'Kasir Pos-03',
-    branch: 'Cabang Dago Heritage',
-  },
-];
-
-const SIMULATED_MENUS = [
-  {
-    itemsSummary: '1x Ayam Geprek Bakar + Es Teh',
-    addons: '+ Sambal Korek Lv 3, Lalapan Segar',
-    orderType: 'Dine-In' as const,
-    totalItems: 1,
-    subtotal: 18000,
-    diskon: 0,
-    total: 18000,
-  },
-  {
-    itemsSummary: '2x Ayam Geprek Biasa + Es Teh',
-    addons: '+ Sambal Bawang Lv 2, Tahu Crispy',
-    orderType: 'Takeaway' as const,
-    totalItems: 2,
-    subtotal: 34000,
-    diskon: 0,
-    total: 34000,
-  },
-  {
-    itemsSummary: '2x Ayam Geprek Bakar + Es Teh',
-    addons: '+ Sambal Korek Lv 4, Tempe Mendoan',
-    orderType: 'Dine-In' as const,
-    totalItems: 2,
-    subtotal: 36000,
-    diskon: 0,
-    total: 36000,
-  },
-  {
-    itemsSummary: '1x Paket Geprek Mozarella + Es Jeruk',
-    addons: '+ Kulit Ayam Crispy, Sambal Pisah',
-    orderType: 'Ojol Delivery' as const,
-    totalItems: 1,
-    subtotal: 25000,
-    diskon: 0,
-    total: 25000,
-  },
-  {
-    itemsSummary: '3x Ayam Geprek Sambal Bawang + Es Teh',
-    addons: '+ Kol Goreng, Kerupuk Kaleng',
-    orderType: 'Dine-In' as const,
-    totalItems: 3,
-    subtotal: 51000,
-    diskon: 2000,
-    total: 49000,
-  },
-  {
-    itemsSummary: '2x Paket Komplit Geprek + Tahu Crispy',
-    addons: '+ 2 Es Teh Manis Jumbo, Sambal Uleg',
-    orderType: 'Ojol Delivery' as const,
-    totalItems: 2,
-    subtotal: 42000,
-    diskon: 0,
-    total: 42000,
-  },
-];
-
-const resolveBranchFromTerminal = (terminal: string): string => {
-  if (terminal.includes('Pos-02')) return 'Cabang Tebet Eco Park';
-  if (terminal.includes('Pos-03')) return 'Cabang Dago Heritage';
-  return 'Cabang Sudirman Utama';
-};
-
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
 
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
-  // State Utama: Daftar transaksi
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Ambil transaksi real-time dari database MariaDB
+  const fetchTransactionsFromBackend = useCallback(async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/transactions');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        if (json.data.length > 0) {
+          const mapped: Transaction[] = json.data.map((tx: any) => {
+            let terminalName = 'Pos-01 (Rian)';
+            if (tx.cashier && tx.cashier.toLowerCase().includes('siti')) {
+              terminalName = 'Pos-02 (Siti)';
+            } else if (tx.cashier && tx.cashier.toLowerCase().includes('budi')) {
+              terminalName = 'Pos-03 (Budi)';
+            }
+
+            const isQris = String(tx.paymentMethod).toLowerCase().includes('qris');
+
+            return {
+              id: tx.id.startsWith('#') ? tx.id : `#${tx.id}`,
+              time: tx.time ? (tx.time.includes(':') ? tx.time : `${tx.time}:00`) : '12:00:00',
+              date: tx.created_at
+                ? new Date(tx.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+                : 'Hari ini',
+              cashier: tx.cashier || 'Kasir PrekDuaDara',
+              terminal: terminalName,
+              itemsSummary: tx.itemsSummary || 'Ayam Geprek Bakar + Es Teh',
+              totalItems: Number(tx.totalItems) || 1,
+              subtotal: Number(tx.total) || 0,
+              diskon: 0,
+              total: Number(tx.total) || 0,
+              paymentMethod: isQris ? 'QRIS' : 'Tunai',
+              status: 'Berhasil',
+              branch: 'Gerai Pusat',
+              orderType: 'Dine-In',
+              addons: `Dilayani oleh ${tx.cashier || 'Kasir'}`,
+              relativeTime: 'Tersimpan di DB',
+            };
+          });
+          setTransactions(mapped);
+        } else {
+          setTransactions([]);
+        }
+      }
+    } catch {
+      // Fallback tetap kosong jika server offline
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTransactionsFromBackend();
+    const interval = setInterval(fetchTransactionsFromBackend, 15000);
+    return () => clearInterval(interval);
+  }, [fetchTransactionsFromBackend]);
 
   // State Filter & Pencarian
   const [searchQuery, setSearchQuery] = useState('');
@@ -236,7 +212,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const [filterTerminal, setFilterTerminal] = useState('Semua');
   const [filterStatus, setFilterStatus] = useState('Semua');
 
-  // Reset semua filter
   const resetFilters = () => {
     setSearchQuery('');
     setFilterPayment('Semua');
@@ -244,7 +219,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     setFilterStatus('Semua');
   };
 
-  // Tambah Transaksi Baru (Dapat dipanggil dari modal order web)
   const addTransaction = (newTx: Omit<Transaction, 'id' | 'time' | 'date'>) => {
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
@@ -255,83 +229,57 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       id: idStr,
       time: timeStr,
       date: 'Hari ini',
-      branch: newTx.branch || resolveBranchFromTerminal(newTx.terminal),
-      orderType: newTx.orderType || 'Dine-In',
-      addons: newTx.addons || '+ Sambal Uleg Asli, Lalapan Segar',
-      relativeTime: newTx.relativeTime || 'Baru Saja',
     };
 
     setTransactions((prev) => [fullTx, ...prev]);
   };
 
-  // Simulasi Order Kasir Baru Secara Realistis
   const addSimulatedTransaction = () => {
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
-    const chosenCashier =
-      SIMULATED_CASHIERS[Math.floor(Math.random() * SIMULATED_CASHIERS.length)];
-    const chosenMenu =
-      SIMULATED_MENUS[Math.floor(Math.random() * SIMULATED_MENUS.length)];
-    const paymentMethod: 'Tunai' | 'QRIS' = Math.random() > 0.5 ? 'QRIS' : 'Tunai';
+    const idStr = `#TRX-${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    setTransactions((prev) => {
-      // Cari nomor urut tertinggi dari format #TRX-202410-XXXX
-      let maxSeq = 192;
-      prev.forEach((t) => {
-        const parts = t.id.split('-');
-        const num = parseInt(parts[parts.length - 1], 10);
-        if (!isNaN(num) && num < 9000 && num > maxSeq) {
-          maxSeq = num;
-        }
-      });
+    const simTx: Transaction = {
+      id: idStr,
+      time: timeStr,
+      date: 'Hari ini',
+      cashier: 'Rian Pratama',
+      terminal: 'Pos-01 (Rian)',
+      itemsSummary: '1x Ayam Geprek Bakar + Es Teh',
+      totalItems: 1,
+      subtotal: 18000,
+      diskon: 0,
+      total: 18000,
+      paymentMethod: 'QRIS',
+      status: 'Berhasil',
+      branch: 'Gerai Pusat',
+      orderType: 'Dine-In',
+      addons: '+ Sambal Cobek Bakar Lv 2',
+      relativeTime: 'Baru saja',
+    };
 
-      const nextId = `#TRX-202410-${String(maxSeq + 1).padStart(4, '0')}`;
-
-      const simulatedTx: Transaction = {
-        id: nextId,
-        time: timeStr,
-        date: 'Hari ini',
-        cashier: chosenCashier.cashier,
-        terminal: chosenCashier.terminal,
-        itemsSummary: chosenMenu.itemsSummary,
-        totalItems: chosenMenu.totalItems,
-        subtotal: chosenMenu.subtotal,
-        diskon: chosenMenu.diskon,
-        total: chosenMenu.total,
-        paymentMethod,
-        status: 'Berhasil',
-        branch: chosenCashier.branch,
-        orderType: chosenMenu.orderType,
-        addons: chosenMenu.addons,
-        relativeTime: 'Baru Saja',
-      };
-
-      return [simulatedTx, ...prev];
-    });
+    setTransactions((prev) => [simTx, ...prev]);
   };
 
-  // Computed State: Filtered Transactions (Real-time reactivity)
+  // Filter Transactions
   const filteredTransactions = useMemo(() => {
     return transactions.filter((tx) => {
-      // Pencarian ID, Kasir, atau Item
       const matchSearch =
         searchQuery === '' ||
         tx.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
         tx.cashier.toLowerCase().includes(searchQuery.toLowerCase()) ||
         tx.itemsSummary.toLowerCase().includes(searchQuery.toLowerCase());
 
-      // Filter Metode Pembayaran
       const matchPayment =
         filterPayment === 'Semua' ||
         (filterPayment === 'Tunai' && tx.paymentMethod === 'Tunai') ||
         (filterPayment === 'QRIS' && tx.paymentMethod === 'QRIS');
 
-      // Filter Terminal
       const matchTerminal =
         filterTerminal === 'Semua' ||
-        tx.terminal.toLowerCase().includes(filterTerminal.toLowerCase());
+        tx.terminal.toLowerCase().includes(filterTerminal.toLowerCase()) ||
+        tx.cashier.toLowerCase().includes(filterTerminal.toLowerCase());
 
-      // Filter Status
       const matchStatus =
         filterStatus === 'Semua' || tx.status === filterStatus;
 
@@ -339,7 +287,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     });
   }, [transactions, searchQuery, filterPayment, filterTerminal, filterStatus]);
 
-  // Computed State: Statistik Transaksi Otomatis
+  // Statistik Otomatis
   const stats = useMemo(() => {
     const totalCount = transactions.length;
     let totalOmset = 0;
@@ -384,6 +332,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       value={{
         transactions,
         filteredTransactions,
+        isLoading,
         searchQuery,
         setSearchQuery,
         filterPayment,
