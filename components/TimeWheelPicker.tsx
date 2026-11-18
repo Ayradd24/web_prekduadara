@@ -49,7 +49,6 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
   const dragAccumRef = useRef(0);
   const didDragRef = useRef(false);
   const pointerIdRef = useRef<number | null>(null);
-  const isHoveringRef = useRef(false);
   const digitBufferRef = useRef<{ digits: string; timer: ReturnType<typeof setTimeout> | null }>({
     digits: "",
     timer: null,
@@ -62,7 +61,7 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
     [max]
   );
 
-  // Native non-passive wheel listener supaya scroll mouse ubah angka tanpa menggulir halaman
+  // Scroll mouse untuk memutar angka saat slider aktif
   useEffect(() => {
     const el = overlayRef.current;
     if (!el || !isOpen) return;
@@ -72,7 +71,7 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
       e.preventDefault();
       e.stopPropagation();
       wheelAccum += e.deltaY;
-      const threshold = 24;
+      const threshold = 18;
       if (Math.abs(wheelAccum) >= threshold) {
         const steps = Math.trunc(wheelAccum / threshold);
         wheelAccum -= steps * threshold;
@@ -88,7 +87,7 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
     };
   }, [isOpen, stepBy]);
 
-  // Tutup saat klik di luar (berguna untuk perangkat sentuh / fokus keyboard)
+  // Tutup slider saat klik di luar kotak
   useEffect(() => {
     if (!isOpen) return;
     const handleOutside = (e: MouseEvent | TouchEvent) => {
@@ -108,9 +107,7 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
   }, [isOpen]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    // Hanya tombol mouse kiri / sentuhan
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    setIsOpen(true);
     setIsDragging(true);
     didDragRef.current = false;
     pointerIdRef.current = e.pointerId;
@@ -121,21 +118,21 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDragging) return;
     const dy = e.clientY - dragStartYRef.current;
-    if (!didDragRef.current && Math.abs(dy) > 5) {
+    if (!didDragRef.current && Math.abs(dy) > 4) {
       didDragRef.current = true;
       try {
         e.currentTarget.setPointerCapture(e.pointerId);
       } catch {
-        // Abaikan jika gagal capture
+        // Abaikan jika capture gagal
       }
     }
     if (!didDragRef.current) return;
     const delta = dy - dragAccumRef.current;
-    const stepPx = 18;
+    const stepPx = 14;
     if (Math.abs(delta) >= stepPx) {
       const steps = Math.trunc(delta / stepPx);
       dragAccumRef.current += steps * stepPx;
-      // Geser ke atas (dy negatif) -> angka naik (+1), geser ke bawah -> angka turun (-1)
+      // Geser ke atas -> tambah angka (+1), geser ke bawah -> kurangi (-1)
       stepBy(-steps);
     }
   };
@@ -149,10 +146,7 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
         e.currentTarget.releasePointerCapture(e.pointerId);
       }
     } catch {
-      // Abaikan jika pointer sudah dilepas
-    }
-    if (!isHoveringRef.current && e.pointerType === "mouse") {
-      setIsOpen(false);
+      // Abaikan
     }
   };
 
@@ -163,7 +157,7 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
       stepBy(1);
-    } else if (e.key === "Escape") {
+    } else if (e.key === "Escape" || e.key === "Enter") {
       setIsOpen(false);
     } else if (/^\d$/.test(e.key)) {
       e.preventDefault();
@@ -181,7 +175,7 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
       }
       buf.timer = setTimeout(() => {
         digitBufferRef.current.digits = "";
-      }, 900);
+      }, 800);
     }
   };
 
@@ -197,36 +191,26 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
       aria-valuemin={0}
       aria-valuemax={max - 1}
       aria-valuenow={value}
-      onMouseEnter={() => {
-        isHoveringRef.current = true;
-        setIsOpen(true);
-      }}
-      onMouseLeave={() => {
-        isHoveringRef.current = false;
-        if (!isDragging) setIsOpen(false);
-      }}
-      onFocus={() => setIsOpen(true)}
-      onBlur={() => {
-        if (!isDragging) setIsOpen(false);
-      }}
       onKeyDown={handleKeyDown}
       className="relative inline-flex items-center justify-center outline-none select-none"
     >
-      {/* Tampilan Angka Default (Compact, tanpa layout shift) */}
-      <span
-        onClick={() => setIsOpen(true)}
-        className={`inline-flex items-center justify-center rounded-lg font-black tabular-nums transition-colors cursor-ns-resize ${
-          compact ? "w-8 py-0.5 text-xs" : "w-9 py-1 text-sm"
+      {/* Tampilan Angka Normal — Munculkan slider HANYA saat dipencet/diklik */}
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className={`inline-flex items-center justify-center rounded-md font-black tabular-nums transition cursor-pointer ${
+          compact ? "w-6 h-6 text-xs" : "w-7 h-6 text-xs sm:text-sm"
         } ${
           isOpen
-            ? "text-[#EA8E18] bg-amber-50"
-            : "text-gray-900 hover:bg-amber-50/70 hover:text-[#EA8E18]"
+            ? "text-[#EA8E18] bg-amber-100 ring-1 ring-[#EA8E18]"
+            : "text-gray-900 hover:bg-amber-50 hover:text-[#EA8E18]"
         }`}
+        title={`Klik untuk atur ${label.toLowerCase()}`}
       >
         {pad2(value)}
-      </span>
+      </button>
 
-      {/* Floating Wheel Slider (Muncul di atas & bawah angka saat hover / fokus) */}
+      {/* Mini Floating Wheel Slider — Muncul saat dipencet */}
       {isOpen && (
         <div
           ref={overlayRef}
@@ -235,15 +219,15 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
           className={`absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 z-50 ${
-            compact ? "w-[56px]" : "w-[64px]"
-          } rounded-2xl bg-white border-2 border-[#EA8E18] shadow-[0_12px_28px_-6px_rgba(0,0,0,0.22)] py-1.5 px-1 flex flex-col items-center select-none touch-none cursor-ns-resize animate-in fade-in zoom-in-95 duration-100`}
+            compact ? "w-[38px]" : "w-[42px]"
+          } rounded-xl bg-white border border-[#EA8E18] shadow-[0_8px_18px_-4px_rgba(0,0,0,0.24)] py-1 px-0.5 flex flex-col items-center select-none touch-none cursor-ns-resize`}
         >
-          {/* Label kecil Jam / Menit */}
-          <span className="text-[9px] font-extrabold uppercase tracking-wider text-amber-700/80 mb-0.5 pointer-events-none">
+          {/* Label mini */}
+          <span className="text-[8px] font-black uppercase tracking-wider text-amber-700/80 leading-none mb-0.5 pointer-events-none">
             {label}
           </span>
 
-          {/* Angka Sebelumnya (Atas - redup, bisa diklik -1) */}
+          {/* Angka Atas (-1) */}
           <button
             type="button"
             tabIndex={-1}
@@ -251,24 +235,29 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
               e.stopPropagation();
               if (!didDragRef.current) stepBy(-1);
             }}
-            className={`w-full py-1 rounded-lg text-center font-bold tabular-nums text-gray-400/75 hover:text-gray-700 hover:bg-gray-100/80 transition cursor-pointer ${
-              compact ? "text-xs" : "text-sm"
-            }`}
+            className="w-full py-0.5 rounded text-center text-[10px] font-bold tabular-nums text-gray-400 hover:text-gray-800 hover:bg-gray-100 transition cursor-pointer leading-tight"
             title={`Kurangi ${label.toLowerCase()}`}
           >
             {pad2(prevVal)}
           </button>
 
-          {/* Angka Terpilih (Tengah - tegas & disorot) */}
-          <div
-            className={`w-full py-1 my-0.5 rounded-lg bg-amber-50 border border-amber-300/90 text-center font-black tabular-nums text-gray-950 shadow-2xs pointer-events-none ${
-              compact ? "text-sm" : "text-base"
+          {/* Angka Tengah Terpilih (Klik lagi untuk tutup) */}
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!didDragRef.current) setIsOpen(false);
+            }}
+            className={`w-full py-0.5 my-0.5 rounded-md bg-amber-50 border border-amber-300 text-center font-black tabular-nums text-gray-950 leading-tight cursor-pointer ${
+              compact ? "text-xs" : "text-[13px]"
             }`}
+            title="Klik untuk selesai"
           >
             {pad2(value)}
-          </div>
+          </button>
 
-          {/* Angka Berikutnya (Bawah - redup, bisa diklik +1) */}
+          {/* Angka Bawah (+1) */}
           <button
             type="button"
             tabIndex={-1}
@@ -276,9 +265,7 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
               e.stopPropagation();
               if (!didDragRef.current) stepBy(1);
             }}
-            className={`w-full py-1 rounded-lg text-center font-bold tabular-nums text-gray-400/75 hover:text-gray-700 hover:bg-gray-100/80 transition cursor-pointer ${
-              compact ? "text-xs" : "text-sm"
-            }`}
+            className="w-full py-0.5 rounded text-center text-[10px] font-bold tabular-nums text-gray-400 hover:text-gray-800 hover:bg-gray-100 transition cursor-pointer leading-tight"
             title={`Tambah ${label.toLowerCase()}`}
           >
             {pad2(nextVal)}
@@ -309,8 +296,8 @@ export default function TimeWheelPicker({
   return (
     <div
       aria-label={ariaLabel}
-      className={`w-full flex items-center justify-center gap-1 rounded-xl border bg-white transition-all ${
-        compact ? "px-2 py-1.5" : "px-3 py-2"
+      className={`inline-flex items-center justify-center gap-0.5 rounded-lg border bg-white transition-all ${
+        compact ? "h-8 px-2" : "h-8 px-2.5"
       } ${
         active
           ? "border-[#EA8E18] ring-1 ring-[#EA8E18]/30"
@@ -326,8 +313,8 @@ export default function TimeWheelPicker({
       />
 
       <span
-        className={`font-black text-gray-500 select-none ${
-          compact ? "text-xs" : "text-sm"
+        className={`font-black text-gray-400 select-none ${
+          compact ? "text-xs" : "text-xs sm:text-sm"
         }`}
       >
         :
@@ -342,7 +329,7 @@ export default function TimeWheelPicker({
       />
 
       {suffix && (
-        <span className="ml-1 px-1.5 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-[10px] font-extrabold text-gray-600 select-none">
+        <span className="ml-1 px-1 py-0.5 rounded bg-gray-100 border border-gray-200 text-[9px] font-extrabold text-gray-600 select-none whitespace-nowrap">
           {suffix}
         </span>
       )}
