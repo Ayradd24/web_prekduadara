@@ -106,7 +106,7 @@ const INITIAL_DRAWERS: Record<SingleBranchName, BranchDrawerState> = {
     modalAwal: 500000,
     totalSales: 0,
     totalNotes: 0,
-    isOpen: true,
+    isOpen: false,
   },
 };
 
@@ -265,10 +265,12 @@ export default function KasirShiftPage() {
   formNameRef.current = formName;
 
   // 1. FETCH DATA DARI API BACKEND MARIADB
-  const loadCashiersFromDB = useCallback(async () => {
-    setIsLoading(true);
+  const loadCashiersFromDB = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/cashiers");
+      const res = await fetch("http://localhost:5000/api/cashiers", {
+        cache: "no-store",
+      });
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         if (json.data.length === 0) {
@@ -291,7 +293,7 @@ export default function KasirShiftPage() {
             const liveStatus: LiveStatusType =
               c.statusLive ||
               c.status_live ||
-              (activeFlag ? "Aktif Melayani" : "Selesai Shift / Off");
+              (activeFlag ? "Standby / Rehat" : "Selesai Shift / Off");
 
             return {
               id: c.id,
@@ -322,7 +324,9 @@ export default function KasirShiftPage() {
         let salesSum = 0;
         let notesCount = 0;
         try {
-          const trxRes = await fetch("http://localhost:5000/api/transactions");
+          const trxRes = await fetch("http://localhost:5000/api/transactions", {
+            cache: "no-store",
+          });
           const trxJson = await trxRes.json();
           if (trxJson.success && Array.isArray(trxJson.data)) {
             const isToday = (created?: string) => {
@@ -348,12 +352,13 @@ export default function KasirShiftPage() {
           // Abaikan jika server transaksi sedang offline
         }
 
-        const activeKasir =
-          mappedDbItems.find(
-            (item) => item.statusLive === "Aktif Melayani" && item.isActive
-          ) || mappedDbItems[0];
+        const servingKasir = mappedDbItems.find(
+          (item) => item.statusLive === "Aktif Melayani" && item.isActive
+        );
+        const fallbackKasir =
+          mappedDbItems.find((item) => item.isActive) || mappedDbItems[0];
 
-        if (activeKasir) {
+        if (servingKasir) {
           setDrawersByBranch((prev) => {
             const prevDrawer =
               prev["Gerai Utama"] || INITIAL_DRAWERS["Gerai Utama"];
@@ -361,11 +366,33 @@ export default function KasirShiftPage() {
               ...prev,
               "Gerai Utama": {
                 ...prevDrawer,
-                operatorId: activeKasir.id,
-                operatorName: activeKasir.name,
-                shiftInfo: `${activeKasir.shift} • Login Aktif`,
+                isOpen: true,
+                operatorId: servingKasir.id,
+                operatorName: servingKasir.name,
+                shiftInfo: `${servingKasir.shift} • Login Aktif`,
                 totalSales: salesSum,
                 totalNotes: notesCount,
+                lastClosedInfo: undefined,
+              },
+            };
+          });
+        } else if (fallbackKasir) {
+          setDrawersByBranch((prev) => {
+            const prevDrawer =
+              prev["Gerai Utama"] || INITIAL_DRAWERS["Gerai Utama"];
+            return {
+              ...prev,
+              "Gerai Utama": {
+                ...prevDrawer,
+                isOpen: false,
+                operatorId: fallbackKasir.id,
+                operatorName: fallbackKasir.name,
+                shiftInfo: "Tidak ada kasir aktif melayani (Semua Standby)",
+                totalSales: salesSum,
+                totalNotes: notesCount,
+                lastClosedInfo:
+                  prevDrawer.lastClosedInfo ||
+                  "Shift ditutup — seluruh kasir berstatus Standby / Rehat",
               },
             };
           });
@@ -374,14 +401,24 @@ export default function KasirShiftPage() {
     } catch {
       setDbConnected(false);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadCashiersFromDB();
-    const interval = setInterval(loadCashiersFromDB, 10000);
-    return () => clearInterval(interval);
+    loadCashiersFromDB(false);
+    const interval = setInterval(() => loadCashiersFromDB(true), 3000);
+    const handleFocus = () => loadCashiersFromDB(true);
+    const handleVisibility = () => {
+      if (!document.hidden) loadCashiersFromDB(true);
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [loadCashiersFromDB]);
 
   // Cabang target untuk Laci Kasir (Gerai Utama Pusat)
