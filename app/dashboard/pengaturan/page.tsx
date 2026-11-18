@@ -286,8 +286,22 @@ export default function PengaturanTokoPage() {
       if (local) {
         const parsed = JSON.parse(local);
         if (parsed && typeof parsed === "object") {
-          setConfigsByBranch(parsed);
-          setSavedConfigsByBranch(parsed);
+          const merged: Record<SingleBranchName, BranchStoreSettings> = {
+            "Cabang Sudirman Utama": {
+              ...DEFAULT_BRANCH_SETTINGS["Cabang Sudirman Utama"],
+              ...(parsed["Cabang Sudirman Utama"] || {}),
+            },
+            "Cabang Tebet Eco Park": {
+              ...DEFAULT_BRANCH_SETTINGS["Cabang Tebet Eco Park"],
+              ...(parsed["Cabang Tebet Eco Park"] || {}),
+            },
+            "Cabang Dago Heritage": {
+              ...DEFAULT_BRANCH_SETTINGS["Cabang Dago Heritage"],
+              ...(parsed["Cabang Dago Heritage"] || {}),
+            },
+          };
+          setConfigsByBranch(merged);
+          setSavedConfigsByBranch(merged);
         }
       }
     } catch {}
@@ -304,6 +318,7 @@ export default function PengaturanTokoPage() {
               Object.keys(updated).forEach((k) => {
                 const branchKey = k as SingleBranchName;
                 updated[branchKey] = {
+                  ...DEFAULT_BRANCH_SETTINGS[branchKey],
                   ...updated[branchKey],
                   namaWarung: d.namaWarung || updated[branchKey].namaWarung,
                   slogan: d.slogan || updated[branchKey].slogan,
@@ -1389,7 +1404,7 @@ export default function PengaturanTokoPage() {
                   <label className="sm:col-span-2 flex items-center gap-3 p-3.5 rounded-xl bg-[#F8F9FA] border border-gray-200 text-xs text-gray-800 cursor-pointer hover:bg-gray-100/70 transition">
                     <input
                       type="checkbox"
-                      checked={currentConfig.cetakDetailPedas}
+                      checked={currentConfig.cetakDetailPedas ?? true}
                       onChange={(e) =>
                         updateField("cetakDetailPedas", e.target.checked)
                       }
@@ -1453,7 +1468,7 @@ export default function PengaturanTokoPage() {
                   Jumlah Salinan Cetak
                 </label>
                 <select
-                  value={currentConfig.jumlahSalinanStruk}
+                  value={currentConfig.jumlahSalinanStruk ?? "1x (Pelanggan)"}
                   onChange={(e) =>
                     updateField(
                       "jumlahSalinanStruk",
