@@ -964,7 +964,7 @@ export default function KasirShiftPage() {
     setShowSwitchOperatorModal(true);
   };
 
-  const handleConfirmSwitchOperator = (e: React.FormEvent) => {
+  const handleConfirmSwitchOperator = async (e: React.FormEvent) => {
     e.preventDefault();
     const chosen = availableBranchCashiers.find(
       (c) => c.id === selectedNewOperatorId
@@ -989,12 +989,23 @@ export default function KasirShiftPage() {
         if (c.id === chosen.id) {
           return { ...c, statusLive: "Aktif Melayani", isActive: true };
         }
-        if (c.id === activeDrawer.operatorId && c.statusLive === "Aktif Melayani") {
+        if (c.statusLive === "Aktif Melayani") {
           return { ...c, statusLive: "Standby / Rehat" };
         }
         return c;
       })
     );
+
+    try {
+      await fetch("http://localhost:5000/api/cashiers/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cashier: chosen.name, id: chosen.id }),
+      });
+      loadCashiersFromDB();
+    } catch {
+      // Abaikan jika backend offline
+    }
 
     setShowSwitchOperatorModal(false);
     showToast(
@@ -1012,7 +1023,7 @@ export default function KasirShiftPage() {
     setShowCloseShiftModal(true);
   };
 
-  const handleConfirmCloseShift = (e: React.FormEvent) => {
+  const handleConfirmCloseShift = async (e: React.FormEvent) => {
     e.preventDefault();
     const nowTime = new Date().toTimeString().slice(0, 5);
     const counted = parseFloat(countedCashInput) || expectedDrawerCash;
@@ -1037,20 +1048,31 @@ export default function KasirShiftPage() {
 
     setKasirList((prev) =>
       prev.map((c) =>
-        c.id === activeDrawer.operatorId
-          ? { ...c, statusLive: "Selesai Shift / Off" }
+        c.statusLive === "Aktif Melayani"
+          ? { ...c, statusLive: "Standby / Rehat" }
           : c
       )
     );
 
+    try {
+      await fetch("http://localhost:5000/api/cashiers/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      loadCashiersFromDB();
+    } catch {
+      // Abaikan jika backend offline
+    }
+
     setShowCloseShiftModal(false);
     showToast(
-      `Shift ${activeDrawer.counter} (${activeDrawerBranch}) ditutup & Shift X-Report berhasil direkap!`,
+      `Shift ${activeDrawer.counter} (${activeDrawerBranch}) ditutup & seluruh kasir kembali Standby!`,
       "success"
     );
   };
 
-  const handleConfirmReopenShift = (e: React.FormEvent) => {
+  const handleConfirmReopenShift = async (e: React.FormEvent) => {
     e.preventDefault();
     const modalBaru = Math.max(0, parseFloat(reopenModalAwalInput) || 500000);
     const nowTime = new Date().toTimeString().slice(0, 5);
@@ -1072,6 +1094,20 @@ export default function KasirShiftPage() {
           : c
       )
     );
+
+    try {
+      await fetch("http://localhost:5000/api/cashiers/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cashier: activeDrawer.operatorName,
+          id: activeDrawer.operatorId,
+        }),
+      });
+      loadCashiersFromDB();
+    } catch {
+      // Abaikan jika backend offline
+    }
 
     setShowCloseShiftModal(false);
     showToast(
