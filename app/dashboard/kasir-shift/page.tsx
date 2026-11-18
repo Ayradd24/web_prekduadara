@@ -541,6 +541,51 @@ export default function KasirShiftPage() {
     );
   };
 
+  // 2B. TOGGLE STATUS LIVE KASIR (Aktif Melayani <-> Standby / Rehat)
+  const handleToggleLiveStatus = async (kasir: KasirItem) => {
+    if (!kasir.isActive) {
+      showToast("Kasir sedang nonaktif. Aktifkan saklar akun terlebih dahulu.", "warning");
+      return;
+    }
+
+    const nextStatus: LiveStatusType =
+      kasir.statusLive === "Aktif Melayani" ? "Standby / Rehat" : "Aktif Melayani";
+
+    // Update state lokal seketika
+    setKasirList((prev) =>
+      prev.map((c) =>
+        c.id === kasir.id
+          ? { ...c, statusLive: nextStatus }
+          : nextStatus === "Aktif Melayani" && c.statusLive === "Aktif Melayani"
+            ? { ...c, statusLive: "Standby / Rehat" }
+            : c
+      )
+    );
+
+    try {
+      if (nextStatus === "Aktif Melayani") {
+        await fetch("http://localhost:5000/api/cashiers/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cashier: kasir.name, id: kasir.id }),
+        });
+      } else {
+        await fetch("http://localhost:5000/api/cashiers/logout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cashier: kasir.name, id: kasir.id }),
+        });
+      }
+      loadCashiersFromDB();
+      showToast(
+        `Status ${kasir.name} diubah menjadi ${nextStatus}!`,
+        "success"
+      );
+    } catch {
+      // Tetap terupdate di state lokal
+    }
+  };
+
   // 3. EDIT KASIR
   const handleStartEdit = (kasir: KasirItem) => {
     setEditingId(kasir.id);
@@ -1902,22 +1947,29 @@ export default function KasirShiftPage() {
 
                         {/* 4. Status Live (status_live) */}
                         <td className="py-3 px-2 whitespace-nowrap">
-                          {kasir.statusLive === "Aktif Melayani" ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200 whitespace-nowrap">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-                              <span>Aktif Melayani</span>
-                            </span>
-                          ) : kasir.statusLive === "Standby / Rehat" ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 text-[11px] font-bold border border-amber-200 whitespace-nowrap">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
-                              <span>Standby / Rehat</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-[11px] font-semibold border border-gray-200 whitespace-nowrap">
-                              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0"></span>
-                              <span>Selesai Shift / Off</span>
-                            </span>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleLiveStatus(kasir)}
+                            title="Klik untuk ubah status Aktif / Standby"
+                            className="cursor-pointer transition-transform hover:scale-105 active:scale-95 focus:outline-none"
+                          >
+                            {kasir.statusLive === "Aktif Melayani" ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200 whitespace-nowrap hover:bg-emerald-100">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                                <span>Aktif Melayani</span>
+                              </span>
+                            ) : kasir.statusLive === "Standby / Rehat" ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 text-[11px] font-bold border border-amber-200 whitespace-nowrap hover:bg-amber-100">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                                <span>Standby / Rehat</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-[11px] font-semibold border border-gray-200 whitespace-nowrap">
+                                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0"></span>
+                                <span>Selesai Shift / Off</span>
+                              </span>
+                            )}
+                          </button>
                         </td>
 
                         {/* 5. Akses Aktif (is_active) Toggle Switch */}
