@@ -8,6 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import Sidebar from "@/components/Sidebar";
+import TimeWheelPicker from "@/components/TimeWheelPicker";
 import {
   AlertTriangle,
   Banknote,
@@ -1030,26 +1031,22 @@ export default function PengaturanTokoPage() {
                   <span className="block text-xs font-bold text-gray-600 mb-1.5">
                     Jam Buka Kasir
                   </span>
-                  <input
-                    type="text"
+                  <TimeWheelPicker
                     value={currentConfig.jamBukaWeekday}
-                    onChange={(e) =>
-                      updateField("jamBukaWeekday", e.target.value)
-                    }
-                    className="w-full border border-gray-300 px-3 py-2 rounded-xl text-xs font-bold text-gray-900 bg-white"
+                    onChange={(val) => updateField("jamBukaWeekday", val)}
+                    suffix="WIB"
+                    ariaLabel="Jam Buka Kasir Weekday"
                   />
                 </div>
                 <div>
                   <span className="block text-xs font-bold text-gray-600 mb-1.5">
                     Jam Tutup / Closing
                   </span>
-                  <input
-                    type="text"
+                  <TimeWheelPicker
                     value={currentConfig.jamTutupWeekday}
-                    onChange={(e) =>
-                      updateField("jamTutupWeekday", e.target.value)
-                    }
-                    className="w-full border border-gray-300 px-3 py-2 rounded-xl text-xs font-bold text-gray-900 bg-white"
+                    onChange={(val) => updateField("jamTutupWeekday", val)}
+                    suffix="WIB"
+                    ariaLabel="Jam Tutup Kasir Weekday"
                   />
                 </div>
               </div>
@@ -1070,26 +1067,22 @@ export default function PengaturanTokoPage() {
                   <span className="block text-xs font-bold text-gray-600 mb-1.5">
                     Jam Buka Kasir
                   </span>
-                  <input
-                    type="text"
+                  <TimeWheelPicker
                     value={currentConfig.jamBukaWeekend}
-                    onChange={(e) =>
-                      updateField("jamBukaWeekend", e.target.value)
-                    }
-                    className="w-full border border-gray-300 px-3 py-2 rounded-xl text-xs font-bold text-gray-900 bg-white"
+                    onChange={(val) => updateField("jamBukaWeekend", val)}
+                    suffix="WIB"
+                    ariaLabel="Jam Buka Kasir Weekend"
                   />
                 </div>
                 <div>
                   <span className="block text-xs font-bold text-gray-600 mb-1.5">
                     Jam Tutup / Closing
                   </span>
-                  <input
-                    type="text"
+                  <TimeWheelPicker
                     value={currentConfig.jamTutupWeekend}
-                    onChange={(e) =>
-                      updateField("jamTutupWeekend", e.target.value)
-                    }
-                    className="w-full border border-gray-300 px-3 py-2 rounded-xl text-xs font-bold text-gray-900 bg-white"
+                    onChange={(val) => updateField("jamTutupWeekend", val)}
+                    suffix="WIB"
+                    ariaLabel="Jam Tutup Kasir Weekend"
                   />
                 </div>
               </div>

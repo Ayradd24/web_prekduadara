@@ -8,6 +8,7 @@ import React, {
   useRef,
 } from "react";
 import Sidebar from "@/components/Sidebar";
+import TimeWheelPicker from "@/components/TimeWheelPicker";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -2343,36 +2344,30 @@ export default function KasirShiftPage() {
                         <label className="text-[10px] font-bold text-gray-500 block mb-0.5">
                           Jam Mulai
                         </label>
-                        <input
-                          type="time"
+                        <TimeWheelPicker
                           value={customStartTime}
-                          onChange={(e) => {
-                            setCustomStartTime(e.target.value);
+                          onChange={(val) => {
+                            setCustomStartTime(val);
                             setFormShift("Kustom");
                           }}
-                          className={`w-full px-2.5 py-1.5 border rounded-lg text-xs font-extrabold text-gray-900 bg-white focus:outline-none focus:border-[#EA8E18] ${
-                            formShift === "Kustom"
-                              ? "border-[#EA8E18] ring-1 ring-[#EA8E18]/30"
-                              : "border-gray-300"
-                          }`}
+                          active={formShift === "Kustom"}
+                          compact
+                          ariaLabel="Jam Mulai Shift Kustom"
                         />
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-gray-500 block mb-0.5">
                           Jam Selesai
                         </label>
-                        <input
-                          type="time"
+                        <TimeWheelPicker
                           value={customEndTime}
-                          onChange={(e) => {
-                            setCustomEndTime(e.target.value);
+                          onChange={(val) => {
+                            setCustomEndTime(val);
                             setFormShift("Kustom");
                           }}
-                          className={`w-full px-2.5 py-1.5 border rounded-lg text-xs font-extrabold text-gray-900 bg-white focus:outline-none focus:border-[#EA8E18] ${
-                            formShift === "Kustom"
-                              ? "border-[#EA8E18] ring-1 ring-[#EA8E18]/30"
-                              : "border-gray-300"
-                          }`}
+                          active={formShift === "Kustom"}
+                          compact
+                          ariaLabel="Jam Selesai Shift Kustom"
                         />
                       </div>
                     </div>
