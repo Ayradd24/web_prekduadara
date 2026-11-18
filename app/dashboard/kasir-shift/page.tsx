@@ -1047,7 +1047,7 @@ export default function KasirShiftPage() {
 
     setShowSwitchOperatorModal(false);
     showToast(
-      `Operator laci ${activeDrawer.counter} (${activeDrawerBranch}) dialihkan ke ${chosen.name} (${chosen.id})!`,
+      `Operator laci ${activeDrawer.counter} dialihkan ke ${chosen.name} (${chosen.id})!`,
       "success"
     );
   };
@@ -1105,7 +1105,7 @@ export default function KasirShiftPage() {
 
     setShowCloseShiftModal(false);
     showToast(
-      `Shift ${activeDrawer.counter} (${activeDrawerBranch}) ditutup & seluruh kasir kembali Standby!`,
+      `Shift ${activeDrawer.counter} ditutup & seluruh kasir kembali Standby!`,
       "success"
     );
   };
@@ -1149,7 +1149,7 @@ export default function KasirShiftPage() {
 
     setShowCloseShiftModal(false);
     showToast(
-      `Shift baru ${activeDrawer.counter} (${activeDrawerBranch}) berhasil dibuka dengan modal awal Rp ${modalBaru.toLocaleString(
+      `Shift baru ${activeDrawer.counter} berhasil dibuka dengan modal awal Rp ${modalBaru.toLocaleString(
         "id-ID"
       )}!`,
       "success"
@@ -1274,9 +1274,8 @@ export default function KasirShiftPage() {
               Apakah Anda yakin ingin menghapus profil kasir{" "}
               <strong className="text-gray-900 font-extrabold">
                 {deleteTarget.name} ({deleteTarget.id})
-              </strong>{" "}
-              dari <strong className="text-gray-900">{deleteTarget.branch}</strong>?
-              Tindakan ini akan mencabut akses login POS kasir tersebut.
+              </strong>
+              ? Tindakan ini akan mencabut akses login POS kasir tersebut.
             </div>
 
             <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-2.5">
@@ -1317,7 +1316,7 @@ export default function KasirShiftPage() {
                     Ganti Operator Laci ({activeDrawer.counter})
                   </h3>
                   <p className="text-[11px] text-emerald-200 font-medium">
-                    {activeDrawerBranch}
+                    PrekDuaDara POS
                   </p>
                 </div>
               </div>
@@ -1399,7 +1398,7 @@ export default function KasirShiftPage() {
                       : `Buka Shift Baru (${activeDrawer.counter})`}
                   </h3>
                   <p className="text-[11px] text-white/85 font-medium">
-                    {activeDrawerBranch} • Operator: {activeDrawer.operatorName}
+                    Operator: {activeDrawer.operatorName}
                   </p>
                 </div>
               </div>
@@ -1535,7 +1534,7 @@ export default function KasirShiftPage() {
           {/* Info Cetak Saat Mode Print */}
           <div className="hidden print:block text-right text-xs text-gray-700">
             <div className="font-bold text-gray-900">
-              Laporan Staf Kasir &amp; Shift • Gerai Utama
+              Laporan Staf Kasir &amp; Shift • PrekDuaDara
             </div>
             <div className="mt-0.5">
               Total Kasir Terfilter: {filteredKasir.length} Staf • Online:{" "}
@@ -1580,7 +1579,7 @@ export default function KasirShiftPage() {
                 DATABASE KASIR
               </span>
               <span className="px-2.5 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-700 text-[11px] font-bold shrink-0">
-                Tabel `kasir` • Gerai Utama
+                Tabel `kasir`
               </span>
             </div>
             <p className="text-xs text-gray-600 mt-1.5 font-medium leading-relaxed">
@@ -1701,7 +1700,7 @@ export default function KasirShiftPage() {
               </div>
               <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-semibold min-w-0">
                 <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                <span className="truncate">Gerai Utama • Database MariaDB</span>
+                <span className="truncate">Database MariaDB</span>
               </div>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-amber-50 border border-amber-200 text-[#EA8E18] flex items-center justify-center shrink-0">
@@ -1827,9 +1826,6 @@ export default function KasirShiftPage() {
                 </span>
                 <span className="px-2.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-xs font-extrabold">
                   {activeDrawer.counter}
-                </span>
-                <span className="px-2.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold">
-                  {activeDrawerBranch}
                 </span>
               </div>
               <h2 className="text-base sm:text-lg font-black text-gray-900 mt-1">
@@ -1985,9 +1981,6 @@ export default function KasirShiftPage() {
                               <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
                                 <span className="inline-block px-1.5 py-0.2 rounded bg-gray-100 border border-gray-200 text-gray-700 font-extrabold text-[10px] shrink-0">
                                   {kasir.id}
-                                </span>
-                                <span className="text-[11px] text-emerald-700 font-bold truncate">
-                                  Gerai Utama
                                 </span>
                               </div>
                             </div>
@@ -2191,19 +2184,6 @@ export default function KasirShiftPage() {
                 onSubmit={handleSaveKasir}
                 className="flex flex-col gap-3.5"
               >
-                {/* Gerai Penugasan */}
-                <div>
-                  <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1">
-                    GERAI PENUGASAN
-                  </label>
-                  <div className="w-full px-3.5 py-2 border border-gray-200 bg-gray-50 rounded-xl text-xs sm:text-sm font-bold text-gray-800 flex items-center justify-between">
-                    <span>PrekDuaDara (Gerai Utama)</span>
-                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      Pusat
-                    </span>
-                  </div>
-                </div>
-
                 {/* 1. Nama Lengkap Kasir */}
                 <div>
                   <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1">
