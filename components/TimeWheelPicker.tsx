@@ -198,8 +198,8 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`inline-flex items-center justify-center rounded-md font-black tabular-nums transition cursor-pointer ${
-          compact ? "w-6 h-6 text-xs" : "w-7 h-6 text-xs sm:text-sm"
+        className={`inline-flex items-center justify-center rounded px-1 py-0.5 font-black tabular-nums transition cursor-pointer leading-none ${
+          compact ? "text-xs" : "text-xs sm:text-sm"
         } ${
           isOpen
             ? "text-[#EA8E18] bg-amber-100 ring-1 ring-[#EA8E18]"
@@ -296,8 +296,8 @@ export default function TimeWheelPicker({
   return (
     <div
       aria-label={ariaLabel}
-      className={`inline-flex items-center justify-center gap-0.5 rounded-lg border bg-white transition-all ${
-        compact ? "h-8 px-2" : "h-8 px-2.5"
+      className={`w-full flex items-center justify-center gap-0 rounded-lg border bg-white transition-all ${
+        compact ? "h-8 px-2" : "h-9 px-3"
       } ${
         active
           ? "border-[#EA8E18] ring-1 ring-[#EA8E18]/30"
@@ -313,7 +313,7 @@ export default function TimeWheelPicker({
       />
 
       <span
-        className={`font-black text-gray-400 select-none ${
+        className={`font-black text-gray-400 select-none px-0.5 leading-none ${
           compact ? "text-xs" : "text-xs sm:text-sm"
         }`}
       >
@@ -329,7 +329,7 @@ export default function TimeWheelPicker({
       />
 
       {suffix && (
-        <span className="ml-1 px-1 py-0.5 rounded bg-gray-100 border border-gray-200 text-[9px] font-extrabold text-gray-600 select-none whitespace-nowrap">
+        <span className="ml-1.5 px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-[10px] font-extrabold text-gray-600 select-none whitespace-nowrap leading-none">
           {suffix}
         </span>
       )}
