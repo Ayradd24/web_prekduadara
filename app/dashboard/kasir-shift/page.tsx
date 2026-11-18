@@ -44,6 +44,7 @@ type ShiftMainType =
   | "Shift Pagi"
   | "Shift Siang"
   | "Shift Malam"
+  | "Shift Kustom"
   | "Off / Libur";
 
 type LiveStatusType =
@@ -126,16 +127,28 @@ function parseShift(shiftStr?: string): {
 
   if (!shiftStr) return { shiftMain, shiftHours };
 
+  const hourMatch = shiftStr.match(/(\d{1,2}[:.]\d{2}\s*-\s*\d{1,2}[:.]\d{2})/);
+  if (hourMatch) {
+    shiftHours = hourMatch[1].replace(".", ":");
+  }
+
   const lower = shiftStr.toLowerCase();
   if (lower.includes("siang")) {
     shiftMain = "Shift Siang";
-    shiftHours = "12:00 - 17:00";
+    if (!hourMatch) shiftHours = "12:00 - 17:00";
   } else if (lower.includes("malam")) {
     shiftMain = "Shift Malam";
-    shiftHours = "17:00 - 22:00";
+    if (!hourMatch) shiftHours = "17:00 - 22:00";
+  } else if (lower.includes("kustom")) {
+    shiftMain = "Shift Kustom";
   } else if (lower.includes("off") || lower.includes("libur")) {
     shiftMain = "Off / Libur";
     shiftHours = "Jadwal Libur";
+  } else if (lower.includes("pagi")) {
+    shiftMain = "Shift Pagi";
+    if (!hourMatch) shiftHours = "08:00 - 12:00";
+  } else if (hourMatch) {
+    shiftMain = "Shift Kustom";
   }
 
   return { shiftMain, shiftHours };
@@ -203,9 +216,11 @@ export default function KasirShiftPage() {
   const [formRole, setFormRole] = useState("Kasir");
   const [formId, setFormId] = useState("#KSR-001");
   const [formBranch, setFormBranch] = useState<SingleBranchName>("Gerai Utama");
-  const [formShift, setFormShift] = useState<"Pagi" | "Siang" | "Malam">(
+  const [formShift, setFormShift] = useState<"Pagi" | "Siang" | "Malam" | "Kustom">(
     "Pagi"
   );
+  const [customStartTime, setCustomStartTime] = useState("09:00");
+  const [customEndTime, setCustomEndTime] = useState("18:00");
   const [formIsActive, setFormIsActive] = useState(true);
 
   // State Modals Interaktif (Menggantikan alert & confirm)
@@ -533,9 +548,20 @@ export default function KasirShiftPage() {
     setFormRole(kasir.roleTitle || "Kasir");
     setFormId(kasir.id);
     setFormBranch(kasir.branch || "Gerai Utama");
-    if (kasir.shift.includes("Siang")) setFormShift("Siang");
-    else if (kasir.shift.includes("Malam")) setFormShift("Malam");
-    else setFormShift("Pagi");
+    if (kasir.shift.includes("Siang")) {
+      setFormShift("Siang");
+    } else if (kasir.shift.includes("Malam")) {
+      setFormShift("Malam");
+    } else if (kasir.shift.includes("Kustom") || (!kasir.shift.includes("Pagi") && kasir.shiftHours)) {
+      setFormShift("Kustom");
+      const match = kasir.shift.match(/(\d{1,2}[:.]\d{2})\s*-\s*(\d{1,2}[:.]\d{2})/);
+      if (match) {
+        setCustomStartTime(match[1].replace(".", ":"));
+        setCustomEndTime(match[2].replace(".", ":"));
+      }
+    } else {
+      setFormShift("Pagi");
+    }
     setFormIsActive(kasir.isActive);
 
     const formElem = document.getElementById("form-kasir-container");
@@ -551,6 +577,8 @@ export default function KasirShiftPage() {
     setFormId(generateNextCashierCode(kasirList));
     setFormBranch("Gerai Utama");
     setFormShift("Pagi");
+    setCustomStartTime("09:00");
+    setCustomEndTime("18:00");
     setFormIsActive(true);
   }, [kasirList]);
 
@@ -599,12 +627,27 @@ export default function KasirShiftPage() {
       },
     };
 
-    const chosen = shiftMap[formShift];
+    let chosen: { label: string; main: ShiftMainType; hours: string };
+    if (formShift === "Kustom") {
+      const start = customStartTime.trim() || "09:00";
+      const end = customEndTime.trim() || "18:00";
+      const hours = `${start} - ${end}`;
+      chosen = {
+        label: `Shift Kustom (${hours})`,
+        main: "Shift Kustom",
+        hours,
+      };
+    } else {
+      chosen = shiftMap[formShift];
+    }
+
+    const currentLiveStatus = editingId
+      ? (kasirList.find((c) => c.id === editingId)?.statusLive || "Standby / Rehat")
+      : "Standby / Rehat";
+
     const statusLive: LiveStatusType = !formIsActive
       ? "Selesai Shift / Off"
-      : chosen.main === "Shift Pagi"
-        ? "Aktif Melayani"
-        : "Standby / Rehat";
+      : currentLiveStatus;
 
     const token =
       typeof window !== "undefined"
@@ -712,6 +755,8 @@ export default function KasirShiftPage() {
       setFormRole("Kasir");
       setFormId(generateNextCashierCode(nextList));
       setFormShift("Pagi");
+      setCustomStartTime("09:00");
+      setCustomEndTime("18:00");
       setFormIsActive(true);
     } else {
       const newKasir: KasirItem = {
@@ -763,6 +808,9 @@ export default function KasirShiftPage() {
       setFormName("");
       setFormRole("Kasir");
       setFormId(generateNextCashierCode(nextList));
+      setFormShift("Pagi");
+      setCustomStartTime("09:00");
+      setCustomEndTime("18:00");
     }
   };
 
@@ -819,6 +867,9 @@ export default function KasirShiftPage() {
       setEditingId(null);
       setFormName("");
       setFormId(generateNextCashierCode(nextList));
+      setFormShift("Pagi");
+      setCustomStartTime("09:00");
+      setCustomEndTime("18:00");
     }
     setDeleteTarget(null);
     showToast(`Data kasir ${name} (${id}) telah dihapus.`, "info");
@@ -2119,6 +2170,87 @@ export default function KasirShiftPage() {
                         </span>
                       </button>
                     ))}
+                  </div>
+
+                  {/* Jam Kustom di Bawah Jam Shift Reguler */}
+                  <div
+                    className={`mt-2.5 p-2.5 rounded-xl border transition-all ${
+                      formShift === "Kustom"
+                        ? "bg-amber-50/70 border-amber-300 shadow-xs"
+                        : "bg-gray-50/80 border-gray-200"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setFormShift("Kustom")}
+                        className="flex items-center gap-1.5 cursor-pointer text-left group"
+                      >
+                        <span
+                          className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center transition ${
+                            formShift === "Kustom"
+                              ? "border-[#EA8E18] bg-[#EA8E18]"
+                              : "border-gray-400 bg-white group-hover:border-gray-600"
+                          }`}
+                        >
+                          {formShift === "Kustom" && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                          )}
+                        </span>
+                        <span
+                          className={`text-xs font-extrabold ${
+                            formShift === "Kustom"
+                              ? "text-[#EA8E18]"
+                              : "text-gray-700 group-hover:text-gray-900"
+                          }`}
+                        >
+                          Atur Jam Kustom
+                        </span>
+                      </button>
+                      {formShift === "Kustom" && (
+                        <span className="text-[10px] font-black text-[#EA8E18] bg-amber-100 px-2 py-0.5 rounded-md border border-amber-300">
+                          {customStartTime} - {customEndTime}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 block mb-0.5">
+                          Jam Mulai
+                        </label>
+                        <input
+                          type="time"
+                          value={customStartTime}
+                          onChange={(e) => {
+                            setCustomStartTime(e.target.value);
+                            setFormShift("Kustom");
+                          }}
+                          className={`w-full px-2.5 py-1.5 border rounded-lg text-xs font-extrabold text-gray-900 bg-white focus:outline-none focus:border-[#EA8E18] ${
+                            formShift === "Kustom"
+                              ? "border-[#EA8E18] ring-1 ring-[#EA8E18]/30"
+                              : "border-gray-300"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 block mb-0.5">
+                          Jam Selesai
+                        </label>
+                        <input
+                          type="time"
+                          value={customEndTime}
+                          onChange={(e) => {
+                            setCustomEndTime(e.target.value);
+                            setFormShift("Kustom");
+                          }}
+                          className={`w-full px-2.5 py-1.5 border rounded-lg text-xs font-extrabold text-gray-900 bg-white focus:outline-none focus:border-[#EA8E18] ${
+                            formShift === "Kustom"
+                              ? "border-[#EA8E18] ring-1 ring-[#EA8E18]/30"
+                              : "border-gray-300"
+                          }`}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
