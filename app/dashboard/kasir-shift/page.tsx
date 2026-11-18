@@ -8,6 +8,7 @@ import React, {
   useRef,
 } from "react";
 import Sidebar from "@/components/Sidebar";
+import TimeWheelPicker from "@/components/TimeWheelPicker";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -44,6 +45,7 @@ type ShiftMainType =
   | "Shift Pagi"
   | "Shift Siang"
   | "Shift Malam"
+  | "Shift Kustom"
   | "Off / Libur";
 
 type LiveStatusType =
@@ -105,7 +107,7 @@ const INITIAL_DRAWERS: Record<SingleBranchName, BranchDrawerState> = {
     modalAwal: 500000,
     totalSales: 0,
     totalNotes: 0,
-    isOpen: true,
+    isOpen: false,
   },
 };
 
@@ -126,16 +128,28 @@ function parseShift(shiftStr?: string): {
 
   if (!shiftStr) return { shiftMain, shiftHours };
 
+  const hourMatch = shiftStr.match(/(\d{1,2}[:.]\d{2}\s*-\s*\d{1,2}[:.]\d{2})/);
+  if (hourMatch) {
+    shiftHours = hourMatch[1].replace(".", ":");
+  }
+
   const lower = shiftStr.toLowerCase();
   if (lower.includes("siang")) {
     shiftMain = "Shift Siang";
-    shiftHours = "12:00 - 17:00";
+    if (!hourMatch) shiftHours = "12:00 - 17:00";
   } else if (lower.includes("malam")) {
     shiftMain = "Shift Malam";
-    shiftHours = "17:00 - 22:00";
+    if (!hourMatch) shiftHours = "17:00 - 22:00";
+  } else if (lower.includes("kustom")) {
+    shiftMain = "Shift Kustom";
   } else if (lower.includes("off") || lower.includes("libur")) {
     shiftMain = "Off / Libur";
     shiftHours = "Jadwal Libur";
+  } else if (lower.includes("pagi")) {
+    shiftMain = "Shift Pagi";
+    if (!hourMatch) shiftHours = "08:00 - 12:00";
+  } else if (hourMatch) {
+    shiftMain = "Shift Kustom";
   }
 
   return { shiftMain, shiftHours };
@@ -203,9 +217,11 @@ export default function KasirShiftPage() {
   const [formRole, setFormRole] = useState("Kasir");
   const [formId, setFormId] = useState("#KSR-001");
   const [formBranch, setFormBranch] = useState<SingleBranchName>("Gerai Utama");
-  const [formShift, setFormShift] = useState<"Pagi" | "Siang" | "Malam">(
+  const [formShift, setFormShift] = useState<"Pagi" | "Siang" | "Malam" | "Kustom">(
     "Pagi"
   );
+  const [customStartTime, setCustomStartTime] = useState("09:00");
+  const [customEndTime, setCustomEndTime] = useState("18:00");
   const [formIsActive, setFormIsActive] = useState(true);
 
   // State Modals Interaktif (Menggantikan alert & confirm)
@@ -250,10 +266,12 @@ export default function KasirShiftPage() {
   formNameRef.current = formName;
 
   // 1. FETCH DATA DARI API BACKEND MARIADB
-  const loadCashiersFromDB = useCallback(async () => {
-    setIsLoading(true);
+  const loadCashiersFromDB = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/cashiers");
+      const res = await fetch("http://localhost:5000/api/cashiers", {
+        cache: "no-store",
+      });
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         if (json.data.length === 0) {
@@ -276,7 +294,7 @@ export default function KasirShiftPage() {
             const liveStatus: LiveStatusType =
               c.statusLive ||
               c.status_live ||
-              (activeFlag ? "Aktif Melayani" : "Selesai Shift / Off");
+              (activeFlag ? "Standby / Rehat" : "Selesai Shift / Off");
 
             return {
               id: c.id,
@@ -307,7 +325,9 @@ export default function KasirShiftPage() {
         let salesSum = 0;
         let notesCount = 0;
         try {
-          const trxRes = await fetch("http://localhost:5000/api/transactions");
+          const trxRes = await fetch("http://localhost:5000/api/transactions", {
+            cache: "no-store",
+          });
           const trxJson = await trxRes.json();
           if (trxJson.success && Array.isArray(trxJson.data)) {
             const isToday = (created?: string) => {
@@ -333,12 +353,13 @@ export default function KasirShiftPage() {
           // Abaikan jika server transaksi sedang offline
         }
 
-        const activeKasir =
-          mappedDbItems.find(
-            (item) => item.statusLive === "Aktif Melayani" && item.isActive
-          ) || mappedDbItems[0];
+        const servingKasir = mappedDbItems.find(
+          (item) => item.statusLive === "Aktif Melayani" && item.isActive
+        );
+        const fallbackKasir =
+          mappedDbItems.find((item) => item.isActive) || mappedDbItems[0];
 
-        if (activeKasir) {
+        if (servingKasir) {
           setDrawersByBranch((prev) => {
             const prevDrawer =
               prev["Gerai Utama"] || INITIAL_DRAWERS["Gerai Utama"];
@@ -346,11 +367,33 @@ export default function KasirShiftPage() {
               ...prev,
               "Gerai Utama": {
                 ...prevDrawer,
-                operatorId: activeKasir.id,
-                operatorName: activeKasir.name,
-                shiftInfo: `${activeKasir.shift} • Login Aktif`,
+                isOpen: true,
+                operatorId: servingKasir.id,
+                operatorName: servingKasir.name,
+                shiftInfo: `${servingKasir.shift} • Login Aktif`,
                 totalSales: salesSum,
                 totalNotes: notesCount,
+                lastClosedInfo: undefined,
+              },
+            };
+          });
+        } else if (fallbackKasir) {
+          setDrawersByBranch((prev) => {
+            const prevDrawer =
+              prev["Gerai Utama"] || INITIAL_DRAWERS["Gerai Utama"];
+            return {
+              ...prev,
+              "Gerai Utama": {
+                ...prevDrawer,
+                isOpen: false,
+                operatorId: fallbackKasir.id,
+                operatorName: fallbackKasir.name,
+                shiftInfo: "Tidak ada kasir aktif melayani (Semua Standby)",
+                totalSales: salesSum,
+                totalNotes: notesCount,
+                lastClosedInfo:
+                  prevDrawer.lastClosedInfo ||
+                  "Shift ditutup — seluruh kasir berstatus Standby / Rehat",
               },
             };
           });
@@ -359,14 +402,24 @@ export default function KasirShiftPage() {
     } catch {
       setDbConnected(false);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadCashiersFromDB();
-    const interval = setInterval(loadCashiersFromDB, 10000);
-    return () => clearInterval(interval);
+    loadCashiersFromDB(false);
+    const interval = setInterval(() => loadCashiersFromDB(true), 3000);
+    const handleFocus = () => loadCashiersFromDB(true);
+    const handleVisibility = () => {
+      if (!document.hidden) loadCashiersFromDB(true);
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [loadCashiersFromDB]);
 
   // Cabang target untuk Laci Kasir (Gerai Utama Pusat)
@@ -526,6 +579,51 @@ export default function KasirShiftPage() {
     );
   };
 
+  // 2B. TOGGLE STATUS LIVE KASIR (Aktif Melayani <-> Standby / Rehat)
+  const handleToggleLiveStatus = async (kasir: KasirItem) => {
+    if (!kasir.isActive) {
+      showToast("Kasir sedang nonaktif. Aktifkan saklar akun terlebih dahulu.", "warning");
+      return;
+    }
+
+    const nextStatus: LiveStatusType =
+      kasir.statusLive === "Aktif Melayani" ? "Standby / Rehat" : "Aktif Melayani";
+
+    // Update state lokal seketika
+    setKasirList((prev) =>
+      prev.map((c) =>
+        c.id === kasir.id
+          ? { ...c, statusLive: nextStatus }
+          : nextStatus === "Aktif Melayani" && c.statusLive === "Aktif Melayani"
+            ? { ...c, statusLive: "Standby / Rehat" }
+            : c
+      )
+    );
+
+    try {
+      if (nextStatus === "Aktif Melayani") {
+        await fetch("http://localhost:5000/api/cashiers/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cashier: kasir.name, id: kasir.id }),
+        });
+      } else {
+        await fetch("http://localhost:5000/api/cashiers/logout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cashier: kasir.name, id: kasir.id }),
+        });
+      }
+      loadCashiersFromDB();
+      showToast(
+        `Status ${kasir.name} diubah menjadi ${nextStatus}!`,
+        "success"
+      );
+    } catch {
+      // Tetap terupdate di state lokal
+    }
+  };
+
   // 3. EDIT KASIR
   const handleStartEdit = (kasir: KasirItem) => {
     setEditingId(kasir.id);
@@ -533,9 +631,20 @@ export default function KasirShiftPage() {
     setFormRole(kasir.roleTitle || "Kasir");
     setFormId(kasir.id);
     setFormBranch(kasir.branch || "Gerai Utama");
-    if (kasir.shift.includes("Siang")) setFormShift("Siang");
-    else if (kasir.shift.includes("Malam")) setFormShift("Malam");
-    else setFormShift("Pagi");
+    if (kasir.shift.includes("Siang")) {
+      setFormShift("Siang");
+    } else if (kasir.shift.includes("Malam")) {
+      setFormShift("Malam");
+    } else if (kasir.shift.includes("Kustom") || (!kasir.shift.includes("Pagi") && kasir.shiftHours)) {
+      setFormShift("Kustom");
+      const match = kasir.shift.match(/(\d{1,2}[:.]\d{2})\s*-\s*(\d{1,2}[:.]\d{2})/);
+      if (match) {
+        setCustomStartTime(match[1].replace(".", ":"));
+        setCustomEndTime(match[2].replace(".", ":"));
+      }
+    } else {
+      setFormShift("Pagi");
+    }
     setFormIsActive(kasir.isActive);
 
     const formElem = document.getElementById("form-kasir-container");
@@ -551,6 +660,8 @@ export default function KasirShiftPage() {
     setFormId(generateNextCashierCode(kasirList));
     setFormBranch("Gerai Utama");
     setFormShift("Pagi");
+    setCustomStartTime("09:00");
+    setCustomEndTime("18:00");
     setFormIsActive(true);
   }, [kasirList]);
 
@@ -599,12 +710,27 @@ export default function KasirShiftPage() {
       },
     };
 
-    const chosen = shiftMap[formShift];
+    let chosen: { label: string; main: ShiftMainType; hours: string };
+    if (formShift === "Kustom") {
+      const start = customStartTime.trim() || "09:00";
+      const end = customEndTime.trim() || "18:00";
+      const hours = `${start} - ${end}`;
+      chosen = {
+        label: `Shift Kustom (${hours})`,
+        main: "Shift Kustom",
+        hours,
+      };
+    } else {
+      chosen = shiftMap[formShift];
+    }
+
+    const currentLiveStatus = editingId
+      ? (kasirList.find((c) => c.id === editingId)?.statusLive || "Standby / Rehat")
+      : "Standby / Rehat";
+
     const statusLive: LiveStatusType = !formIsActive
       ? "Selesai Shift / Off"
-      : chosen.main === "Shift Pagi"
-        ? "Aktif Melayani"
-        : "Standby / Rehat";
+      : currentLiveStatus;
 
     const token =
       typeof window !== "undefined"
@@ -712,6 +838,8 @@ export default function KasirShiftPage() {
       setFormRole("Kasir");
       setFormId(generateNextCashierCode(nextList));
       setFormShift("Pagi");
+      setCustomStartTime("09:00");
+      setCustomEndTime("18:00");
       setFormIsActive(true);
     } else {
       const newKasir: KasirItem = {
@@ -763,6 +891,9 @@ export default function KasirShiftPage() {
       setFormName("");
       setFormRole("Kasir");
       setFormId(generateNextCashierCode(nextList));
+      setFormShift("Pagi");
+      setCustomStartTime("09:00");
+      setCustomEndTime("18:00");
     }
   };
 
@@ -819,6 +950,9 @@ export default function KasirShiftPage() {
       setEditingId(null);
       setFormName("");
       setFormId(generateNextCashierCode(nextList));
+      setFormShift("Pagi");
+      setCustomStartTime("09:00");
+      setCustomEndTime("18:00");
     }
     setDeleteTarget(null);
     showToast(`Data kasir ${name} (${id}) telah dihapus.`, "info");
@@ -868,7 +1002,7 @@ export default function KasirShiftPage() {
     setShowSwitchOperatorModal(true);
   };
 
-  const handleConfirmSwitchOperator = (e: React.FormEvent) => {
+  const handleConfirmSwitchOperator = async (e: React.FormEvent) => {
     e.preventDefault();
     const chosen = availableBranchCashiers.find(
       (c) => c.id === selectedNewOperatorId
@@ -893,16 +1027,27 @@ export default function KasirShiftPage() {
         if (c.id === chosen.id) {
           return { ...c, statusLive: "Aktif Melayani", isActive: true };
         }
-        if (c.id === activeDrawer.operatorId && c.statusLive === "Aktif Melayani") {
+        if (c.statusLive === "Aktif Melayani") {
           return { ...c, statusLive: "Standby / Rehat" };
         }
         return c;
       })
     );
 
+    try {
+      await fetch("http://localhost:5000/api/cashiers/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cashier: chosen.name, id: chosen.id }),
+      });
+      loadCashiersFromDB();
+    } catch {
+      // Abaikan jika backend offline
+    }
+
     setShowSwitchOperatorModal(false);
     showToast(
-      `Operator laci ${activeDrawer.counter} (${activeDrawerBranch}) dialihkan ke ${chosen.name} (${chosen.id})!`,
+      `Operator laci ${activeDrawer.counter} dialihkan ke ${chosen.name} (${chosen.id})!`,
       "success"
     );
   };
@@ -916,7 +1061,7 @@ export default function KasirShiftPage() {
     setShowCloseShiftModal(true);
   };
 
-  const handleConfirmCloseShift = (e: React.FormEvent) => {
+  const handleConfirmCloseShift = async (e: React.FormEvent) => {
     e.preventDefault();
     const nowTime = new Date().toTimeString().slice(0, 5);
     const counted = parseFloat(countedCashInput) || expectedDrawerCash;
@@ -941,20 +1086,31 @@ export default function KasirShiftPage() {
 
     setKasirList((prev) =>
       prev.map((c) =>
-        c.id === activeDrawer.operatorId
-          ? { ...c, statusLive: "Selesai Shift / Off" }
+        c.statusLive === "Aktif Melayani"
+          ? { ...c, statusLive: "Standby / Rehat" }
           : c
       )
     );
 
+    try {
+      await fetch("http://localhost:5000/api/cashiers/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      loadCashiersFromDB();
+    } catch {
+      // Abaikan jika backend offline
+    }
+
     setShowCloseShiftModal(false);
     showToast(
-      `Shift ${activeDrawer.counter} (${activeDrawerBranch}) ditutup & Shift X-Report berhasil direkap!`,
+      `Shift ${activeDrawer.counter} ditutup & seluruh kasir kembali Standby!`,
       "success"
     );
   };
 
-  const handleConfirmReopenShift = (e: React.FormEvent) => {
+  const handleConfirmReopenShift = async (e: React.FormEvent) => {
     e.preventDefault();
     const modalBaru = Math.max(0, parseFloat(reopenModalAwalInput) || 500000);
     const nowTime = new Date().toTimeString().slice(0, 5);
@@ -977,9 +1133,23 @@ export default function KasirShiftPage() {
       )
     );
 
+    try {
+      await fetch("http://localhost:5000/api/cashiers/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cashier: activeDrawer.operatorName,
+          id: activeDrawer.operatorId,
+        }),
+      });
+      loadCashiersFromDB();
+    } catch {
+      // Abaikan jika backend offline
+    }
+
     setShowCloseShiftModal(false);
     showToast(
-      `Shift baru ${activeDrawer.counter} (${activeDrawerBranch}) berhasil dibuka dengan modal awal Rp ${modalBaru.toLocaleString(
+      `Shift baru ${activeDrawer.counter} berhasil dibuka dengan modal awal Rp ${modalBaru.toLocaleString(
         "id-ID"
       )}!`,
       "success"
@@ -1104,9 +1274,8 @@ export default function KasirShiftPage() {
               Apakah Anda yakin ingin menghapus profil kasir{" "}
               <strong className="text-gray-900 font-extrabold">
                 {deleteTarget.name} ({deleteTarget.id})
-              </strong>{" "}
-              dari <strong className="text-gray-900">{deleteTarget.branch}</strong>?
-              Tindakan ini akan mencabut akses login POS kasir tersebut.
+              </strong>
+              ? Tindakan ini akan mencabut akses login POS kasir tersebut.
             </div>
 
             <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-2.5">
@@ -1147,7 +1316,7 @@ export default function KasirShiftPage() {
                     Ganti Operator Laci ({activeDrawer.counter})
                   </h3>
                   <p className="text-[11px] text-emerald-200 font-medium">
-                    {activeDrawerBranch}
+                    PrekDuaDara POS
                   </p>
                 </div>
               </div>
@@ -1229,7 +1398,7 @@ export default function KasirShiftPage() {
                       : `Buka Shift Baru (${activeDrawer.counter})`}
                   </h3>
                   <p className="text-[11px] text-white/85 font-medium">
-                    {activeDrawerBranch} • Operator: {activeDrawer.operatorName}
+                    Operator: {activeDrawer.operatorName}
                   </p>
                 </div>
               </div>
@@ -1365,7 +1534,7 @@ export default function KasirShiftPage() {
           {/* Info Cetak Saat Mode Print */}
           <div className="hidden print:block text-right text-xs text-gray-700">
             <div className="font-bold text-gray-900">
-              Laporan Staf Kasir &amp; Shift • Gerai Utama
+              Laporan Staf Kasir &amp; Shift • PrekDuaDara
             </div>
             <div className="mt-0.5">
               Total Kasir Terfilter: {filteredKasir.length} Staf • Online:{" "}
@@ -1410,7 +1579,7 @@ export default function KasirShiftPage() {
                 DATABASE KASIR
               </span>
               <span className="px-2.5 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-700 text-[11px] font-bold shrink-0">
-                Tabel `kasir` • Gerai Utama
+                Tabel `kasir`
               </span>
             </div>
             <p className="text-xs text-gray-600 mt-1.5 font-medium leading-relaxed">
@@ -1531,7 +1700,7 @@ export default function KasirShiftPage() {
               </div>
               <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-semibold min-w-0">
                 <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                <span className="truncate">Gerai Utama • Database MariaDB</span>
+                <span className="truncate">Database MariaDB</span>
               </div>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-amber-50 border border-amber-200 text-[#EA8E18] flex items-center justify-center shrink-0">
@@ -1657,9 +1826,6 @@ export default function KasirShiftPage() {
                 </span>
                 <span className="px-2.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-xs font-extrabold">
                   {activeDrawer.counter}
-                </span>
-                <span className="px-2.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold">
-                  {activeDrawerBranch}
                 </span>
               </div>
               <h2 className="text-base sm:text-lg font-black text-gray-900 mt-1">
@@ -1816,9 +1982,6 @@ export default function KasirShiftPage() {
                                 <span className="inline-block px-1.5 py-0.2 rounded bg-gray-100 border border-gray-200 text-gray-700 font-extrabold text-[10px] shrink-0">
                                   {kasir.id}
                                 </span>
-                                <span className="text-[11px] text-emerald-700 font-bold truncate">
-                                  Gerai Utama
-                                </span>
                               </div>
                             </div>
                           </div>
@@ -1851,22 +2014,29 @@ export default function KasirShiftPage() {
 
                         {/* 4. Status Live (status_live) */}
                         <td className="py-3 px-2 whitespace-nowrap">
-                          {kasir.statusLive === "Aktif Melayani" ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200 whitespace-nowrap">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-                              <span>Aktif Melayani</span>
-                            </span>
-                          ) : kasir.statusLive === "Standby / Rehat" ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 text-[11px] font-bold border border-amber-200 whitespace-nowrap">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
-                              <span>Standby / Rehat</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-[11px] font-semibold border border-gray-200 whitespace-nowrap">
-                              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0"></span>
-                              <span>Selesai Shift / Off</span>
-                            </span>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleLiveStatus(kasir)}
+                            title="Klik untuk ubah status Aktif / Standby"
+                            className="cursor-pointer transition-transform hover:scale-105 active:scale-95 focus:outline-none"
+                          >
+                            {kasir.statusLive === "Aktif Melayani" ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200 whitespace-nowrap hover:bg-emerald-100">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                                <span>Aktif Melayani</span>
+                              </span>
+                            ) : kasir.statusLive === "Standby / Rehat" ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 text-[11px] font-bold border border-amber-200 whitespace-nowrap hover:bg-amber-100">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                                <span>Standby / Rehat</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-[11px] font-semibold border border-gray-200 whitespace-nowrap">
+                                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0"></span>
+                                <span>Selesai Shift / Off</span>
+                              </span>
+                            )}
+                          </button>
                         </td>
 
                         {/* 5. Akses Aktif (is_active) Toggle Switch */}
@@ -2014,19 +2184,6 @@ export default function KasirShiftPage() {
                 onSubmit={handleSaveKasir}
                 className="flex flex-col gap-3.5"
               >
-                {/* Gerai Penugasan */}
-                <div>
-                  <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1">
-                    GERAI PENUGASAN
-                  </label>
-                  <div className="w-full px-3.5 py-2 border border-gray-200 bg-gray-50 rounded-xl text-xs sm:text-sm font-bold text-gray-800 flex items-center justify-between">
-                    <span>PrekDuaDara (Gerai Utama)</span>
-                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      Pusat
-                    </span>
-                  </div>
-                </div>
-
                 {/* 1. Nama Lengkap Kasir */}
                 <div>
                   <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1">
@@ -2119,6 +2276,81 @@ export default function KasirShiftPage() {
                         </span>
                       </button>
                     ))}
+                  </div>
+
+                  {/* Jam Kustom di Bawah Jam Shift Reguler */}
+                  <div
+                    className={`mt-2.5 p-2.5 rounded-xl border transition-all ${
+                      formShift === "Kustom"
+                        ? "bg-amber-50/70 border-amber-300 shadow-xs"
+                        : "bg-gray-50/80 border-gray-200"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setFormShift("Kustom")}
+                        className="flex items-center gap-1.5 cursor-pointer text-left group"
+                      >
+                        <span
+                          className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center transition ${
+                            formShift === "Kustom"
+                              ? "border-[#EA8E18] bg-[#EA8E18]"
+                              : "border-gray-400 bg-white group-hover:border-gray-600"
+                          }`}
+                        >
+                          {formShift === "Kustom" && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                          )}
+                        </span>
+                        <span
+                          className={`text-xs font-extrabold ${
+                            formShift === "Kustom"
+                              ? "text-[#EA8E18]"
+                              : "text-gray-700 group-hover:text-gray-900"
+                          }`}
+                        >
+                          Atur Jam Kustom
+                        </span>
+                      </button>
+                      {formShift === "Kustom" && (
+                        <span className="text-[10px] font-black text-[#EA8E18] bg-amber-100 px-2 py-0.5 rounded-md border border-amber-300">
+                          {customStartTime} - {customEndTime}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 block mb-0.5">
+                          Jam Mulai
+                        </label>
+                        <TimeWheelPicker
+                          value={customStartTime}
+                          onChange={(val) => {
+                            setCustomStartTime(val);
+                            setFormShift("Kustom");
+                          }}
+                          active={formShift === "Kustom"}
+                          compact
+                          ariaLabel="Jam Mulai Shift Kustom"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 block mb-0.5">
+                          Jam Selesai
+                        </label>
+                        <TimeWheelPicker
+                          value={customEndTime}
+                          onChange={(val) => {
+                            setCustomEndTime(val);
+                            setFormShift("Kustom");
+                          }}
+                          active={formShift === "Kustom"}
+                          compact
+                          ariaLabel="Jam Selesai Shift Kustom"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
