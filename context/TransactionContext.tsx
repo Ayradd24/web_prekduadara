@@ -1,6 +1,17 @@
 'use client';
 
 import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
+import { API_BASE_URL, getAuthHeaders } from '@/lib/api';
+
+export interface TransactionItem {
+  productId?: number | null;
+  name: string;
+  category?: string;
+  sambal?: string | null;
+  price: number;
+  quantity: number;
+  subtotal: number;
+}
 
 export interface Transaction {
   id: string;
@@ -11,6 +22,8 @@ export interface Transaction {
   cashier: string;
   terminal: string;
   itemsSummary: string;
+  items?: TransactionItem[];
+  sambalSummary?: string;
   totalItems: number;
   subtotal: number;
   diskon: number;
@@ -173,7 +186,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   // Ambil transaksi real-time dari database MariaDB
   const fetchTransactionsFromBackend = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/transactions');
+      const res = await fetch(`${API_BASE_URL}/api/transactions`, {
+        headers: getAuthHeaders(),
+      });
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         if (json.data.length > 0) {
@@ -193,6 +208,67 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
                   : new Date(tx.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }))
               : 'Hari ini';
 
+            // Parse array rincian item (termasuk field sambal) dari backend
+            let parsedItems: TransactionItem[] = [];
+            try {
+              const rawItems =
+                typeof tx.items === 'string' ? JSON.parse(tx.items) : tx.items;
+              if (Array.isArray(rawItems)) {
+                parsedItems = rawItems
+                  .filter((it: any) => it && (it.name || it.product_name))
+                  .map((it: any) => ({
+                    productId: it.productId ? Number(it.productId) : null,
+                    name: String(it.name || it.product_name || 'Menu'),
+                    category: it.category ? String(it.category) : undefined,
+                    sambal:
+                      typeof it.sambal === 'string' && it.sambal.trim() !== ''
+                        ? it.sambal.trim()
+                        : null,
+                    price: Number(it.price) || 0,
+                    quantity: Number(it.quantity) || 1,
+                    subtotal:
+                      Number(it.subtotal) ||
+                      (Number(it.price) || 0) * (Number(it.quantity) || 1),
+                  }));
+              }
+            } catch {
+              parsedItems = [];
+            }
+
+            const sambalList = Array.from(
+              new Set(
+                parsedItems
+                  .map((it) => it.sambal)
+                  .filter((s): s is string => Boolean(s))
+              )
+            );
+            const topLevelSambal =
+              typeof tx.sambal === 'string' && tx.sambal.trim() !== ''
+                ? tx.sambal.trim()
+                : null;
+            if (sambalList.length === 0 && topLevelSambal) {
+              sambalList.push(topLevelSambal);
+            }
+            const sambalSummary = sambalList.join(', ');
+
+            const builtItemsSummary =
+              parsedItems.length > 0
+                ? parsedItems
+                    .map((it) =>
+                      it.sambal
+                        ? `${it.quantity}x ${it.name} (${it.sambal})`
+                        : `${it.quantity}x ${it.name}`
+                    )
+                    .join(', ')
+                : tx.itemsSummary
+                  ? topLevelSambal &&
+                    !String(tx.itemsSummary)
+                      .toLowerCase()
+                      .includes(topLevelSambal.toLowerCase())
+                    ? `${tx.itemsSummary} (${topLevelSambal})`
+                    : String(tx.itemsSummary)
+                  : 'Ayam Geprek Bakar + Es Teh';
+
             return {
               id: tx.id.startsWith('#') ? tx.id : `#${tx.id}`,
               time: tx.time ? (tx.time.includes(':') ? tx.time : `${tx.time}:00`) : '12:00:00',
@@ -201,7 +277,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
               isToday,
               cashier: tx.cashier || 'Kasir PrekDuaDara',
               terminal: terminalName,
-              itemsSummary: tx.itemsSummary || 'Ayam Geprek Bakar + Es Teh',
+              itemsSummary: builtItemsSummary,
+              items: parsedItems,
+              sambalSummary: sambalSummary || undefined,
               totalItems: Number(tx.totalItems) || 1,
               subtotal: Number(tx.total) || 0,
               diskon: 0,
@@ -210,7 +288,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
               status: 'Berhasil',
               branch: 'Gerai Pusat',
               orderType: 'Dine-In',
-              addons: `Dilayani oleh ${tx.cashier || 'Kasir'}`,
+              addons: sambalSummary
+                ? `Sambal: ${sambalSummary}`
+                : `Dilayani oleh ${tx.cashier || 'Kasir'}`,
               relativeTime: 'Tersimpan di DB',
             };
           });

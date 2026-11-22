@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
 import { useStok } from "@/context/StokContext";
+import { API_BASE_URL, getAuthHeaders } from "@/lib/api";
 import {
   AlertTriangle,
   Bell,
@@ -81,7 +82,7 @@ export interface MutationLog {
   type: "out" | "in" | "replace";
 }
 
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 10;
 
 // Helper perhitungan status, persentase stok bar, dan estimasi sisa hari
 function computeStockMetrics(
@@ -108,90 +109,241 @@ function computeStockMetrics(
   return { status, pct, daysLeft };
 }
 
-function getStockMetadata(name: string, id: string | number) {
-  const lower = name.toLowerCase();
+interface StockMetadataEntry {
+  category: InventoryCategory;
+  filterTab: FilterTabCategory;
+  supplier: string;
+  unitPrice: number;
+  icon: string;
+  iconBg: string;
+}
+
+const STOCK_METADATA_BY_SKU: Record<string, StockMetadataEntry> = {
+  "STK-01": {
+    category: "Protein & Unggas",
+    filterTab: "Protein & Unggas",
+    supplier: "Supplier: Rumah Potong Unggas Berkah",
+    unitPrice: 38500,
+    icon: "🍗",
+    iconBg: "bg-amber-50 border-amber-200",
+  },
+  "STK-02": {
+    category: "Tepung & Minyak",
+    filterTab: "Tepung & Minyak",
+    supplier: "Supplier: Distribusi Pangan Makmur",
+    unitPrice: 17000,
+    icon: "💧",
+    iconBg: "bg-amber-50 border-amber-200",
+  },
+  "STK-03": {
+    category: "Bumbu & Sambal",
+    filterTab: "Bumbu & Sambal",
+    supplier: "Supplier: Tani Segar Jaya",
+    unitPrice: 65000,
+    icon: "🌶️",
+    iconBg: "bg-red-50 border-red-200",
+  },
+  "STK-04": {
+    category: "Bumbu & Pelengkap",
+    filterTab: "Bumbu & Sambal",
+    supplier: "Supplier: Lumbung Padi Karawang Jaya",
+    unitPrice: 14500,
+    icon: "🍚",
+    iconBg: "bg-gray-50 border-gray-200",
+  },
+  "STK-05": {
+    category: "Tepung & Minyak",
+    filterTab: "Tepung & Minyak",
+    supplier: "Supplier: Sentral Tepung Bogasari",
+    unitPrice: 12500,
+    icon: "🌾",
+    iconBg: "bg-yellow-50 border-yellow-200",
+  },
+  "STK-06": {
+    category: "Minuman & Pelengkap",
+    filterTab: "Minuman & Pelengkap",
+    supplier: "Supplier: Sentral Dairy & Keju",
+    unitPrice: 95000,
+    icon: "🧀",
+    iconBg: "bg-amber-50 border-amber-200",
+  },
+  "STK-07": {
+    category: "Protein & Unggas",
+    filterTab: "Protein & Unggas",
+    supplier: "Supplier: Pengrajin Tahu Tempe Lokal",
+    unitPrice: 1500,
+    icon: "🧆",
+    iconBg: "bg-orange-50 border-orange-200",
+  },
+  "STK-08": {
+    category: "Protein & Unggas",
+    filterTab: "Protein & Unggas",
+    supplier: "Supplier: Peternakan Telur Jaya",
+    unitPrice: 27000,
+    icon: "🥚",
+    iconBg: "bg-amber-50 border-amber-200",
+  },
+  "STK-09": {
+    category: "Minuman & Pelengkap",
+    filterTab: "Minuman & Pelengkap",
+    supplier: "Supplier: Budidaya Jamur Segar",
+    unitPrice: 18000,
+    icon: "🍄",
+    iconBg: "bg-stone-50 border-stone-200",
+  },
+  "STK-10": {
+    category: "Minuman & Pelengkap",
+    filterTab: "Minuman & Pelengkap",
+    supplier: "Supplier: Grosir Minuman & Sembako",
+    unitPrice: 16000,
+    icon: "🍃",
+    iconBg: "bg-emerald-50 border-emerald-200",
+  },
+  "STK-11": {
+    category: "Kemasan / Box",
+    filterTab: "Kemasan / Box",
+    supplier: "Supplier: Percetakan Kemasan Nusantara",
+    unitPrice: 1200,
+    icon: "📦",
+    iconBg: "bg-amber-50 border-amber-200",
+  },
+  "STK-12": {
+    category: "Bumbu & Sambal",
+    filterTab: "Bumbu & Sambal",
+    supplier: "Supplier: Juragan Sayur Majalengka",
+    unitPrice: 36000,
+    icon: "🧄",
+    iconBg: "bg-orange-50 border-orange-200",
+  },
+  "STK-13": {
+    category: "Bumbu & Sambal",
+    filterTab: "Bumbu & Sambal",
+    supplier: "Supplier: Tani Segar Jaya",
+    unitPrice: 42000,
+    icon: "🫑",
+    iconBg: "bg-emerald-50 border-emerald-200",
+  },
+  "STK-14": {
+    category: "Bumbu & Sambal",
+    filterTab: "Bumbu & Sambal",
+    supplier: "Supplier: Pasar Induk Sayur & Rempah",
+    unitPrice: 15000,
+    icon: "🍅",
+    iconBg: "bg-red-50 border-red-200",
+  },
+  "STK-15": {
+    category: "Bumbu & Sambal",
+    filterTab: "Bumbu & Sambal",
+    supplier: "Supplier: Tani Rempah Aromatik",
+    unitPrice: 20000,
+    icon: "🍋",
+    iconBg: "bg-lime-50 border-lime-200",
+  },
+};
+
+const STOCK_METADATA_BY_NAME: Record<string, StockMetadataEntry> = {
+  "ayam potong": STOCK_METADATA_BY_SKU["STK-01"],
+  "minyak goreng": STOCK_METADATA_BY_SKU["STK-02"],
+  "cabai rawit": STOCK_METADATA_BY_SKU["STK-03"],
+  beras: STOCK_METADATA_BY_SKU["STK-04"],
+  "tepung bumbu": STOCK_METADATA_BY_SKU["STK-05"],
+  "keju mozzarella": STOCK_METADATA_BY_SKU["STK-06"],
+  "tahu & tempe": STOCK_METADATA_BY_SKU["STK-07"],
+  "telur ayam": STOCK_METADATA_BY_SKU["STK-08"],
+  "jamur tiram": STOCK_METADATA_BY_SKU["STK-09"],
+  "teh & gula pasir": STOCK_METADATA_BY_SKU["STK-10"],
+  "kemasan box & cup": STOCK_METADATA_BY_SKU["STK-11"],
+  "bawang merah & putih": STOCK_METADATA_BY_SKU["STK-12"],
+  "cabai hijau": STOCK_METADATA_BY_SKU["STK-13"],
+  tomat: STOCK_METADATA_BY_SKU["STK-14"],
+  "serai & daun jeruk": STOCK_METADATA_BY_SKU["STK-15"],
+};
+
+function getStockMetadata(name: string, id: string | number): StockMetadataEntry {
+  const lower = name.trim().toLowerCase();
+  const sku = `STK-${String(id).padStart(2, "0")}`;
+
+  if (STOCK_METADATA_BY_NAME[lower]) {
+    return STOCK_METADATA_BY_NAME[lower];
+  }
+
   if (
-    lower.includes("ayam") ||
-    lower.includes("daging") ||
     lower.includes("keju") ||
-    lower.includes("mozarella") ||
-    lower.includes("telur")
+    lower.includes("mozzarella") ||
+    lower.includes("mozarella")
   ) {
-    return {
-      category: "Protein & Unggas" as InventoryCategory,
-      filterTab: "Protein & Unggas" as FilterTabCategory,
-      supplier: "Supplier: Rumah Potong Unggas Berkah",
-      unitPrice: 38500,
-      icon: "🍗",
-      iconBg: "bg-amber-50 border-amber-200",
-    };
+    return STOCK_METADATA_BY_SKU["STK-06"];
   }
-  if (lower.includes("minyak") || lower.includes("sawit")) {
-    return {
-      category: "Tepung & Minyak" as InventoryCategory,
-      filterTab: "Tepung & Minyak" as FilterTabCategory,
-      supplier: "Supplier: Distribusi Pangan Makmur",
-      unitPrice: 17000,
-      icon: "💧",
-      iconBg: "bg-amber-50 border-amber-200",
-    };
+  if (lower.includes("tahu") || lower.includes("tempe")) {
+    return STOCK_METADATA_BY_SKU["STK-07"];
   }
-  if (
-    lower.includes("cabai") ||
-    lower.includes("sambal") ||
-    lower.includes("korek") ||
-    lower.includes("bawang")
-  ) {
-    return {
-      category: "Bumbu & Sambal" as InventoryCategory,
-      filterTab: "Bumbu & Sambal" as FilterTabCategory,
-      supplier: "Supplier: Tani Segar Jaya",
-      unitPrice: 65000,
-      icon: lower.includes("bawang") ? "🧄" : "🌶️",
-      iconBg: "bg-red-50 border-red-200",
-    };
+  if (lower.includes("telur")) {
+    return STOCK_METADATA_BY_SKU["STK-08"];
   }
-  if (lower.includes("beras") || lower.includes("nasi")) {
-    return {
-      category: "Bumbu & Pelengkap" as InventoryCategory,
-      filterTab: "Bumbu & Sambal" as FilterTabCategory,
-      supplier: "Supplier: Lumbung Padi Karawang Jaya",
-      unitPrice: 14500,
-      icon: "🍚",
-      iconBg: "bg-gray-50 border-gray-200",
-    };
+  if (lower.includes("ayam") || lower.includes("daging")) {
+    return STOCK_METADATA_BY_SKU["STK-01"];
   }
-  if (
-    lower.includes("tepung") ||
-    lower.includes("crispy") ||
-    lower.includes("krispi")
-  ) {
-    return {
-      category: "Tepung & Minyak" as InventoryCategory,
-      filterTab: "Tepung & Minyak" as FilterTabCategory,
-      supplier: "Supplier: Sentral Tepung Bogasari",
-      unitPrice: 12500,
-      icon: "🌾",
-      iconBg: "bg-yellow-50 border-yellow-200",
-    };
+  if (lower.includes("jamur")) {
+    return STOCK_METADATA_BY_SKU["STK-09"];
   }
   if (
     lower.includes("teh") ||
     lower.includes("gula") ||
     lower.includes("sirup")
   ) {
-    return {
-      category: "Minuman & Pelengkap" as InventoryCategory,
-      filterTab: "Minuman & Pelengkap" as FilterTabCategory,
-      supplier: "Supplier: Grosir Minuman Segar",
-      unitPrice: 18000,
-      icon: "🍃",
-      iconBg: "bg-emerald-50 border-emerald-200",
-    };
+    return STOCK_METADATA_BY_SKU["STK-10"];
   }
+  if (
+    lower.includes("paper") ||
+    lower.includes("box") ||
+    lower.includes("cup") ||
+    lower.includes("kemasan")
+  ) {
+    return STOCK_METADATA_BY_SKU["STK-11"];
+  }
+  if (lower.includes("bawang")) {
+    return STOCK_METADATA_BY_SKU["STK-12"];
+  }
+  if (
+    (lower.includes("cabai") || lower.includes("rawit")) &&
+    (lower.includes("hijau") || lower.includes("ijo"))
+  ) {
+    return STOCK_METADATA_BY_SKU["STK-13"];
+  }
+  if (
+    lower.includes("cabai") ||
+    lower.includes("sambal") ||
+    lower.includes("korek")
+  ) {
+    return STOCK_METADATA_BY_SKU["STK-03"];
+  }
+  if (lower.includes("tomat") || lower.includes("terasi")) {
+    return STOCK_METADATA_BY_SKU["STK-14"];
+  }
+  if (lower.includes("serai") || lower.includes("jeruk")) {
+    return STOCK_METADATA_BY_SKU["STK-15"];
+  }
+  if (lower.includes("minyak") || lower.includes("sawit")) {
+    return STOCK_METADATA_BY_SKU["STK-02"];
+  }
+  if (lower.includes("beras") || lower.includes("nasi")) {
+    return STOCK_METADATA_BY_SKU["STK-04"];
+  }
+  if (
+    lower.includes("tepung") ||
+    lower.includes("crispy") ||
+    lower.includes("krispi")
+  ) {
+    return STOCK_METADATA_BY_SKU["STK-05"];
+  }
+
+  if (STOCK_METADATA_BY_SKU[sku]) {
+    return STOCK_METADATA_BY_SKU[sku];
+  }
+
   return {
-    category: "Kemasan / Box" as InventoryCategory,
-    filterTab: "Kemasan / Box" as FilterTabCategory,
+    category: "Kemasan / Box",
+    filterTab: "Kemasan / Box",
     supplier: "Supplier: Sentral Mitra Operasional",
     unitPrice: 2000,
     icon: "📦",
@@ -299,7 +451,9 @@ export default function StokPage() {
   const loadStocksFromDB = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/stocks");
+      const res = await fetch(`${API_BASE_URL}/api/stocks`, {
+        headers: getAuthHeaders(),
+      });
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setDbConnected(true);
@@ -426,9 +580,9 @@ export default function StokPage() {
   const handleQuickRestockRow = async (item: InventoryDetailItem) => {
     const addVal = 2;
     try {
-      const res = await fetch(`http://localhost:5000/api/stocks/${item.id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/stocks/${item.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ amount: addVal, action: "add" }),
       });
       const json = await res.json();
@@ -480,10 +634,10 @@ export default function StokPage() {
 
     try {
       const res = await fetch(
-        `http://localhost:5000/api/stocks/${selectedItemObj.id}`,
+        `${API_BASE_URL}/api/stocks/${selectedItemObj.id}`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({ amount: qty, action }),
         }
       );
@@ -539,9 +693,9 @@ export default function StokPage() {
         const rawVal = opnameValues[item.sku];
         const parsed = parseFloat(rawVal);
         if (!isNaN(parsed) && parsed >= 0 && parsed !== item.stock) {
-          await fetch(`http://localhost:5000/api/stocks/${item.id}`, {
+          await fetch(`${API_BASE_URL}/api/stocks/${item.id}`, {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
+            headers: getAuthHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ newStock: parsed }),
           });
           updatedCount++;
@@ -588,9 +742,9 @@ export default function StokPage() {
         if (!isNaN(qty) && qty > 0) {
           const item = inventory.find((i) => i.sku === sku);
           if (item) {
-            await fetch(`http://localhost:5000/api/stocks/${item.id}`, {
+            await fetch(`${API_BASE_URL}/api/stocks/${item.id}`, {
               method: "PATCH",
-              headers: { "Content-Type": "application/json" },
+              headers: getAuthHeaders({ "Content-Type": "application/json" }),
               body: JSON.stringify({ amount: qty, action: "add" }),
             });
             count++;
@@ -628,9 +782,9 @@ export default function StokPage() {
     }
 
     try {
-      const res = await fetch("http://localhost:5000/api/stocks", {
+      const res = await fetch(`${API_BASE_URL}/api/stocks`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           name: cleanName,
           stock: initStock,
@@ -667,8 +821,9 @@ export default function StokPage() {
       return;
     }
     try {
-      const res = await fetch(`http://localhost:5000/api/stocks/${item.id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/stocks/${item.id}`, {
         method: "DELETE",
+        headers: getAuthHeaders(),
       });
       const json = await res.json();
       if (json.success) {
@@ -1269,7 +1424,7 @@ export default function StokPage() {
       <Sidebar />
 
       {/* KONTEN UTAMA */}
-      <main className="flex-1 min-w-0 flex flex-col gap-6">
+      <main className="flex-1 min-w-0 flex flex-col gap-5">
         {/* TOP NAVBAR HEADER (SERAGAM DI SELURUH HALAMAN DASHBOARD) */}
         <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
           {/* Logo & Subtitle */}
@@ -1507,7 +1662,7 @@ export default function StokPage() {
 
         {/* DYNAMIC CRITICAL RE-ORDER ALERT BANNER */}
         {kpiStats.criticalCount > 0 ? (
-          <section className="print:hidden min-h-[88px] bg-[#FFF5F5] border border-red-300 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
+          <section className="print:hidden min-h-[76px] bg-[#FFF5F5] border border-red-300 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
               <div className="w-10 h-10 rounded-full bg-[#DC2626] text-white font-black text-base flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                 !
@@ -1571,7 +1726,7 @@ export default function StokPage() {
             </div>
           </section>
         ) : (
-          <section className="print:hidden min-h-[88px] bg-emerald-50 border border-emerald-300 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <section className="print:hidden min-h-[76px] bg-emerald-50 border border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
               <div className="w-10 h-10 rounded-full bg-emerald-600 text-white font-black text-base flex items-center justify-center shrink-0 shadow-xs">
                 <CheckCircle2 size={20} />
@@ -1590,9 +1745,10 @@ export default function StokPage() {
         )}
 
         {/* 2-COLUMN MAIN CONTENT: LEFT (TABLE) & RIGHT (MUTATION FORM & LOGS) */}
-        <section className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        <section className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
           {/* LEFT COLUMN: TABLE (8 COLS) */}
-          <div className="xl:col-span-8 print:col-span-12 bg-white rounded-2xl p-3.5 sm:p-4 md:p-5 shadow-sm border border-gray-200 flex flex-col gap-4">
+          <div className="xl:col-span-8 print:col-span-12 bg-white rounded-2xl p-3.5 sm:p-4 md:p-5 shadow-sm border border-gray-200 flex flex-col justify-between gap-4 h-full">
+            <div className="flex flex-col gap-4 flex-1">
             {/* SEARCH & STATUS FILTER */}
             <div className="print:hidden flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
               <div className="relative flex-1">
@@ -1682,7 +1838,7 @@ export default function StokPage() {
             </div>
 
             {/* TABEL INVENTARIS */}
-            <div className="overflow-x-auto print:overflow-visible">
+            <div className="overflow-x-auto print:overflow-visible flex-1">
               <table className="table-fixed w-full text-left border-collapse text-xs">
                 <colgroup>
                   <col className="w-[28%]" />
@@ -1858,6 +2014,7 @@ export default function StokPage() {
                 </tbody>
               </table>
             </div>
+            </div>
 
             {/* Pagination & Summary */}
             <div className="print:hidden pt-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-600 font-medium">
@@ -1907,7 +2064,7 @@ export default function StokPage() {
           </div>
 
           {/* RIGHT COLUMN: PENYESUAIAN CEPAT (DAPUR & KASIR) & LOG MUTASI (4 COLS) */}
-          <div className="print:hidden xl:col-span-4 flex flex-col gap-6">
+          <div className="print:hidden xl:col-span-4 flex flex-col gap-5">
             {/* CARD 1: PENYESUAIAN CEPAT */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col gap-4">
               <div className="flex items-start justify-between gap-2 pb-3.5 border-b border-gray-200">

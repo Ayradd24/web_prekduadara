@@ -1355,16 +1355,37 @@ export default function TransaksiPage() {
                     RINCIAN PESANAN ({selectedTx.totalItems} ITEM)
                   </div>
                   <div className="space-y-2">
-                    {selectedTx.itemsSummary
-                      .split(/,\s*(?=\d+x|[A-Z])/g)
-                      .map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="font-bold text-gray-900 text-xs leading-relaxed"
-                        >
-                          {item.trim()}
-                        </div>
-                      ))}
+                    {selectedTx.items && selectedTx.items.length > 0
+                      ? selectedTx.items.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-start justify-between gap-2 text-xs leading-relaxed"
+                          >
+                            <div className="font-bold text-gray-900">
+                              <span>
+                                {item.quantity}x {item.name}
+                              </span>
+                              {item.sambal && (
+                                <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded bg-red-50 border border-red-200 text-[#DC2626] text-[10px] font-extrabold">
+                                  🌶️ {item.sambal}
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-semibold text-gray-700 whitespace-nowrap tabular-nums">
+                              {formatRupiah(item.subtotal)}
+                            </span>
+                          </div>
+                        ))
+                      : selectedTx.itemsSummary
+                          .split(/,\s*(?=\d+x|[A-Z])/g)
+                          .map((item, idx) => (
+                            <div
+                              key={idx}
+                              className="font-bold text-gray-900 text-xs leading-relaxed"
+                            >
+                              {item.trim()}
+                            </div>
+                          ))}
                   </div>
                 </div>
 
@@ -2586,13 +2607,20 @@ export default function TransaksiPage() {
                       </td>
                       <td className="py-3 px-2.5 text-left">
                         <div
-                          className="font-bold text-gray-900 truncate max-w-[240px]"
+                          className="font-bold text-gray-900 leading-snug break-words max-w-[260px]"
                           title={tx.itemsSummary}
                         >
                           {tx.itemsSummary}
                         </div>
-                        <div className="text-[11px] text-emerald-700 font-bold mt-0.5">
-                          {tx.totalItems} item total
+                        <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                          <span className="text-[11px] text-emerald-700 font-bold">
+                            {tx.totalItems} item total
+                          </span>
+                          {tx.sambalSummary && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-red-50 border border-red-200 text-[#DC2626] text-[10px] font-extrabold">
+                              🌶️ {tx.sambalSummary}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="py-3 px-2 text-right font-semibold text-gray-700 whitespace-nowrap tabular-nums">

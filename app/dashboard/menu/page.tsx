@@ -1,0 +1,1122 @@
+"use client";
+
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import Sidebar from "@/components/Sidebar";
+import { useAuth } from "@/context/AuthContext";
+import { API_BASE_URL, getAuthHeaders } from "@/lib/api";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Edit3,
+  Flame,
+  Layers,
+  Package,
+  PlusCircle,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Search,
+  Tag,
+  Trash2,
+  User,
+  UtensilsCrossed,
+  Wallet,
+  X,
+} from "lucide-react";
+
+type MenuCategory = "Paket Menu" | "Tambahan";
+type CategoryFilterTab = "Semua Menu" | MenuCategory;
+
+interface ProductItem {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  image?: string;
+  created_at?: string;
+}
+
+const SAMBAL_OPTIONS = [
+  {
+    name: "Sambal Bawang",
+    badge: "bg-red-50 text-[#DC2626] border-red-200",
+    dot: "bg-[#DC2626]",
+  },
+  {
+    name: "Sambal Matah",
+    badge: "bg-amber-50 text-[#B45309] border-amber-200",
+    dot: "bg-[#D97706]",
+  },
+  {
+    name: "Sambal Tomat",
+    badge: "bg-orange-50 text-[#C2410C] border-orange-200",
+    dot: "bg-[#EA580C]",
+  },
+  {
+    name: "Sambal Ijo",
+    badge: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    dot: "bg-emerald-600",
+  },
+] as const;
+
+const ITEMS_PER_PAGE = 10;
+
+const formatRupiah = (val: number) =>
+  "Rp " + Math.round(val).toLocaleString("id-ID");
+
+export default function ManajemenMenuPage() {
+  const { user } = useAuth();
+
+  const [products, setProducts] = useState<ProductItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dbConnected, setDbConnected] = useState(false);
+
+  // Filter & Pagination
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] =
+    useState<CategoryFilterTab>("Semua Menu");
+  const [activePage, setActivePage] = useState(1);
+
+  // Form Tambah / Edit Menu (Kolom Kanan)
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [formName, setFormName] = useState("");
+  const [formCategory, setFormCategory] = useState<MenuCategory>("Paket Menu");
+  const [formPrice, setFormPrice] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Modal Konfirmasi Hapus
+  const [deleteTarget, setDeleteTarget] = useState<ProductItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Toast Notification dengan cleanup timer
+  const [toastMsg, setToastMsg] = useState<{
+    text: string;
+    type: "success" | "warning" | "info";
+  } | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback(
+    (text: string, type: "success" | "warning" | "info" = "success") => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+      setToastMsg({ text, type });
+      toastTimerRef.current = setTimeout(() => {
+        setToastMsg(null);
+      }, 3200);
+    },
+    []
+  );
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
+  // 1. FETCH DAFTAR MENU DARI BACKEND (GET /api/products)
+  const loadProductsFromDB = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/products`, {
+        cache: "no-store",
+        headers: getAuthHeaders(),
+      });
+      const json = await res.json();
+      if (res.ok && json.success && Array.isArray(json.data)) {
+        const mapped: ProductItem[] = json.data.map(
+          (item: {
+            id: number | string;
+            name?: string;
+            description?: string | null;
+            price?: number | string;
+            category?: string;
+            image?: string | null;
+            created_at?: string;
+          }) => ({
+            id: Number(item.id),
+            name: String(item.name || ""),
+            description: String(item.description || ""),
+            price: Number(item.price) || 0,
+            category: String(item.category || "Paket Menu"),
+            image: item.image ? String(item.image) : "",
+            created_at: item.created_at,
+          })
+        );
+        setProducts(mapped);
+        setDbConnected(true);
+      } else {
+        setDbConnected(false);
+      }
+    } catch {
+      setDbConnected(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProductsFromDB();
+  }, [loadProductsFromDB]);
+
+  // Reset form ke mode Tambah Menu Baru
+  const handleResetForm = useCallback(() => {
+    setEditingId(null);
+    setFormName("");
+    setFormCategory("Paket Menu");
+    setFormPrice("");
+    setFormDescription("");
+  }, []);
+
+  // Mulai Edit Menu
+  const handleStartEdit = (item: ProductItem) => {
+    setEditingId(item.id);
+    setFormName(item.name);
+    setFormCategory(
+      item.category.toLowerCase() === "tambahan" ? "Tambahan" : "Paket Menu"
+    );
+    setFormPrice(String(item.price));
+    setFormDescription(item.description || "");
+
+    const formEl = document.getElementById("form-menu-cepat");
+    formEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    setTimeout(() => nameInputRef.current?.focus(), 120);
+    showToast(`Mengedit menu "${item.name}" (#${item.id}).`, "info");
+  };
+
+  // Simpan Menu Baru (POST /api/products) atau Update Menu (PUT /api/products/:id)
+  const handleSaveMenu = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanName = formName.trim();
+    const numericPrice = Number(formPrice.replace(/\D/g, ""));
+    const cleanDesc = formDescription.trim();
+
+    if (!cleanName) {
+      showToast("Nama menu wajib diisi!", "warning");
+      return;
+    }
+    if (!formPrice.trim() || Number.isNaN(numericPrice) || numericPrice < 0) {
+      showToast("Harga menu harus berupa angka yang valid!", "warning");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const isEdit = editingId !== null;
+      const endpoint = isEdit
+        ? `${API_BASE_URL}/api/products/${editingId}`
+        : `${API_BASE_URL}/api/products`;
+      const method = isEdit ? "PUT" : "POST";
+
+      const res = await fetch(endpoint, {
+        method,
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          name: cleanName,
+          category: formCategory,
+          price: numericPrice,
+          description: cleanDesc,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (res.status === 401 || res.status === 403) {
+        showToast(
+          json.message ||
+            "Sesi login / token JWT tidak valid. Silakan login ulang.",
+          "warning"
+        );
+        return;
+      }
+
+      if (res.ok && json.success) {
+        await loadProductsFromDB(true);
+        handleResetForm();
+        showToast(
+          isEdit
+            ? `Menu "${cleanName}" berhasil diperbarui di database!`
+            : `Menu baru "${cleanName}" berhasil ditambahkan ke database!`,
+          "success"
+        );
+      } else {
+        showToast(json.message || "Gagal menyimpan data menu ke server!", "warning");
+      }
+    } catch {
+      showToast(
+        "Tidak dapat terhubung ke server backend (port 5000).",
+        "warning"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Konfirmasi Hapus Menu (DELETE /api/products/:id)
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/api/products/${deleteTarget.id}`,
+        {
+          method: "DELETE",
+          headers: getAuthHeaders(),
+        }
+      );
+      const json = await res.json();
+
+      if (res.status === 401 || res.status === 403) {
+        showToast(
+          json.message ||
+            "Sesi login / token JWT tidak valid. Silakan login ulang.",
+          "warning"
+        );
+        return;
+      }
+
+      if (res.ok && json.success) {
+        if (editingId === deleteTarget.id) {
+          handleResetForm();
+        }
+        await loadProductsFromDB(true);
+        showToast(
+          `Menu "${deleteTarget.name}" berhasil dihapus dari database!`,
+          "success"
+        );
+        setDeleteTarget(null);
+      } else {
+        showToast(
+          json.message || "Gagal menghapus menu dari database!",
+          "warning"
+        );
+      }
+    } catch {
+      showToast("Gagal menghubungi server untuk menghapus menu!", "warning");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // KPI Metrics
+  const kpiStats = useMemo(() => {
+    const totalMenus = products.length;
+    const paketCount = products.filter(
+      (p) => p.category.toLowerCase() === "paket menu"
+    ).length;
+    const tambahanCount = products.filter(
+      (p) => p.category.toLowerCase() === "tambahan"
+    ).length;
+    const avgPrice =
+      totalMenus > 0
+        ? products.reduce((sum, p) => sum + p.price, 0) / totalMenus
+        : 0;
+
+    return { totalMenus, paketCount, tambahanCount, avgPrice };
+  }, [products]);
+
+  // Filter daftar menu
+  const filteredProducts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return products.filter((item) => {
+      const matchSearch =
+        q === "" ||
+        item.name.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q);
+
+      const matchCat =
+        activeCategory === "Semua Menu" ||
+        item.category.toLowerCase() === activeCategory.toLowerCase();
+
+      return matchSearch && matchCat;
+    });
+  }, [products, searchQuery, activeCategory]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredProducts.length / ITEMS_PER_PAGE)
+  );
+  const currentPage = Math.min(activePage, totalPages);
+
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredProducts.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredProducts, currentPage]);
+
+  const visiblePageNumbers = useMemo(() => {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  }, [currentPage, totalPages]);
+
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setActiveCategory("Semua Menu");
+    setActivePage(1);
+    showToast("Filter daftar menu telah direset.", "info");
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans items-start text-gray-900">
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-xs sm:text-sm font-bold text-white border transition-all ${
+            toastMsg.type === "warning"
+              ? "bg-amber-600 border-amber-500"
+              : toastMsg.type === "info"
+                ? "bg-slate-800 border-slate-700"
+                : "bg-[#2D452B] border-[#415C3E]"
+          }`}
+        >
+          <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center shrink-0">
+            {toastMsg.type === "warning" ? (
+              <AlertTriangle size={14} />
+            ) : (
+              <CheckCircle2 size={15} className="text-emerald-300" />
+            )}
+          </div>
+          <span>{toastMsg.text}</span>
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Hapus Menu */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => !isDeleting && setDeleteTarget(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-[#2D452B] text-white px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <AlertTriangle size={18} className="text-[#F3A712]" />
+                <h3 className="text-sm sm:text-base font-extrabold">
+                  Hapus Menu dari Database?
+                </h3>
+              </div>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeleteTarget(null)}
+                className="p-1 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3">
+              <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
+                Anda akan menghapus menu{" "}
+                <strong className="text-gray-950 font-extrabold">
+                  {deleteTarget.name}
+                </strong>{" "}
+                ({formatRupiah(deleteTarget.price)}) dari daftar produk POS.
+              </p>
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-semibold">
+                Tindakan ini akan menghapus data menu secara permanen dari tabel{" "}
+                <code className="font-mono font-bold">products</code> di
+                MariaDB.
+              </div>
+            </div>
+
+            <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] disabled:opacity-60 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+              >
+                <Trash2 size={14} />
+                <span>{isDeleting ? "Menghapus..." : "Ya, Hapus Menu"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 1. SIDEBAR NAVIGASI */}
+      <div className="shrink-0">
+        <Sidebar />
+      </div>
+
+      {/* 2. KONTEN UTAMA MANAJEMEN MENU */}
+      <main className="flex-1 flex flex-col gap-5 overflow-x-hidden max-w-full">
+        {/* TOP HEADER BAR (SERAGAM DENGAN SELURUH HALAMAN DASHBOARD) */}
+        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.png"
+              alt="Logo PrekDuaDara"
+              className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-xs shrink-0"
+            />
+            <div>
+              <div className="font-extrabold text-base text-[#EA8E18] tracking-tight leading-tight">
+                PrekDuaDara
+              </div>
+              <div className="text-xs text-gray-600 font-medium leading-tight mt-0.5">
+                Manajemen Menu &amp; Daftar Produk POS
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
+            <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
+              <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
+              <span>ONLINE SYNC</span>
+            </div>
+
+            <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
+              <div className="text-right">
+                <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
+                  {user?.name || "Admin"}
+                </div>
+                <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
+                  {user?.role || "Owner"}
+                </div>
+              </div>
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
+                <User size={16} />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* PAGE TITLE & ACTION SECTION */}
+        <section className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+                Manajemen Menu &amp; Katalog Produk
+              </h2>
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border ${
+                  dbConnected
+                    ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+                    : "bg-amber-50 border-amber-300 text-amber-800"
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    dbConnected ? "bg-emerald-500" : "bg-amber-500"
+                  }`}
+                ></span>
+                {dbConnected
+                  ? "Tersambung ke Database MariaDB"
+                  : "Menunggu Koneksi Backend"}
+              </span>
+            </div>
+            <p className="text-xs text-gray-600 mt-1.5 max-w-2xl leading-relaxed font-medium">
+              Kelola daftar menu Paket Utama dan Tambahan PrekDuaDara, atur
+              harga jual serta deskripsi menu agar langsung tersinkronisasi ke
+              aplikasi Kasir POS.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end lg:self-center">
+            <button
+              type="button"
+              onClick={() => {
+                loadProductsFromDB();
+                showToast("Menyegarkan daftar menu dari database...", "info");
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 transition cursor-pointer whitespace-nowrap"
+            >
+              <RefreshCw
+                size={14}
+                className={isLoading ? "animate-spin" : ""}
+              />
+              <span>Segarkan Data</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                handleResetForm();
+                const el = document.getElementById("form-menu-cepat");
+                el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                setTimeout(() => nameInputRef.current?.focus(), 120);
+              }}
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#F3A712] hover:bg-[#df980e] text-gray-950 font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer whitespace-nowrap"
+            >
+              <PlusCircle size={14} />
+              <span>+ Tambah Menu Baru</span>
+            </button>
+          </div>
+        </section>
+
+        {/* 4 SUMMARY KPI CARDS */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {/* Card 1: TOTAL MENU */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                TOTAL MENU AKTIF
+              </p>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl font-black text-gray-900 whitespace-nowrap tabular-nums">
+                  {kpiStats.totalMenus}
+                </span>
+                <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
+                  Produk
+                </span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-semibold min-w-0">
+                <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                <span className="truncate">Database `products` Aktif</span>
+              </div>
+            </div>
+            <div className="w-11 h-11 rounded-xl bg-gray-100 border border-gray-200 text-gray-700 flex items-center justify-center shrink-0">
+              <UtensilsCrossed size={20} />
+            </div>
+          </div>
+
+          {/* Card 2: PAKET MENU */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                PAKET MENU UTAMA
+              </p>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl font-black text-gray-900 whitespace-nowrap tabular-nums">
+                  {kpiStats.paketCount}
+                </span>
+                <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
+                  Paket
+                </span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-[#2D452B] font-semibold min-w-0">
+                <Package size={14} className="text-[#2D452B] shrink-0" />
+                <span className="truncate">Menu paket nasi &amp; geprek</span>
+              </div>
+            </div>
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
+              <Layers size={20} />
+            </div>
+          </div>
+
+          {/* Card 3: MENU TAMBAHAN */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                MENU TAMBAHAN
+              </p>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl font-black text-gray-900 whitespace-nowrap tabular-nums">
+                  {kpiStats.tambahanCount}
+                </span>
+                <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
+                  Add-on
+                </span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-amber-700 font-semibold min-w-0">
+                <Tag size={14} className="text-[#D97706] shrink-0" />
+                <span className="truncate">Lauk, minuman &amp; ekstra</span>
+              </div>
+            </div>
+            <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 text-[#D97706] flex items-center justify-center shrink-0">
+              <Tag size={20} />
+            </div>
+          </div>
+
+          {/* Card 4: RATA-RATA HARGA */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                RATA-RATA HARGA
+              </p>
+              <div className="mt-2">
+                <span className="text-lg xl:text-xl font-black text-gray-900 whitespace-nowrap tabular-nums">
+                  {formatRupiah(kpiStats.avgPrice)}
+                </span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-600 font-semibold min-w-0">
+                <Flame size={14} className="text-[#DC2626] shrink-0" />
+                <span className="truncate">4 Pilihan Sambal Tersedia</span>
+              </div>
+            </div>
+            <div className="w-11 h-11 rounded-xl bg-orange-50 border border-orange-200 text-[#EA8E18] flex items-center justify-center shrink-0">
+              <Wallet size={20} />
+            </div>
+          </div>
+        </section>
+
+        {/* 2-COLUMN MAIN CONTENT: LEFT (DAFTAR MENU + INFO SAMBAL) & RIGHT (FORM TAMBAH / EDIT MENU) */}
+        <section className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
+          {/* LEFT COLUMN (8 COLS) */}
+          <div className="xl:col-span-8 flex flex-col gap-5 h-full">
+            {/* INFO CARD RINGKAS: 4 PILIHAN SAMBAL SAAT ORDER */}
+            <div className="bg-[#FAF8F3] rounded-2xl p-4 shadow-sm border border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-[#2D452B] text-[#F3A712] flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
+                  <Flame size={18} />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-xs sm:text-sm font-extrabold text-gray-900">
+                      4 Pilihan Sambal Tersedia Saat Order
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full bg-white border border-amber-300 text-[#B45309] text-[10px] font-extrabold uppercase tracking-wide">
+                      Varian Kasir POS
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-600 font-medium mt-0.5 leading-relaxed">
+                    Pelanggan dapat memilih varian sambal berikut pada setiap
+                    pesanan dan otomatis tercatat di rincian transaksi.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                {SAMBAL_OPTIONS.map((sambal) => (
+                  <span
+                    key={sambal.name}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-extrabold whitespace-nowrap ${sambal.badge}`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${sambal.dot}`}
+                    />
+                    <span>{sambal.name}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* KARTU TABEL DAFTAR MENU */}
+            <div className="flex-1 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-200 flex flex-col justify-between gap-4">
+              <div className="flex flex-col gap-4 flex-1">
+              {/* SEARCH & RESET */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="relative flex-1">
+                  <Search
+                    size={15}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Cari nama menu atau deskripsi..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setActivePage(1);
+                    }}
+                    className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-xl text-xs font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#D97706] bg-gray-50/50"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setActivePage(1);
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 cursor-pointer"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  title="Reset Filter"
+                  className="px-3 py-2 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-100 transition cursor-pointer flex items-center justify-center gap-1.5 text-xs font-bold shrink-0"
+                >
+                  <RotateCcw size={13} />
+                  <span>Reset</span>
+                </button>
+              </div>
+
+              {/* CATEGORY TABS */}
+              <div className="flex items-center gap-1.5 flex-wrap pb-2 text-[11px] font-extrabold border-b border-gray-100">
+                {(
+                  ["Semua Menu", "Paket Menu", "Tambahan"] as const
+                ).map((cat) => {
+                  const count =
+                    cat === "Semua Menu"
+                      ? products.length
+                      : products.filter(
+                          (p) => p.category.toLowerCase() === cat.toLowerCase()
+                        ).length;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => {
+                        setActiveCategory(cat);
+                        setActivePage(1);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer ${
+                        activeCategory === cat
+                          ? "bg-[#F3A712] text-gray-950 shadow-2xs font-black"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
+                      {cat} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* TABEL DAFTAR MENU */}
+              <div className="overflow-x-auto flex-1">
+                <table className="table-fixed w-full min-w-[640px] text-left border-collapse text-xs">
+                  <colgroup>
+                    <col className="w-[28%]" />
+                    <col className="w-[31%]" />
+                    <col className="w-[15%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[12%]" />
+                  </colgroup>
+                  <thead>
+                    <tr className="border-y border-gray-200 bg-gray-50/80 text-[11px] font-extrabold text-gray-500 uppercase tracking-wider">
+                      <th className="py-3 pl-4 pr-3 text-left whitespace-nowrap">
+                        NAMA MENU
+                      </th>
+                      <th className="py-3 px-3 text-left whitespace-nowrap">
+                        DESKRIPSI
+                      </th>
+                      <th className="py-3 px-3 text-center whitespace-nowrap">
+                        KATEGORI
+                      </th>
+                      <th className="py-3 px-3 text-right whitespace-nowrap">
+                        HARGA
+                      </th>
+                      <th className="py-3 pl-3 pr-4 text-center whitespace-nowrap">
+                        AKSI
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 text-gray-800">
+                    {isLoading ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="py-12 text-center text-gray-500 font-medium"
+                        >
+                          Memuat daftar menu dari database MariaDB...
+                        </td>
+                      </tr>
+                    ) : paginatedProducts.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="py-12 text-center text-gray-500 font-medium"
+                        >
+                          Tidak ada menu yang sesuai dengan pencarian atau
+                          filter kategori.
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedProducts.map((item) => {
+                        const isEditingRow = editingId === item.id;
+                        const isPaket =
+                          item.category.toLowerCase() === "paket menu";
+                        return (
+                          <tr
+                            key={item.id}
+                            className={`transition-colors ${
+                              isEditingRow
+                                ? "bg-amber-50/70"
+                                : "hover:bg-amber-50/30"
+                            }`}
+                          >
+                            {/* NAMA MENU */}
+                            <td className="py-3.5 pl-4 pr-3 align-middle whitespace-normal break-words">
+                              <div className="flex items-start gap-2.5 min-w-0">
+                                <div className="w-8 h-8 rounded-xl bg-[#FAF8F3] border border-amber-200 text-[#D97706] flex items-center justify-center shrink-0 mt-0.5">
+                                  <UtensilsCrossed size={14} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="font-extrabold text-gray-900 text-xs sm:text-[13px] leading-snug break-words">
+                                    {item.name}
+                                  </div>
+                                  <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                    <span className="inline-block px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-gray-600 font-bold text-[10px]">
+                                      ID #{item.id}
+                                    </span>
+                                    {isEditingRow && (
+                                      <span className="inline-block px-1.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-[#B45309] font-extrabold text-[10px]">
+                                        Sedang Diedit
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* DESKRIPSI */}
+                            <td className="py-3.5 px-3 align-middle text-gray-600 font-medium whitespace-normal break-words leading-relaxed">
+                              {item.description ? (
+                                item.description
+                              ) : (
+                                <span className="text-gray-400 italic">
+                                  Tidak ada deskripsi
+                                </span>
+                              )}
+                            </td>
+
+                            {/* KATEGORI */}
+                            <td className="py-3.5 px-3 align-middle text-center whitespace-nowrap">
+                              <span
+                                className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
+                                  isPaket
+                                    ? "bg-emerald-50 text-[#2D452B] border-emerald-300"
+                                    : "bg-amber-50 text-[#B45309] border-amber-300"
+                                }`}
+                              >
+                                {item.category}
+                              </span>
+                            </td>
+
+                            {/* HARGA */}
+                            <td className="py-3.5 px-3 align-middle text-right font-black text-gray-900 whitespace-nowrap tabular-nums text-xs sm:text-[13px]">
+                              {formatRupiah(item.price)}
+                            </td>
+
+                            {/* AKSI */}
+                            <td className="py-3.5 pl-3 pr-4 align-middle whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEdit(item)}
+                                  title="Edit Menu"
+                                  className="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-300 text-[#B45309] flex items-center justify-center transition cursor-pointer"
+                                >
+                                  <Edit3 size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteTarget(item)}
+                                  title="Hapus Menu"
+                                  className="w-7 h-7 rounded-lg border border-gray-200 hover:border-red-400 hover:bg-red-50 text-gray-500 hover:text-red-600 flex items-center justify-center transition cursor-pointer"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              </div>
+
+              {/* PAGINATION & SUMMARY */}
+              <div className="pt-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-600 font-medium">
+                <div>
+                  Menampilkan{" "}
+                  <strong className="text-gray-900 font-extrabold">
+                    {paginatedProducts.length} dari {filteredProducts.length}
+                  </strong>{" "}
+                  menu produk POS
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={currentPage <= 1}
+                    onClick={() => setActivePage((p) => Math.max(1, p - 1))}
+                    className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-600 font-semibold hover:text-gray-900 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
+                  >
+                    Sebelumnya
+                  </button>
+                  {visiblePageNumbers.map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setActivePage(p)}
+                      className={`w-7 h-7 rounded-lg font-extrabold transition cursor-pointer ${
+                        currentPage === p
+                          ? "bg-[#F3A712] text-gray-950 shadow-2xs"
+                          : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={currentPage >= totalPages}
+                    onClick={() =>
+                      setActivePage((p) => Math.min(totalPages, p + 1))
+                    }
+                    className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-800 font-bold hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
+                  >
+                    Selanjutnya
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: FORM TAMBAH / EDIT MENU (4 COLS) */}
+          <div
+            id="form-menu-cepat"
+            className="xl:col-span-4 flex flex-col gap-5"
+          >
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col gap-4">
+              <div className="flex items-start justify-between gap-2 pb-3.5 border-b border-gray-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-gray-950 flex items-center justify-center shrink-0 shadow-xs">
+                    {editingId !== null ? (
+                      <Edit3 size={18} />
+                    ) : (
+                      <PlusCircle size={18} />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-base text-gray-900">
+                      {editingId !== null
+                        ? `Edit Menu #${editingId}`
+                        : "Tambah Menu Baru"}
+                    </h3>
+                    <p className="text-xs text-gray-600 font-medium mt-0.5">
+                      {editingId !== null
+                        ? "Perbarui rincian menu lalu simpan perubahan"
+                        : "Simpan produk baru langsung ke database POS"}
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-md bg-[#2D452B] text-white text-[10px] font-extrabold uppercase leading-tight text-center shrink-0">
+                  MENU
+                  <br />
+                  POS
+                </span>
+              </div>
+
+              <form onSubmit={handleSaveMenu} className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                    Nama Menu <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    ref={nameInputRef}
+                    type="text"
+                    required
+                    placeholder="Contoh: Ayam Geprek Mozarella + Es Teh"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:border-[#D97706]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                    Kategori <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    value={formCategory}
+                    onChange={(e) =>
+                      setFormCategory(e.target.value as MenuCategory)
+                    }
+                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-gray-900 bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
+                  >
+                    <option value="Paket Menu">Paket Menu</option>
+                    <option value="Tambahan">Tambahan</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-extrabold text-gray-800">
+                      Harga Jual <span className="text-red-600">*</span>
+                    </label>
+                    {formPrice && !Number.isNaN(Number(formPrice)) && (
+                      <span className="text-[11px] font-extrabold text-[#2D452B] tabular-nums">
+                        {formatRupiah(Number(formPrice))}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center border border-gray-300 rounded-xl bg-white px-3.5 py-2.5 focus-within:border-[#D97706]">
+                    <span className="text-xs font-extrabold text-gray-500 mr-2 shrink-0">
+                      Rp
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={500}
+                      required
+                      placeholder="18000"
+                      value={formPrice}
+                      onChange={(e) => setFormPrice(e.target.value)}
+                      className="w-full text-xs sm:text-sm font-bold text-gray-900 outline-none bg-transparent tabular-nums"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                    Deskripsi Menu
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Contoh: Nasi hangat + Ayam Geprek Bakar + Es Teh Manis + Pilihan Sambal"
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium text-gray-900 placeholder:text-gray-400 bg-white resize-none focus:outline-none focus:border-[#D97706]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2.5 pt-1">
+                  {editingId !== null && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleResetForm();
+                        showToast("Mode edit dibatalkan.", "info");
+                      }}
+                      className="px-4 py-3 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-extrabold text-xs sm:text-sm rounded-xl transition cursor-pointer shrink-0"
+                    >
+                      Batal
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 py-3 bg-[#F3A712] hover:bg-[#df980e] disabled:opacity-60 text-gray-950 font-extrabold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
+                  >
+                    <Save size={15} />
+                    <span>
+                      {isSubmitting
+                        ? "Menyimpan..."
+                        : editingId !== null
+                          ? "Simpan Perubahan Menu"
+                          : "Simpan Menu Baru"}
+                    </span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}

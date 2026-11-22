@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { API_BASE_URL, getAuthHeaders } from '@/lib/api';
 
 export interface StokItem {
   id: string;
@@ -74,7 +75,9 @@ export function StokProvider({ children }: { children: React.ReactNode }) {
 
   const fetchStocks = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/stocks');
+      const res = await fetch(`${API_BASE_URL}/api/stocks`, {
+        headers: getAuthHeaders(),
+      });
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
@@ -128,9 +131,9 @@ export function StokProvider({ children }: { children: React.ReactNode }) {
       if (current) {
         const diff = newStock - current.stock;
         const action = diff >= 0 ? 'add' : 'subtract';
-        await fetch(`http://localhost:5000/api/stocks/${id}`, {
+        await fetch(`${API_BASE_URL}/api/stocks/${id}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ amount: Math.abs(diff), action }),
         });
       }
@@ -153,9 +156,9 @@ export function StokProvider({ children }: { children: React.ReactNode }) {
     );
 
     try {
-      await fetch(`http://localhost:5000/api/stocks/${id}`, {
+      await fetch(`${API_BASE_URL}/api/stocks/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ amount, action: 'add' }),
       });
     } catch (e) {

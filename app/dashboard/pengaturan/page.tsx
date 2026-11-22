@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import Sidebar from "@/components/Sidebar";
 import TimeWheelPicker from "@/components/TimeWheelPicker";
+import { API_BASE_URL, getAuthHeaders } from "@/lib/api";
 import {
   AlertTriangle,
   Banknote,
@@ -308,7 +309,9 @@ export default function PengaturanTokoPage() {
 
     const fetchBackendSettings = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/settings");
+        const res = await fetch(`${API_BASE_URL}/api/settings`, {
+          headers: getAuthHeaders(),
+        });
         if (res.ok) {
           const json = await res.json();
           if (json.success && json.data) {
@@ -548,9 +551,9 @@ export default function PengaturanTokoPage() {
       };
 
       try {
-        await fetch("http://localhost:5000/api/settings", {
+        await fetch(`${API_BASE_URL}/api/settings`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(payload),
         });
       } catch (e) {

@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import Sidebar from "@/components/Sidebar";
 import TimeWheelPicker from "@/components/TimeWheelPicker";
+import { API_BASE_URL, getAuthHeaders } from "@/lib/api";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -269,8 +270,9 @@ export default function KasirShiftPage() {
   const loadCashiersFromDB = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/cashiers", {
+      const res = await fetch(`${API_BASE_URL}/api/cashiers`, {
         cache: "no-store",
+        headers: getAuthHeaders(),
       });
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
@@ -325,8 +327,9 @@ export default function KasirShiftPage() {
         let salesSum = 0;
         let notesCount = 0;
         try {
-          const trxRes = await fetch("http://localhost:5000/api/transactions", {
+          const trxRes = await fetch(`${API_BASE_URL}/api/transactions`, {
             cache: "no-store",
+            headers: getAuthHeaders(),
           });
           const trxJson = await trxRes.json();
           if (trxJson.success && Array.isArray(trxJson.data)) {
@@ -553,18 +556,11 @@ export default function KasirShiftPage() {
     setKasirList(nextList);
 
     try {
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("prek_auth_token")
-          : null;
       await fetch(
-        `http://localhost:5000/api/cashiers/${encodeURIComponent(id)}/toggle`,
+        `${API_BASE_URL}/api/cashiers/${encodeURIComponent(id)}/toggle`,
         {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
         }
       );
     } catch {
@@ -602,15 +598,15 @@ export default function KasirShiftPage() {
 
     try {
       if (nextStatus === "Aktif Melayani") {
-        await fetch("http://localhost:5000/api/cashiers/login", {
+        await fetch(`${API_BASE_URL}/api/cashiers/login`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({ cashier: kasir.name, id: kasir.id }),
         });
       } else {
-        await fetch("http://localhost:5000/api/cashiers/logout", {
+        await fetch(`${API_BASE_URL}/api/cashiers/logout`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({ cashier: kasir.name, id: kasir.id }),
         });
       }
@@ -732,11 +728,6 @@ export default function KasirShiftPage() {
       ? "Selesai Shift / Off"
       : currentLiveStatus;
 
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("prek_auth_token")
-        : null;
-
     if (editingId) {
       let nextList = kasirList.map((item) =>
         item.id === editingId
@@ -808,13 +799,10 @@ export default function KasirShiftPage() {
 
       try {
         await fetch(
-          `http://localhost:5000/api/cashiers/${encodeURIComponent(editingId)}`,
+          `${API_BASE_URL}/api/cashiers/${encodeURIComponent(editingId)}`,
           {
             method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
+            headers: getAuthHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({
               name: cleanName,
               role_title: cleanRole,
@@ -860,12 +848,9 @@ export default function KasirShiftPage() {
       setKasirList(nextList);
 
       try {
-        const res = await fetch("http://localhost:5000/api/cashiers", {
+        const res = await fetch(`${API_BASE_URL}/api/cashiers`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({
             cashier_code: cleanCode,
             name: cleanName,
@@ -958,19 +943,10 @@ export default function KasirShiftPage() {
     showToast(`Data kasir ${name} (${id}) telah dihapus.`, "info");
 
     try {
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("prek_auth_token")
-          : null;
-      await fetch(
-        `http://localhost:5000/api/cashiers/${encodeURIComponent(id)}`,
-        {
-          method: "DELETE",
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
-      );
+      await fetch(`${API_BASE_URL}/api/cashiers/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
       loadCashiersFromDB();
     } catch {
       // Tetap terhapus di UI
@@ -1035,9 +1011,9 @@ export default function KasirShiftPage() {
     );
 
     try {
-      await fetch("http://localhost:5000/api/cashiers/login", {
+      await fetch(`${API_BASE_URL}/api/cashiers/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ cashier: chosen.name, id: chosen.id }),
       });
       loadCashiersFromDB();
@@ -1093,9 +1069,9 @@ export default function KasirShiftPage() {
     );
 
     try {
-      await fetch("http://localhost:5000/api/cashiers/logout", {
+      await fetch(`${API_BASE_URL}/api/cashiers/logout`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({}),
       });
       loadCashiersFromDB();
@@ -1134,9 +1110,9 @@ export default function KasirShiftPage() {
     );
 
     try {
-      await fetch("http://localhost:5000/api/cashiers/login", {
+      await fetch(`${API_BASE_URL}/api/cashiers/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           cashier: activeDrawer.operatorName,
           id: activeDrawer.operatorId,

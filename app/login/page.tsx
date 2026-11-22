@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
 import { useAuth } from '@/context/AuthContext';
+import { API_BASE_URL } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/login', {
+      const response = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -31,7 +32,7 @@ export default function LoginPage() {
       if (response.ok && data.data?.user) {
         // Simpan sesi autentikasi ke Global State (AuthContext)
         const userObj = data.data.user;
-        const jwtToken = data.data.accessToken || data.token;
+        const jwtToken = data.data.accessToken || data.data.token || data.token;
 
         login(
           {
