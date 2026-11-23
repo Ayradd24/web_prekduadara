@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Edit3,
   Flame,
+  ImageIcon,
   Layers,
   Package,
   PlusCircle,
@@ -18,6 +19,7 @@ import {
   Search,
   Tag,
   Trash2,
+  UploadCloud,
   User,
   UtensilsCrossed,
   Wallet,
@@ -65,6 +67,106 @@ const ITEMS_PER_PAGE = 10;
 const formatRupiah = (val: number) =>
   "Rp " + Math.round(val).toLocaleString("id-ID");
 
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+}
+
+/**
+ * Menyelesaikan URL gambar menu untuk web:
+ * - URL penuh (http/https) atau Data URI base64 dikembalikan apa adanya.
+ * - Asset statis lokal (assets/images/...) dipetakan ke root public web (/assets/images/...).
+ * - Uploads dari backend (/uploads/...) diarahkan ke API_BASE_URL.
+ */
+function resolveImageUrl(img?: string | null): string {
+  if (!img || !img.trim()) return "";
+  const trimmed = img.trim();
+  if (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("data:image/")
+  ) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("assets/")) {
+    return `/${trimmed}`;
+  }
+  if (trimmed.startsWith("/uploads/")) {
+    return `${API_BASE_URL}${trimmed}`;
+  }
+  if (trimmed.startsWith("uploads/")) {
+    return `${API_BASE_URL}/${trimmed}`;
+  }
+  return trimmed;
+}
+
+/**
+ * Mengompresi file gambar menggunakan browser HTML5 Canvas:
+ * - Resize ke max 600 x 600 px (aspek rasio terjaga)
+ * - Format WebP (kualitas 0.82) dengan fallback ke JPEG
+ * - Menghasilkan string Data URL base64 yang sangat ringan (~20-50 KB)
+ */
+function compressImage(
+  file: File,
+  maxWidth = 600,
+  maxHeight = 600,
+  quality = 0.82
+): Promise<{ dataUrl: string; compressedSize: number }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Gagal membaca file gambar"));
+    reader.onload = (e) => {
+      const img = new window.Image();
+      img.onerror = () => reject(new Error("Gagal memuat gambar"));
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas 2D context tidak didukung"));
+          return;
+        }
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, width, height);
+
+        let dataUrl = canvas.toDataURL("image/webp", quality);
+        if (!dataUrl.startsWith("data:image/webp")) {
+          dataUrl = canvas.toDataURL("image/jpeg", quality);
+        }
+
+        const base64Content = dataUrl.split(",")[1] || "";
+        const compressedSize = Math.round((base64Content.length * 3) / 4);
+
+        resolve({ dataUrl, compressedSize });
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function ManajemenMenuPage() {
   const { user } = useAuth();
 
@@ -85,7 +187,16 @@ export default function ManajemenMenuPage() {
   const [formCategory, setFormCategory] = useState<MenuCategory>("Paket Menu");
   const [formPrice, setFormPrice] = useState("");
   const [formDescription, setFormDescription] = useState("");
+  const [formImage, setFormImage] = useState("");
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageMeta, setImageMeta] = useState<{
+    originalSize: string;
+    compressedSize: string;
+    ratio: string;
+  } | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Modal Konfirmasi Hapus
   const [deleteTarget, setDeleteTarget] = useState<ProductItem | null>(null);
@@ -164,6 +275,56 @@ export default function ManajemenMenuPage() {
     loadProductsFromDB();
   }, [loadProductsFromDB]);
 
+  // Handler saat user memilih file gambar (klik atau drag & drop)
+  const handleImageFileChange = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      showToast(
+        "File yang dipilih harus berupa gambar (JPG, PNG, WebP)!",
+        "warning"
+      );
+      return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      showToast("Ukuran file gambar asli maksimal 15 MB!", "warning");
+      return;
+    }
+
+    setIsCompressing(true);
+    try {
+      const { dataUrl, compressedSize } = await compressImage(
+        file,
+        600,
+        600,
+        0.82
+      );
+      const originalStr = formatBytes(file.size);
+      const compressedStr = formatBytes(compressedSize);
+      const savedPct = Math.max(
+        0,
+        Math.round(((file.size - compressedSize) / file.size) * 100)
+      );
+
+      setFormImage(dataUrl);
+      setImagePreview(dataUrl);
+      setImageMeta({
+        originalSize: originalStr,
+        compressedSize: compressedStr,
+        ratio: `-${savedPct}%`,
+      });
+
+      showToast(
+        `Gambar otomatis dikompresi: ${originalStr} ➔ ${compressedStr} (${savedPct}% lebih hemat)`,
+        "success"
+      );
+    } catch (err) {
+      console.error("Kompresi gambar gagal:", err);
+      showToast("Gagal memproses dan mengompresi gambar!", "warning");
+    } finally {
+      setIsCompressing(false);
+    }
+  };
+
   // Reset form ke mode Tambah Menu Baru
   const handleResetForm = useCallback(() => {
     setEditingId(null);
@@ -171,6 +332,12 @@ export default function ManajemenMenuPage() {
     setFormCategory("Paket Menu");
     setFormPrice("");
     setFormDescription("");
+    setFormImage("");
+    setImagePreview(null);
+    setImageMeta(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }, []);
 
   // Mulai Edit Menu
@@ -182,6 +349,12 @@ export default function ManajemenMenuPage() {
     );
     setFormPrice(String(item.price));
     setFormDescription(item.description || "");
+    setFormImage(item.image || "");
+    setImagePreview(item.image ? resolveImageUrl(item.image) : null);
+    setImageMeta(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
 
     const formEl = document.getElementById("form-menu-cepat");
     formEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -221,6 +394,7 @@ export default function ManajemenMenuPage() {
           category: formCategory,
           price: numericPrice,
           description: cleanDesc,
+          image: formImage,
         }),
       });
 
@@ -848,9 +1022,27 @@ export default function ManajemenMenuPage() {
                             {/* NAMA MENU */}
                             <td className="py-3.5 pl-4 pr-3 align-middle whitespace-normal break-words">
                               <div className="flex items-start gap-2.5 min-w-0">
-                                <div className="w-8 h-8 rounded-xl bg-[#FAF8F3] border border-amber-200 text-[#D97706] flex items-center justify-center shrink-0 mt-0.5">
-                                  <UtensilsCrossed size={14} />
-                                </div>
+                                {item.image ? (
+                                  <div className="w-9 h-9 rounded-xl overflow-hidden border border-amber-200 bg-amber-50 shrink-0 mt-0.5 shadow-2xs relative">
+                                    <img
+                                      src={resolveImageUrl(item.image)}
+                                      alt={item.name}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        (e.currentTarget as HTMLElement).style.display = "none";
+                                        const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                        if (fallback) fallback.classList.remove("hidden");
+                                      }}
+                                    />
+                                    <div className="hidden w-full h-full items-center justify-center text-[#D97706] bg-[#FAF8F3]">
+                                      <UtensilsCrossed size={14} />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="w-9 h-9 rounded-xl bg-[#FAF8F3] border border-amber-200 text-[#D97706] flex items-center justify-center shrink-0 mt-0.5">
+                                    <UtensilsCrossed size={14} />
+                                  </div>
+                                )}
                                 <div className="min-w-0 flex-1">
                                   <div className="font-extrabold text-gray-900 text-xs sm:text-[13px] leading-snug break-words">
                                     {item.name}
@@ -1082,6 +1274,115 @@ export default function ManajemenMenuPage() {
                     onChange={(e) => setFormDescription(e.target.value)}
                     className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium text-gray-900 placeholder:text-gray-400 bg-white resize-none focus:outline-none focus:border-[#D97706]"
                   />
+                </div>
+
+                {/* UPLOAD FOTO MENU MAKANAN */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-extrabold text-gray-800 flex items-center gap-1.5">
+                      <span>Foto Menu Makanan</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Auto Kompres
+                      </span>
+                    </label>
+                    {imagePreview && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormImage("");
+                          setImagePreview(null);
+                          setImageMeta(null);
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
+                        className="text-[11px] font-bold text-red-600 hover:text-red-700 hover:underline cursor-pointer flex items-center gap-1"
+                      >
+                        <Trash2 size={12} />
+                        Hapus Foto
+                      </button>
+                    )}
+                  </div>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/jpg"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageFileChange(file);
+                    }}
+                    className="hidden"
+                  />
+
+                  {imagePreview ? (
+                    <div className="relative border-2 border-dashed border-amber-300 rounded-2xl p-3 bg-amber-50/40 flex items-center gap-3">
+                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-amber-200 bg-white shrink-0 shadow-xs">
+                        <img
+                          src={imagePreview}
+                          alt="Preview Menu"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1 text-[11px] font-extrabold text-[#2D452B]">
+                          <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
+                          <span>Foto Siap Disimpan</span>
+                        </div>
+                        {imageMeta ? (
+                          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-extrabold">
+                              {imageMeta.compressedSize} ({imageMeta.ratio})
+                            </span>
+                            <span className="text-[10px] text-gray-400 font-semibold line-through">
+                              {imageMeta.originalSize}
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-gray-500 font-medium mt-0.5">
+                            Foto aktif di database POS
+                          </p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="mt-2 inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-amber-50 text-[#D97706] border border-amber-300 rounded-lg text-[11px] font-extrabold transition cursor-pointer shadow-2xs"
+                        >
+                          <UploadCloud size={12} />
+                          Ganti Foto
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) handleImageFileChange(file);
+                      }}
+                      className="border-2 border-dashed border-gray-300 hover:border-[#D97706] hover:bg-amber-50/20 rounded-2xl p-4 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1.5 bg-gray-50/50"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-amber-100 text-[#D97706] flex items-center justify-center">
+                        <UploadCloud size={20} />
+                      </div>
+                      <div className="text-xs font-extrabold text-gray-800">
+                        {isCompressing ? (
+                          <span className="text-[#D97706] flex items-center gap-1.5">
+                            <RefreshCw size={13} className="animate-spin" /> Mengompresi Foto...
+                          </span>
+                        ) : (
+                          "Klik atau Tarik Foto Menu ke Sini"
+                        )}
+                      </div>
+                      <p className="text-[10px] text-gray-500 font-medium max-w-xs">
+                        JPG, PNG, atau WebP. Otomatis dikompresi ke 600px agar ringan dan cepat di HP Flutter kasir.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2.5 pt-1">
