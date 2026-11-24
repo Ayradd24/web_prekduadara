@@ -28,6 +28,8 @@ export interface Transaction {
   subtotal: number;
   diskon: number;
   total: number;
+  cashReceived?: number;
+  changeAmount?: number;
   paymentMethod: 'Tunai' | 'QRIS';
   status: 'Berhasil' | 'Batal';
   branch?: string;
@@ -284,6 +286,16 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
               subtotal: Number(tx.total) || 0,
               diskon: 0,
               total: Number(tx.total) || 0,
+              cashReceived:
+                tx.cashReceived !== undefined && tx.cashReceived !== null
+                  ? Number(tx.cashReceived)
+                  : isQris
+                    ? undefined
+                    : Number(tx.total) || 0,
+              changeAmount:
+                tx.changeAmount !== undefined && tx.changeAmount !== null
+                  ? Number(tx.changeAmount)
+                  : 0,
               paymentMethod: isQris ? 'QRIS' : 'Tunai',
               status: 'Berhasil',
               branch: 'Gerai Pusat',
