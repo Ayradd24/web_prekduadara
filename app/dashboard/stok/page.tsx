@@ -2,6 +2,11 @@
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
+import AiStockForecastSection, {
+  type ForecastItem,
+  type ForecastResponseData,
+  roundPoQty,
+} from "@/components/AiStockForecastSection";
 import { useStok } from "@/context/StokContext";
 import { API_BASE_URL, getAuthHeaders } from "@/lib/api";
 import {
@@ -22,7 +27,7 @@ import {
   Search,
   ShoppingCart,
   SlidersHorizontal,
-  Store,
+  Sparkles,
   Trash2,
   User,
   Wallet,
@@ -67,6 +72,8 @@ export interface InventoryDetailItem {
   safetyUnit: string;
   pct: number;
   daysLeft: string;
+  estimatedDaysLeft?: number;
+  suggestedPoQty?: number;
   unitPrice: number;
   priceUnit: string;
   status: StockStatus;
@@ -83,6 +90,32 @@ export interface MutationLog {
 }
 
 const ITEMS_PER_PAGE = 10;
+const STOCK_LOGS_STORAGE_KEY = "prekduadara_stock_logs_v1";
+const MAX_STOCK_LOGS = 100;
+const INTEGER_STOCK_UNITS = [
+  "pcs",
+  "box",
+  "cup",
+  "bungkus",
+  "pack",
+  "block",
+  "botol",
+  "kaleng",
+];
+
+function formatStockQty(val: number, unit: string): string {
+  const num = Number(val) || 0;
+  const isIntUnit = INTEGER_STOCK_UNITS.includes(unit.trim().toLowerCase());
+  if (isIntUnit) return String(Math.round(num));
+  const rounded = Math.round(num * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+let mutationLogSeq = 0;
+function createMutationLogId(suffix: string): string {
+  mutationLogSeq += 1;
+  return `LOG-${Date.now()}-${suffix}-${mutationLogSeq}`;
+}
 
 // Helper perhitungan status, persentase stok bar, dan estimasi sisa hari
 function computeStockMetrics(
@@ -388,9 +421,11 @@ function mapBackendStockToInventory(item: {
 export default function StokPage() {
   const { fetchStocks } = useStok();
 
-  const [inventory, setInventory] = useState<InventoryDetailItem[]>([]);
+  const [rawInventory, setRawInventory] = useState<InventoryDetailItem[]>([]);
+  const [forecastData, setForecastData] = useState<ForecastResponseData | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [dbConnected, setDbConnected] = useState<boolean>(false);
   const [logs, setLogs] = useState<MutationLog[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -405,8 +440,6 @@ export default function StokPage() {
   const [mutationAmount, setMutationAmount] = useState("");
   const [mutationNote, setMutationNote] = useState("");
 
-  const [reorderMarked, setReorderMarked] = useState<boolean>(false);
-
   // Toast Notification
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -415,6 +448,7 @@ export default function StokPage() {
   const [showOpnameModal, setShowOpnameModal] = useState(false);
   const [opnameValues, setOpnameValues] = useState<Record<string, string>>({});
   const [showPoModal, setShowPoModal] = useState(false);
+  const [poModalTab, setPoModalTab] = useState<"restock" | "all">("restock");
   const [poQuantities, setPoQuantities] = useState<Record<string, string>>({});
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [logModalFilter, setLogModalFilter] =
@@ -428,6 +462,35 @@ export default function StokPage() {
   const [newItemStock, setNewItemStock] = useState("");
   const [newItemUnit, setNewItemUnit] = useState("kg");
   const [newItemSafety, setNewItemSafety] = useState("");
+
+  useEffect(() => {
+    const hydrateTimer = window.setTimeout(() => {
+      try {
+        const saved = localStorage.getItem(STOCK_LOGS_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            setLogs(parsed.slice(0, MAX_STOCK_LOGS));
+          }
+        }
+      } catch {
+        // Abaikan data localStorage yang tidak valid
+      }
+    }, 0);
+    return () => window.clearTimeout(hydrateTimer);
+  }, []);
+
+  const appendMutationLog = useCallback((entry: MutationLog) => {
+    setLogs((prev) => {
+      const next = [entry, ...prev].slice(0, MAX_STOCK_LOGS);
+      try {
+        localStorage.setItem(STOCK_LOGS_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Abaikan jika penyimpanan browser penuh
+      }
+      return next;
+    });
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     if (toastTimerRef.current) {
@@ -456,9 +519,8 @@ export default function StokPage() {
       });
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
-        setDbConnected(true);
         const mapped = json.data.map(mapBackendStockToInventory);
-        setInventory(mapped);
+        setRawInventory(mapped);
         if (mapped.length > 0) {
           setSelectedSku((prev) => {
             return mapped.some((m: InventoryDetailItem) => m.sku === prev)
@@ -468,15 +530,104 @@ export default function StokPage() {
         }
       }
     } catch {
-      setDbConnected(false);
+      // Gagal menghubungi backend stok
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadStocksFromDB();
-  }, [loadStocksFromDB]);
+    let cancelled = false;
+    const initStocks = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/stocks`, {
+          headers: getAuthHeaders(),
+        });
+        const json = await res.json();
+        if (!cancelled && json.success && Array.isArray(json.data)) {
+          const mapped = json.data.map(mapBackendStockToInventory);
+          setRawInventory(mapped);
+          if (mapped.length > 0) {
+            setSelectedSku((prev) =>
+              mapped.some((m: InventoryDetailItem) => m.sku === prev)
+                ? prev
+                : mapped[0].sku
+            );
+          }
+        }
+      } catch {
+        // Gagal menghubungi backend stok
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+    void initStocks();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleForecastUpdate = useCallback((data: ForecastResponseData) => {
+    setForecastData(data);
+  }, []);
+
+  const targetSafeDays =
+    forecastData?.summary?.targetSafeDays ??
+    forecastData?.settings?.targetSafeDays ??
+    4;
+
+  const forecastMap = useMemo(() => {
+    const bySku = new Map<string, ForecastItem>();
+    const byId = new Map<string, ForecastItem>();
+    if (forecastData?.items) {
+      forecastData.items.forEach((aiItem) => {
+        const idStr = String(aiItem.id);
+        const sku = `STK-${idStr.padStart(2, "0")}`;
+        byId.set(idStr, aiItem);
+        bySku.set(sku, aiItem);
+      });
+    }
+    return { bySku, byId };
+  }, [forecastData]);
+
+  // Single Source of Truth: gabungkan data MariaDB dengan hasil analisis AI Agent
+  // (computeStockMetrics hanya sebagai fallback sementara saat data AI masih loading)
+  const inventory = useMemo<InventoryDetailItem[]>(() => {
+    return rawInventory.map((item) => {
+      const aiItem =
+        forecastMap.bySku.get(item.sku) || forecastMap.byId.get(item.id);
+      if (!aiItem) {
+        return item;
+      }
+
+      const estDays = Math.max(0, Number(aiItem.estimatedDaysLeft) || 0);
+      const safeDays = Math.max(1, targetSafeDays);
+      const status: StockStatus =
+        aiItem.isUrgentUnder2Days ||
+        estDays < 2 ||
+        item.stock <= item.safetyStock * 0.5
+          ? "KRITIS"
+          : estDays < safeDays || item.stock <= item.safetyStock
+            ? "MENIPIS"
+            : "AMAN";
+      const pct = Math.min(
+        100,
+        Math.max(0, Math.round((estDays / safeDays) * 100))
+      );
+      const daysLeft = `~${estDays.toFixed(1)} Hari`;
+
+      return {
+        ...item,
+        status,
+        pct,
+        daysLeft,
+        estimatedDaysLeft: estDays,
+        suggestedPoQty: Number(aiItem.suggestedPoQty) || 0,
+      };
+    });
+  }, [rawInventory, forecastMap, targetSafeDays]);
 
   // Handler Reset Seluruh Filter
   const handleResetFilters = () => {
@@ -492,7 +643,7 @@ export default function StokPage() {
     [inventory, selectedSku]
   );
 
-  // 4 KPI Card Metrics
+  // 4 KPI Card Metrics (disinkronkan dengan hasil analisis AI Agent)
   const kpiStats = useMemo(() => {
     const totalItems = inventory.length;
     const criticalItems = inventory.filter((item) => item.status === "KRITIS");
@@ -501,6 +652,9 @@ export default function StokPage() {
       0
     );
     const totalDays = inventory.reduce((acc, item) => {
+      if (typeof item.estimatedDaysLeft === "number") {
+        return acc + item.estimatedDaysLeft;
+      }
       const parsed = parseFloat(
         item.daysLeft.replace("~", "").replace("Hari", "").trim()
       );
@@ -559,7 +713,7 @@ export default function StokPage() {
     const pages: number[] = [];
     const maxVisible = 5;
     let start = Math.max(1, currentPage - 2);
-    let end = Math.min(totalPages, start + maxVisible - 1);
+    const end = Math.min(totalPages, start + maxVisible - 1);
     if (end - start + 1 < maxVisible) {
       start = Math.max(1, end - maxVisible + 1);
     }
@@ -568,13 +722,6 @@ export default function StokPage() {
     }
     return pages;
   }, [currentPage, totalPages]);
-
-  const filteredTotalValue = useMemo(() => {
-    return filteredInventory.reduce(
-      (acc, item) => acc + item.stock * item.unitPrice,
-      0
-    );
-  }, [filteredInventory]);
 
   // 2. HANDLER TAMBAH CEPAT (+ Button di Baris Tabel)
   const handleQuickRestockRow = async (item: InventoryDetailItem) => {
@@ -590,15 +737,16 @@ export default function StokPage() {
         await loadStocksFromDB();
         await fetchStocks();
         const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
-        const newLog: MutationLog = {
-          id: `LOG-${Date.now()}-${item.sku}`,
-          title: `${item.name.split(" ").slice(0, 3).join(" ")} • +${addVal} ${item.unit}`,
+        appendMutationLog({
+          id: createMutationLogId(item.sku),
+          title: `${item.name.split(" ").slice(0, 3).join(" ")} • +${formatStockQty(addVal, item.unit)} ${item.unit}`,
           subtitle: `Penambahan cepat stok tabel (${item.sku}) • Gerai Utama`,
           time: nowStr,
           type: "in",
-        };
-        setLogs((prev) => [newLog, ...prev]);
-        showToast(`+${addVal} ${item.unit} ditambahkan ke ${item.name}!`);
+        });
+        showToast(
+          `+${formatStockQty(addVal, item.unit)} ${item.unit} ditambahkan ke ${item.name}!`
+        );
       } else {
         showToast(json.message || "Gagal memperbarui stok di server!");
       }
@@ -610,9 +758,9 @@ export default function StokPage() {
   // 3. HANDLER SIMPAN FORM PENYESUAIAN CEPAT (Dapur & Kasir)
   const handleSaveMutation = async (e: React.FormEvent) => {
     e.preventDefault();
-    const qty = parseFloat(mutationAmount);
-    if (isNaN(qty) || qty < 2) {
-      showToast("Jumlah mutasi stok minimal 2!");
+    const qty = parseFloat(String(mutationAmount).replace(",", "."));
+    if (isNaN(qty) || qty <= 0) {
+      showToast("Jumlah mutasi stok harus lebih dari 0!");
       return;
     }
 
@@ -625,7 +773,7 @@ export default function StokPage() {
 
     if (!isAddition && qty > selectedItemObj.stock) {
       showToast(
-        `Stok tidak mencukupi! Sisa stok ${selectedItemObj.name} saat ini: ${selectedItemObj.stock} ${selectedItemObj.unit}.`
+        `Stok tidak mencukupi! Sisa stok ${selectedItemObj.name} saat ini: ${formatStockQty(selectedItemObj.stock, selectedItemObj.unit)} ${selectedItemObj.unit}.`
       );
       return;
     }
@@ -646,11 +794,11 @@ export default function StokPage() {
         await loadStocksFromDB();
         await fetchStocks();
         const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
-        const newLog: MutationLog = {
-          id: `LOG-${Date.now()}-${selectedItemObj.sku}`,
+        appendMutationLog({
+          id: createMutationLogId(selectedItemObj.sku),
           title: `${selectedItemObj.name.split(" ").slice(0, 3).join(" ")} • ${
             isAddition ? "+" : "-"
-          }${qty} ${selectedItemObj.unit}`,
+          }${formatStockQty(qty, selectedItemObj.unit)} ${selectedItemObj.unit}`,
           subtitle: `${
             mutationNote.trim() || `${mutationType} (${selectedItemObj.sku})`
           } • Gerai Utama`,
@@ -660,8 +808,7 @@ export default function StokPage() {
             : mutationType === "Stok Rusak / Basi"
               ? "replace"
               : "out",
-        };
-        setLogs((prev) => [newLog, ...prev]);
+        });
         setMutationAmount("");
         setMutationNote("");
         showToast(
@@ -688,17 +835,29 @@ export default function StokPage() {
   const handleSaveOpname = async (e: React.FormEvent) => {
     e.preventDefault();
     let updatedCount = 0;
+    const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
     try {
       for (const item of inventory) {
         const rawVal = opnameValues[item.sku];
         const parsed = parseFloat(rawVal);
         if (!isNaN(parsed) && parsed >= 0 && parsed !== item.stock) {
-          await fetch(`${API_BASE_URL}/api/stocks/${item.id}`, {
+          const res = await fetch(`${API_BASE_URL}/api/stocks/${item.id}`, {
             method: "PATCH",
             headers: getAuthHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ newStock: parsed }),
           });
-          updatedCount++;
+          if (res.ok) {
+            const diff = Math.round((parsed - item.stock) * 100) / 100;
+            const sign = diff > 0 ? "+" : "-";
+            appendMutationLog({
+              id: createMutationLogId(item.sku),
+              title: `${item.name.split(" ").slice(0, 3).join(" ")} • ${sign}${formatStockQty(Math.abs(diff), item.unit)} ${item.unit}`,
+              subtitle: `Audit / Opname Fisik (${formatStockQty(item.stock, item.unit)} → ${formatStockQty(parsed, item.unit)} ${item.unit}) • Gerai Utama`,
+              time: nowStr,
+              type: diff > 0 ? "in" : "replace",
+            });
+            updatedCount++;
+          }
         }
       }
       await loadStocksFromDB();
@@ -715,45 +874,84 @@ export default function StokPage() {
   // 5. HANDLER QUICK PO RESTOCK MODAL
   const handleOpenPoModal = () => {
     const initialMap: Record<string, string> = {};
-    const criticals = inventory.filter(
-      (item) => item.status === "KRITIS" || item.status === "MENIPIS"
-    );
-    const targetList = criticals.length > 0 ? criticals : inventory;
-    targetList.forEach((item) => {
-      const deficit = Math.max(
-        0,
-        Number((item.safetyStock * 1.5 - item.stock).toFixed(1))
+    if (forecastData?.items && forecastData.items.length > 0) {
+      inventory.forEach((item) => {
+        const aiItem =
+          forecastMap.bySku.get(item.sku) || forecastMap.byId.get(item.id);
+        if (aiItem && aiItem.suggestedPoQty > 0) {
+          const rounded = roundPoQty(aiItem.suggestedPoQty, item.unit);
+          if (rounded > 0) {
+            initialMap[item.sku] = String(rounded);
+          }
+        }
+      });
+    } else {
+      const criticals = inventory.filter(
+        (item) => item.status === "KRITIS" || item.status === "MENIPIS"
       );
-      const suggested = deficit > 0 ? deficit : 10;
-      initialMap[item.sku] = String(
-        item.unit === "Pcs" ? Math.round(suggested) : suggested
-      );
-    });
+      const targetList = criticals.length > 0 ? criticals : inventory;
+      targetList.forEach((item) => {
+        const deficit = Math.max(
+          0,
+          Number((item.safetyStock * 1.5 - item.stock).toFixed(1))
+        );
+        const suggested = deficit > 0 ? deficit : 10;
+        initialMap[item.sku] = String(roundPoQty(suggested, item.unit));
+      });
+    }
     setPoQuantities(initialMap);
+    setPoModalTab("restock");
     setShowPoModal(true);
   };
+
+  const handleApplyRecommendedPo = useCallback(
+    (poMap: Record<string, string>) => {
+      const count = Object.keys(poMap).length;
+      if (count === 0) {
+        showToast("Seluruh bahan baku saat ini dalam status aman menurut AI.");
+        return;
+      }
+      setPoQuantities(poMap);
+      setPoModalTab("restock");
+      setShowPoModal(true);
+      showToast(
+        `Kuantitas saran PO dari analisis AI (${count} bahan) berhasil dimuat ke form!`
+      );
+    },
+    [showToast]
+  );
 
   const handleSendPo = async (e: React.FormEvent) => {
     e.preventDefault();
     let count = 0;
+    const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
     try {
       for (const [sku, qtyStr] of Object.entries(poQuantities)) {
-        const qty = parseFloat(qtyStr);
+        const parsedQty = parseFloat(String(qtyStr).replace(",", "."));
+        const qty = Math.round(parsedQty * 100) / 100;
         if (!isNaN(qty) && qty > 0) {
           const item = inventory.find((i) => i.sku === sku);
           if (item) {
-            await fetch(`${API_BASE_URL}/api/stocks/${item.id}`, {
+            const res = await fetch(`${API_BASE_URL}/api/stocks/${item.id}`, {
               method: "PATCH",
               headers: getAuthHeaders({ "Content-Type": "application/json" }),
               body: JSON.stringify({ amount: qty, action: "add" }),
             });
-            count++;
+            if (res.ok) {
+              appendMutationLog({
+                id: createMutationLogId(item.sku),
+                title: `${item.name.split(" ").slice(0, 3).join(" ")} • +${formatStockQty(qty, item.unit)} ${item.unit}`,
+                subtitle: `PO Restock Supplier (${item.sku}) • Gerai Utama`,
+                time: nowStr,
+                type: "in",
+              });
+              count++;
+            }
           }
         }
       }
       await loadStocksFromDB();
       await fetchStocks();
-      setReorderMarked(true);
       setShowPoModal(false);
       showToast(`Pesanan PO (${count} bahan) berhasil dikirim ke database!`);
     } catch {
@@ -794,6 +992,14 @@ export default function StokPage() {
       });
       const json = await res.json();
       if (json.success) {
+        const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
+        appendMutationLog({
+          id: createMutationLogId("NEW"),
+          title: `${cleanName.split(" ").slice(0, 3).join(" ")} • +${formatStockQty(initStock, newItemUnit)} ${newItemUnit}`,
+          subtitle: `Stok awal bahan baku baru (${newItemCategory}) • Gerai Utama`,
+          time: nowStr,
+          type: "in",
+        });
         await loadStocksFromDB();
         await fetchStocks();
         setNewItemName("");
@@ -858,8 +1064,8 @@ export default function StokPage() {
       item.name,
       item.category,
       item.supplier.replace("Supplier: ", ""),
-      `${item.unit === "Pcs" ? item.stock : item.stock.toFixed(1)} ${item.unit}`,
-      `${item.safetyStock} ${item.safetyUnit}`,
+      `${formatStockQty(item.stock, item.unit)} ${item.unit}`,
+      `${formatStockQty(item.safetyStock, item.safetyUnit)} ${item.safetyUnit}`,
       item.daysLeft,
       `Rp ${item.unitPrice.toLocaleString("id-ID")}`,
       `Rp ${Math.round(item.stock * item.unitPrice).toLocaleString("id-ID")}`,
@@ -896,6 +1102,35 @@ export default function StokPage() {
     if (logModalFilter === "in") return logs.filter((l) => l.type === "in");
     return logs.filter((l) => l.type === "out" || l.type === "replace");
   }, [logs, logModalFilter]);
+
+  const poRestockItems = useMemo(() => {
+    return inventory.filter((item) => {
+      const qty =
+        parseFloat(String(poQuantities[item.sku] || "0").replace(",", ".")) ||
+        0;
+      return qty > 0 || item.status === "KRITIS" || item.status === "MENIPIS";
+    });
+  }, [inventory, poQuantities]);
+
+  const visiblePoItems = useMemo(
+    () => (poModalTab === "restock" ? poRestockItems : inventory),
+    [poModalTab, poRestockItems, inventory]
+  );
+
+  const poSummary = useMemo(() => {
+    let totalCost = 0;
+    let filledCount = 0;
+    inventory.forEach((item) => {
+      const qty =
+        parseFloat(String(poQuantities[item.sku] || "0").replace(",", ".")) ||
+        0;
+      if (qty > 0) {
+        totalCost += Math.round(qty * item.unitPrice);
+        filledCount++;
+      }
+    });
+    return { totalCost, filledCount };
+  }, [inventory, poQuantities]);
 
   return (
     <div className="min-h-screen print:min-h-0 bg-[#FAF6E9] print:bg-white flex p-4 sm:p-6 print:p-0 gap-6 font-sans items-start text-gray-900">
@@ -1070,90 +1305,151 @@ export default function StokPage() {
               onSubmit={handleSendPo}
               className="flex flex-col flex-1 overflow-hidden"
             >
-              <div className="p-5 overflow-y-auto space-y-3">
-                {inventory.map((item) => {
-                  const qty = parseFloat(poQuantities[item.sku] || "0") || 0;
-                  const subtotal = Math.round(qty * item.unitPrice);
-                  return (
-                    <div
-                      key={item.sku}
-                      className="p-4 rounded-xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs sm:text-sm font-extrabold text-gray-900">
-                            {item.name}
-                          </span>
-                          <span
-                            className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                              item.status === "KRITIS"
-                                ? "bg-red-100 text-red-700"
-                                : item.status === "MENIPIS"
-                                  ? "bg-amber-100 text-amber-800"
-                                  : "bg-emerald-100 text-emerald-800"
-                            }`}
-                          >
-                            {item.status}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-600 mt-1 font-medium">
-                          Stok: <strong>{item.stock} {item.unit}</strong> • Safety:{" "}
-                          <strong>{item.safetyStock} {item.safetyUnit}</strong>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-0.5">
-                          {item.supplier}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 self-end sm:self-center">
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500 font-semibold">
-                            Est. Biaya:
-                          </div>
-                          <div className="text-xs font-black text-gray-900 tabular-nums">
-                            Rp {subtotal.toLocaleString("id-ID")}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center border border-gray-300 rounded-xl bg-white px-3 py-1.5 w-28">
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            value={poQuantities[item.sku] || ""}
-                            onChange={(e) =>
-                              setPoQuantities((prev) => ({
-                                ...prev,
-                                [item.sku]: e.target.value,
-                              }))
-                            }
-                            className="w-full text-xs sm:text-sm font-extrabold text-gray-900 outline-none bg-transparent"
-                          />
-                          <span className="text-xs font-bold text-gray-500 ml-1">
-                            {item.unit}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-2.5">
+              <div className="px-5 pt-3.5 pb-2.5 border-b border-gray-200 flex items-center gap-2 bg-gray-50/70">
                 <button
                   type="button"
-                  onClick={() => setShowPoModal(false)}
-                  className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 transition cursor-pointer"
+                  onClick={() => setPoModalTab("restock")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer ${
+                    poModalTab === "restock"
+                      ? "bg-[#DC2626] text-white shadow-2xs"
+                      : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
+                  }`}
                 >
-                  Batal
+                  Perlu Restock ({poRestockItems.length})
                 </button>
                 <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-extrabold flex items-center gap-2 shadow-xs transition cursor-pointer"
+                  type="button"
+                  onClick={() => setPoModalTab("all")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer ${
+                    poModalTab === "all"
+                      ? "bg-[#2D452B] text-white shadow-2xs"
+                      : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-100"
+                  }`}
                 >
-                  <ShoppingCart size={14} />
-                  <span>Kirim PO Restock ke Database</span>
+                  Semua Bahan ({inventory.length})
                 </button>
+              </div>
+
+              <div className="p-5 overflow-y-auto space-y-3 flex-1">
+                {visiblePoItems.length === 0 ? (
+                  <div className="py-10 text-center space-y-2.5">
+                    <p className="text-xs font-semibold text-gray-600">
+                      Tidak ada bahan yang berstatus Kritis/Menipis atau terisi kuantitas PO.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setPoModalTab("all")}
+                      className="px-3.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs font-extrabold text-gray-800 transition cursor-pointer"
+                    >
+                      Tampilkan Semua Bahan
+                    </button>
+                  </div>
+                ) : (
+                  visiblePoItems.map((item) => {
+                    const qty =
+                      parseFloat(
+                        String(poQuantities[item.sku] || "0").replace(",", ".")
+                      ) || 0;
+                    const subtotal = Math.round(qty * item.unitPrice);
+                    return (
+                      <div
+                        key={item.sku}
+                        className="p-4 rounded-xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs sm:text-sm font-extrabold text-gray-900">
+                              {item.name}
+                            </span>
+                            <span
+                              className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                                item.status === "KRITIS"
+                                  ? "bg-red-100 text-red-700"
+                                  : item.status === "MENIPIS"
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-emerald-100 text-emerald-800"
+                              }`}
+                            >
+                              {item.status}
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1 font-medium">
+                            Stok:{" "}
+                            <strong>
+                              {formatStockQty(item.stock, item.unit)} {item.unit}
+                            </strong>{" "}
+                            • Safety:{" "}
+                            <strong>
+                              {formatStockQty(item.safetyStock, item.safetyUnit)}{" "}
+                              {item.safetyUnit}
+                            </strong>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            {item.supplier}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 self-end sm:self-center">
+                          <div className="text-right">
+                            <div className="text-xs text-gray-500 font-semibold">
+                              Est. Biaya:
+                            </div>
+                            <div className="text-xs font-black text-gray-900 tabular-nums">
+                              Rp {subtotal.toLocaleString("id-ID")}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center border border-gray-300 rounded-xl bg-white px-3 py-1.5 w-28">
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              value={poQuantities[item.sku] || ""}
+                              onChange={(e) =>
+                                setPoQuantities((prev) => ({
+                                  ...prev,
+                                  [item.sku]: e.target.value,
+                                }))
+                              }
+                              className="w-full text-xs sm:text-sm font-extrabold text-gray-900 outline-none bg-transparent"
+                            />
+                            <span className="text-xs font-bold text-gray-500 ml-1">
+                              {item.unit}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-bold text-gray-500">
+                    Total Estimasi Biaya PO ({poSummary.filledCount} bahan)
+                  </div>
+                  <div className="text-sm sm:text-base font-black text-gray-900 tabular-nums">
+                    Rp {poSummary.totalCost.toLocaleString("id-ID")}
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowPoModal(false)}
+                    className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 transition cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={poSummary.filledCount === 0}
+                    className="px-5 py-2 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-extrabold flex items-center gap-2 shadow-xs transition cursor-pointer"
+                  >
+                    <ShoppingCart size={14} />
+                    <span>Kirim PO Restock ke Database</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -1476,6 +1772,10 @@ export default function StokPage() {
               <h2 className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
                 Manajemen Stok &amp; Bahan Baku
               </h2>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-800 text-[11px] font-extrabold whitespace-nowrap">
+                <Sparkles size={11} className="text-violet-600 shrink-0" />
+                AI Agent
+              </span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-[11px] font-extrabold">
                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                 Tersambung ke Database MariaDB
@@ -1562,15 +1862,21 @@ export default function StokPage() {
             }`}
           >
             <div className="min-w-0 flex-1">
-              <p
-                className={`text-[11px] font-extrabold uppercase tracking-wider whitespace-nowrap ${
-                  kpiStats.criticalCount > 0
-                    ? "text-[#DC2626]"
-                    : "text-emerald-800"
-                }`}
-              >
-                STOK KRITIS / RESTOCK
-              </p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p
+                  className={`text-[11px] font-extrabold uppercase tracking-wider whitespace-nowrap ${
+                    kpiStats.criticalCount > 0
+                      ? "text-[#DC2626]"
+                      : "text-emerald-800"
+                  }`}
+                >
+                  STOK KRITIS / RESTOCK
+                </p>
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[9px] font-extrabold whitespace-nowrap shrink-0">
+                  <Sparkles size={8} className="text-violet-600 shrink-0" />
+                  <span>AI Agent</span>
+                </span>
+              </div>
               <div className="mt-2 flex items-baseline gap-1.5">
                 <span
                   className={`text-2xl print:text-lg font-black whitespace-nowrap tabular-nums ${
@@ -1617,9 +1923,15 @@ export default function StokPage() {
           {/* Card 3: KETAHANAN OPERASIONAL */}
           <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-gray-200 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                KETAHANAN OPERASIONAL
-              </p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  KETAHANAN OPERASIONAL
+                </p>
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[9px] font-extrabold whitespace-nowrap shrink-0">
+                  <Sparkles size={8} className="text-violet-600 shrink-0" />
+                  <span>AI Agent</span>
+                </span>
+              </div>
               <div className="mt-2 flex items-baseline gap-1.5">
                 <span className="text-2xl print:text-lg font-black text-gray-900 whitespace-nowrap tabular-nums">
                   {kpiStats.avgDays}
@@ -1660,89 +1972,15 @@ export default function StokPage() {
           </div>
         </section>
 
-        {/* DYNAMIC CRITICAL RE-ORDER ALERT BANNER */}
-        {kpiStats.criticalCount > 0 ? (
-          <section className="print:hidden min-h-[76px] bg-[#FFF5F5] border border-red-300 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
-            <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-[#DC2626] text-white font-black text-base flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                !
-              </div>
-              <div>
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <h3 className="text-sm sm:text-base font-extrabold text-gray-900">
-                    Peringatan Kritis: {kpiStats.criticalCount} Bahan Memerlukan Re-Order Mendesak
-                  </h3>
-                  <span className="bg-[#DC2626] text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-md uppercase tracking-wider">
-                    RUSH SIANG–MALAM
-                  </span>
-                </div>
-                <p className="text-xs sm:text-sm text-gray-700 mt-1.5 leading-relaxed font-medium">
-                  {kpiStats.criticalItems.map((ci, idx) => (
-                    <React.Fragment key={ci.sku}>
-                      {idx > 0 && " • "}
-                      <strong className="text-[#DC2626] font-extrabold">
-                        {ci.name}
-                      </strong>{" "}
-                      tersisa{" "}
-                      <strong className="text-gray-900">
-                        {ci.stock} {ci.unit}
-                      </strong>{" "}
-                      (Batas Aman: {ci.safetyStock} {ci.safetyUnit})
-                    </React.Fragment>
-                  ))}
-                  . Segera lakukan pengadaan ulang sebelum jam sibuk operasional.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2.5 shrink-0 self-end xl:self-center">
-              <button
-                type="button"
-                onClick={handleOpenPoModal}
-                className="px-4 py-2.5 bg-[#E11D48] hover:bg-[#BE123C] text-white rounded-xl text-xs font-extrabold flex items-center gap-2 shadow-xs transition cursor-pointer whitespace-nowrap"
-              >
-                <ShoppingCart size={14} />
-                <span>Pesan ke Supplier Sekarang</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const nextState = !reorderMarked;
-                  setReorderMarked(nextState);
-                  showToast(
-                    nextState
-                      ? "Ditandai sudah dipesan ke supplier!"
-                      : "Status pesanan supplier direset."
-                  );
-                }}
-                className={`px-4 py-2.5 border rounded-xl text-xs font-extrabold transition cursor-pointer whitespace-nowrap ${
-                  reorderMarked
-                    ? "bg-emerald-100 border-emerald-400 text-emerald-900"
-                    : "bg-white border-gray-300 hover:bg-gray-50 text-gray-800"
-                }`}
-              >
-                {reorderMarked ? "✓ Sudah Dipesan" : "Tandai Sudah Dipesan"}
-              </button>
-            </div>
-          </section>
-        ) : (
-          <section className="print:hidden min-h-[76px] bg-emerald-50 border border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-emerald-600 text-white font-black text-base flex items-center justify-center shrink-0 shadow-xs">
-                <CheckCircle2 size={20} />
-              </div>
-              <div>
-                <h3 className="text-sm sm:text-base font-extrabold text-emerald-950">
-                  Semua Stok Bahan Baku dalam Batas Aman
-                </h3>
-                <p className="text-xs sm:text-sm text-emerald-800 font-medium mt-1.5">
-                  Tidak ada bahan baku yang berstatus kritis di database MariaDB saat ini. Operasional
-                  dapur siap melayani pelanggan.
-                </p>
-              </div>
-            </div>
-          </section>
-        )}
+        {/* AI STOCK FORECAST & PERINGATAN DINI TERPADU */}
+        <AiStockForecastSection
+          onApplyRecommendedPo={handleApplyRecommendedPo}
+          onForecastUpdate={handleForecastUpdate}
+          onNotify={showToast}
+          refreshTrigger={rawInventory
+            .map((item) => `${item.id}:${item.stock}`)
+            .join("|")}
+        />
 
         {/* 2-COLUMN MAIN CONTENT: LEFT (TABLE) & RIGHT (MUTATION FORM & LOGS) */}
         <section className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
@@ -1760,13 +1998,19 @@ export default function StokPage() {
                   type="text"
                   placeholder="Cari nama bahan, supplier, atau kode SKU..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setActivePage(1);
+                  }}
                   className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-xl text-xs font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#D97706] bg-gray-50/50"
                 />
                 {searchQuery && (
                   <button
                     type="button"
-                    onClick={() => setSearchQuery("")}
+                    onClick={() => {
+                      setSearchQuery("");
+                      setActivePage(1);
+                    }}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 cursor-pointer"
                   >
                     <X size={13} />
@@ -1779,7 +2023,10 @@ export default function StokPage() {
                   <span>STATUS:</span>
                   <select
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value);
+                      setActivePage(1);
+                    }}
                     className="border border-gray-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
                   >
                     <option value="Semua Status">Semua Status</option>
@@ -1839,14 +2086,14 @@ export default function StokPage() {
 
             {/* TABEL INVENTARIS */}
             <div className="overflow-x-auto print:overflow-visible flex-1">
-              <table className="table-fixed w-full text-left border-collapse text-xs">
+              <table className="table-fixed w-full min-w-[740px] text-left border-collapse text-xs">
                 <colgroup>
-                  <col className="w-[28%]" />
-                  <col className="w-[15%]" />
-                  <col className="w-[14%]" />
-                  <col className="w-[15%]" />
+                  <col className="w-[25%]" />
                   <col className="w-[13%]" />
-                  <col className="w-[8%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[13%]" />
                   <col className="w-[7%] print:hidden" />
                 </colgroup>
                 <thead>
@@ -1854,9 +2101,25 @@ export default function StokPage() {
                     <th className="py-2.5 px-2.5">BAHAN BAKU</th>
                     <th className="py-2.5 px-1.5">KATEGORI</th>
                     <th className="py-2.5 px-1.5">STOK</th>
-                    <th className="py-2.5 px-1.5">KETAHANAN</th>
+                    <th className="py-2.5 px-1.5">
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                        <span>KETAHANAN</span>
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[8.5px] font-extrabold normal-case tracking-normal whitespace-nowrap">
+                          <Sparkles size={8} className="text-violet-600 shrink-0" />
+                          <span>AI Agent</span>
+                        </span>
+                      </span>
+                    </th>
                     <th className="py-2.5 px-1.5">HARGA</th>
-                    <th className="py-2.5 px-1 text-center">STATUS</th>
+                    <th className="py-2.5 px-1 text-center">
+                      <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
+                        <span>STATUS</span>
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[8.5px] font-extrabold normal-case tracking-normal whitespace-nowrap">
+                          <Sparkles size={8} className="text-violet-600 shrink-0" />
+                          <span>AI Agent</span>
+                        </span>
+                      </span>
+                    </th>
                     <th className="py-2.5 px-1 text-center print:hidden">AKSI</th>
                   </tr>
                 </thead>
@@ -1924,13 +2187,11 @@ export default function StokPage() {
                         {/* Stok Aktual */}
                         <td className="py-2.5 px-1.5">
                           <div className="font-black text-gray-900 text-xs tabular-nums">
-                            {item.unit === "Pcs"
-                              ? item.stock
-                              : item.stock.toFixed(1)}{" "}
-                            {item.unit}
+                            {formatStockQty(item.stock, item.unit)} {item.unit}
                           </div>
                           <div className="text-[10px] text-gray-500 font-medium">
-                            Min: {item.safetyStock} {item.safetyUnit}
+                            Min: {formatStockQty(item.safetyStock, item.safetyUnit)}{" "}
+                            {item.safetyUnit}
                           </div>
                         </td>
 
@@ -2116,16 +2377,21 @@ export default function StokPage() {
                           Stok Saat Ini:{" "}
                         </span>
                         <strong className="font-black text-gray-900">
-                          {selectedItemObj.unit === "Pcs"
-                            ? selectedItemObj.stock
-                            : selectedItemObj.stock.toFixed(1)}{" "}
+                          {formatStockQty(
+                            selectedItemObj.stock,
+                            selectedItemObj.unit
+                          )}{" "}
                           {selectedItemObj.unit}
                         </strong>
                         <span className="text-gray-400 mx-1.5">•</span>
                         <span className="text-gray-500 font-semibold">
                           Safety:{" "}
                           <strong className="text-gray-800">
-                            {selectedItemObj.safetyStock} {selectedItemObj.safetyUnit}
+                            {formatStockQty(
+                              selectedItemObj.safetyStock,
+                              selectedItemObj.safetyUnit
+                            )}{" "}
+                            {selectedItemObj.safetyUnit}
                           </strong>
                         </span>
                       </div>
@@ -2170,15 +2436,15 @@ export default function StokPage() {
                         Jumlah
                       </label>
                       <span className="text-[10px] font-bold text-amber-700">
-                        Min. 2 {selectedItemObj?.unit || "kg"}
+                        Min. 0.1 {selectedItemObj?.unit || "kg"}
                       </span>
                     </div>
                     <div className="flex items-center border border-gray-300 rounded-xl bg-white px-3.5 py-2.5 focus-within:border-[#D97706]">
                       <input
                         type="number"
                         step="0.1"
-                        min="2"
-                        placeholder="Misal: 2"
+                        min="0.1"
+                        placeholder="Misal: 0.5"
                         value={mutationAmount}
                         onChange={(e) => setMutationAmount(e.target.value)}
                         className="w-full text-xs sm:text-sm font-bold text-gray-900 outline-none bg-transparent"
