@@ -12,7 +12,6 @@ import { API_BASE_URL, getAuthHeaders } from "@/lib/api";
 import {
   AlertTriangle,
   Bell,
-  Box,
   CheckCircle2,
   ClipboardCheck,
   Clock,
@@ -1738,26 +1737,15 @@ export default function StokPage() {
         </header>
 
         {/* PAGE TITLE & ACTION SECTION */}
-        <section className="print:hidden bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-neutral-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
-                Manajemen Stok &amp; Bahan Baku
-              </h2>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-800 text-[11px] font-semibold whitespace-nowrap">
-                <Sparkles size={11} className="text-violet-600 shrink-0" />
-                AI Agent
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-[11px] font-semibold">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                Tersambung ke Database MariaDB
-              </span>
-            </div>
-            <p className="text-xs text-neutral-800 mt-1.5 max-w-2xl leading-relaxed font-medium">
-              Pantau ketersediaan bahan utama ayam geprek, peringatan stok
-              menipis, pencatatan mutasi barang, dan audit opname fisik secara
-              real-time.
-            </p>
+        <section className="print:hidden bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-neutral-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div className="flex items-center gap-2.5 flex-wrap min-w-0">
+            <h2 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
+              Manajemen Stok &amp; Bahan Baku
+            </h2>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-800 text-[11px] font-semibold whitespace-nowrap">
+              <Sparkles size={11} className="text-violet-600 shrink-0" />
+              AI Agent
+            </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end lg:self-center">
@@ -1814,10 +1802,6 @@ export default function StokPage() {
                 <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
                   Bahan Baku
                 </span>
-              </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-medium min-w-0">
-                <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                <span className="truncate">Database `stocks` Aktif</span>
               </div>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-gray-100 border border-neutral-200 text-neutral-950 flex items-center justify-center shrink-0">
@@ -1912,10 +1896,6 @@ export default function StokPage() {
                   Hari
                 </span>
               </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-neutral-800 font-medium min-w-0">
-                <Clock size={14} className="text-[#D97706] shrink-0" />
-                <span className="truncate">Estimasi ketahanan rata-rata</span>
-              </div>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-amber-50 border border-amber-200 text-[#D97706] flex items-center justify-center shrink-0">
               <Clock size={20} />
@@ -1932,10 +1912,6 @@ export default function StokPage() {
                 <span className="text-lg xl:text-xl print:text-base font-extrabold text-black whitespace-nowrap tabular-nums">
                   Rp {Math.round(kpiStats.totalValue).toLocaleString("id-ID")}
                 </span>
-              </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-neutral-800 font-medium min-w-0">
-                <Box size={14} className="text-emerald-600 shrink-0" />
-                <span className="truncate">Gerai Utama</span>
               </div>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
@@ -2073,25 +2049,9 @@ export default function StokPage() {
                     <th className="py-2.5 px-2.5">BAHAN BAKU</th>
                     <th className="py-2.5 px-1.5">KATEGORI</th>
                     <th className="py-2.5 px-1.5">STOK</th>
-                    <th className="py-2.5 px-1.5">
-                      <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                        <span>KETAHANAN</span>
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[8.5px] font-semibold normal-case tracking-normal whitespace-nowrap">
-                          <Sparkles size={8} className="text-violet-600 shrink-0" />
-                          <span>AI Agent</span>
-                        </span>
-                      </span>
-                    </th>
+                    <th className="py-2.5 px-1.5">KETAHANAN</th>
                     <th className="py-2.5 px-1.5">HARGA</th>
-                    <th className="py-2.5 px-1 text-center">
-                      <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
-                        <span>STATUS</span>
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[8.5px] font-semibold normal-case tracking-normal whitespace-nowrap">
-                          <Sparkles size={8} className="text-violet-600 shrink-0" />
-                          <span>AI Agent</span>
-                        </span>
-                      </span>
-                    </th>
+                    <th className="py-2.5 px-1 text-center">STATUS</th>
                     <th className="py-2.5 px-1 text-center print:hidden">AKSI</th>
                   </tr>
                 </thead>
@@ -2300,25 +2260,13 @@ export default function StokPage() {
           <div className="print:hidden xl:col-span-4 flex flex-col gap-5">
             {/* CARD 1: PENYESUAIAN CEPAT */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-neutral-200 flex flex-col gap-4">
-              <div className="flex items-start justify-between gap-2 pb-3.5 border-b border-neutral-200">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-black flex items-center justify-center shrink-0 shadow-xs">
-                    <SlidersHorizontal size={18} />
-                  </div>
-                  <div>
-                    <h3 className="font-display font-bold text-base text-black">
-                      Penyesuaian Cepat
-                    </h3>
-                    <p className="text-xs text-neutral-800 font-medium mt-1">
-                      Catat stok masuk, keluar, atau sisa basi
-                    </p>
-                  </div>
+              <div className="flex items-center gap-3 pb-3.5 border-b border-neutral-200">
+                <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-black flex items-center justify-center shrink-0 shadow-xs">
+                  <SlidersHorizontal size={18} />
                 </div>
-                <span className="px-2.5 py-1 rounded-md bg-gray-100 border border-neutral-200 text-neutral-950 text-[10px] font-semibold uppercase leading-tight text-center shrink-0">
-                  DAPUR &amp;
-                  <br />
-                  KASIR
-                </span>
+                <h3 className="font-display font-bold text-base text-black">
+                  Penyesuaian Cepat
+                </h3>
               </div>
 
               <form
@@ -2454,14 +2402,9 @@ export default function StokPage() {
             {/* CARD 2: LOG MUTASI */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-neutral-200 flex flex-col gap-4">
               <div className="flex items-center justify-between pb-3.5 border-b border-neutral-200">
-                <div>
-                  <h3 className="font-display font-bold text-base text-black">
-                    Log Mutasi Hari Ini
-                  </h3>
-                  <p className="text-xs text-neutral-800 font-medium mt-1">
-                    Sinkron otomatis POS &amp; Dapur MariaDB
-                  </p>
-                </div>
+                <h3 className="font-display font-bold text-base text-black">
+                  Log Mutasi Hari Ini
+                </h3>
                 <button
                   type="button"
                   onClick={() => setShowLogsModal(true)}
@@ -2521,22 +2464,11 @@ export default function StokPage() {
         </section>
 
         {/* FOOTER SYSTEM */}
-        <footer className="print:hidden pt-3 pb-4 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-800 font-medium gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-display font-bold text-[#EA8E18]">
-              PrekDuaDara POS v2.4
-            </span>
-            <span>•</span>
-            <span>Terminal Counter #01</span>
-            <span>•</span>
-            <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              MariaDB (prekduadara_db.stocks) Terhubung
-            </span>
-          </div>
-          <div>
-            &copy; 2026 PrekDuaDara Quick-Service Culinary. All rights reserved.
-          </div>
+        <footer className="print:hidden pt-3 pb-4 border-t border-neutral-200 flex items-center justify-between text-xs text-neutral-700 font-medium">
+          <span className="font-display font-bold text-[#EA8E18]">
+            PrekDuaDara
+          </span>
+          <span>&copy; 2026 PrekDuaDara. All rights reserved.</span>
         </footer>
       </main>
     </div>

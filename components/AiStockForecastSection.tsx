@@ -441,37 +441,30 @@ export default function AiStockForecastSection({
     <section className="print:hidden bg-white rounded-2xl shadow-sm border border-neutral-200 flex flex-col">
       {/* LAPISAN 1 — HEADER UTAMA */}
       <div className="bg-[#2D452B] text-white px-5 py-4 rounded-t-2xl flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-black flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-black flex items-center justify-center shrink-0 shadow-xs">
             <Sparkles size={19} />
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-display text-sm sm:text-base font-bold tracking-tight text-white">
-                Prediksi Kebutuhan Stok &amp; Analisis Tren Pasar
-              </h3>
-              <AiAgentBadge variant="dark" />
-              {forecast && (
-                <span
-                  title={
-                    forecast.aiFallbackReason || forecast.aiEngine || undefined
-                  }
-                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap bg-emerald-500/20 border-emerald-300/40 text-emerald-100"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
-                  <span>
-                    {isGeminiActive
-                      ? `Powered by ${forecast.aiEngine}`
-                      : "AI Hybrid Engine"}
-                  </span>
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <h3 className="font-display text-sm sm:text-base font-bold tracking-tight text-white">
+              Prediksi Kebutuhan Stok &amp; Analisis Tren Pasar
+            </h3>
+            <AiAgentBadge variant="dark" />
+            {forecast && (
+              <span
+                title={
+                  forecast.aiFallbackReason || forecast.aiEngine || undefined
+                }
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap bg-emerald-500/20 border-emerald-300/40 text-emerald-100"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
+                <span>
+                  {isGeminiActive
+                    ? `Powered by ${forecast.aiEngine}`
+                    : "AI Hybrid Engine"}
                 </span>
-              )}
-            </div>
-            <p className="text-xs text-emerald-100/95 font-medium mt-1 leading-relaxed">
-              Deteksi mandiri tren pasar Malang, proyeksi konsumsi harian, dan
-              saran PO otomatis untuk menjaga stok aman{" "}
-              {forecast?.summary.targetSafeDays ?? 4} hari.
-            </p>
+              </span>
+            )}
           </div>
         </div>
 
@@ -887,33 +880,21 @@ export default function AiStockForecastSection({
 
                 {/* KARTU KANAN: REKOMENDASI PROMO & BUNDLING MENU */}
                 <div className="bg-gradient-to-br from-[#FAF8F3] via-white to-emerald-50/40 border border-[#2D452B]/20 rounded-xl p-4 flex flex-col gap-3 h-full">
-                  <div className="flex items-start justify-between gap-2.5">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-[#F3A712]/20 border border-[#F3A712]/50 text-[#B45309] flex items-center justify-center shrink-0">
-                        <Megaphone size={16} />
-                      </div>
-                      <div className="flex items-center gap-2 flex-wrap min-w-0">
-                        <h4 className="font-display text-xs sm:text-sm font-bold text-black leading-tight">
-                          Rekomendasi Promo &amp; Bundling Menu
-                        </h4>
-                        <AiAgentBadge
-                          variant="light"
-                          label={analysisCardBadgeLabel}
-                          title={forecast?.aiEngine || undefined}
-                        />
-                      </div>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-[#F3A712]/20 border border-[#F3A712]/50 text-[#B45309] flex items-center justify-center shrink-0">
+                      <Megaphone size={16} />
                     </div>
-
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#2D452B]/10 border border-[#2D452B]/20 text-[#2D452B] text-[10px] font-semibold whitespace-nowrap shrink-0">
-                      Ide Penjualan
-                    </span>
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <h4 className="font-display text-xs sm:text-sm font-bold text-black leading-tight">
+                        Rekomendasi Promo &amp; Bundling Menu
+                      </h4>
+                      <AiAgentBadge
+                        variant="light"
+                        label={analysisCardBadgeLabel}
+                        title={forecast?.aiEngine || undefined}
+                      />
+                    </div>
                   </div>
-
-                  <p className="text-[11px] font-medium text-neutral-800 leading-relaxed">
-                    Saran bundling menu &amp; taktik promo untuk mengoptimalkan
-                    stok bahan yang melimpah dan menyesuaikan daya beli
-                    pelanggan saat ini.
-                  </p>
 
                   <div className="bg-white rounded-xl border border-[#2D452B]/15 p-3.5 flex-1 flex items-start gap-2.5">
                     <Sparkles
@@ -952,16 +933,11 @@ export default function AiStockForecastSection({
               }`}
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
+                <div className="flex items-center gap-2 flex-wrap">
                   <h4 className="font-display text-xs sm:text-sm font-bold text-black">
                     Proyeksi Konsumsi &amp; Rekomendasi PO per Bahan Baku
                   </h4>
-                  <p className="text-[11px] text-neutral-800 font-medium">
-                    Kolom bertanda <strong className="font-semibold text-violet-700">AI Agent</strong>{" "}
-                    dihitung dinamis dari pola transaksi POS dan tren aktif,
-                    sedangkan <strong className="font-semibold text-black">Bahan Baku</strong> &amp;{" "}
-                    <strong className="font-semibold text-black">Stok Saat Ini</strong> adalah data aktual MariaDB.
-                  </p>
+                  <AiAgentBadge compact />
                 </div>
 
                 {forecast.items.length > 6 && (
@@ -996,25 +972,16 @@ export default function AiStockForecastSection({
                         Stok Saat Ini
                       </th>
                       <th className="py-3 px-3 text-right whitespace-nowrap">
-                        <span className="inline-flex items-center justify-end gap-1.5">
-                          <span>Pakai / Hari</span>
-                          <AiAgentBadge compact />
-                        </span>
+                        Pakai / Hari
                       </th>
                       <th className="py-3 px-3 text-center whitespace-nowrap">
                         Dampak Tren
                       </th>
                       <th className="py-3 px-3 text-center whitespace-nowrap">
-                        <span className="inline-flex items-center justify-center gap-1.5">
-                          <span>Estimasi Habis</span>
-                          <AiAgentBadge compact />
-                        </span>
+                        Estimasi Habis
                       </th>
                       <th className="py-3 pl-3 pr-4 text-right whitespace-nowrap">
-                        <span className="inline-flex items-center justify-end gap-1.5">
-                          <span>Rekomendasi PO</span>
-                          <AiAgentBadge compact />
-                        </span>
+                        Rekomendasi PO
                       </th>
                     </tr>
                   </thead>

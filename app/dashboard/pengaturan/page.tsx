@@ -19,7 +19,6 @@ import {
   CreditCard,
   Info,
   Mail,
-  MapPin,
   Phone,
   Printer,
   QrCode,
@@ -768,28 +767,12 @@ export default function PengaturanTokoPage() {
         </header>
 
         {/* PAGE HEADER & ACTION BUTTONS */}
-        <section className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-neutral-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <Store size={18} className="text-[#2D452B]" />
-              <h2 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
-                Pengaturan &amp; Konfigurasi Toko
-              </h2>
-              <span className="text-[11px] font-semibold text-amber-900 bg-amber-50 border border-amber-300 px-3 py-0.5 rounded-md uppercase tracking-wider">
-                SUPERVISOR / OWNER ACCESS
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5 mt-2 text-xs font-semibold text-black">
-              <MapPin size={14} className="text-[#D97706] shrink-0" />
-              <span>Gerai Utama PrekDuaDara</span>
-            </div>
-
-            <p className="text-xs text-neutral-800 mt-1 max-w-2xl leading-relaxed font-medium">
-              Atur identitas gerai, jam operasional warung, pajak PB1 &amp;
-              servis, template struk kasir, serta integrasi QRIS &amp;
-              pembayaran PrekDuaDara.
-            </p>
+        <section className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-neutral-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div className="flex items-center gap-2.5">
+            <Store size={18} className="text-[#2D452B] shrink-0" />
+            <h2 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
+              Pengaturan &amp; Konfigurasi Toko
+            </h2>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0 self-end lg:self-center">
@@ -835,18 +818,6 @@ export default function PengaturanTokoPage() {
           </div>
         </section>
 
-        {/* Banner Informasi Konfigurasi Gerai */}
-        <div className="bg-amber-50/90 border border-amber-300 rounded-2xl px-4 py-3 flex items-start sm:items-center gap-3 shadow-2xs">
-          <Info size={16} className="text-[#D97706] shrink-0 mt-0.5 sm:mt-0" />
-          <p className="text-xs text-amber-950 font-medium leading-relaxed">
-            <strong className="font-semibold">
-              Konfigurasi Operasional &amp; POS PrekDuaDara:
-            </strong>{" "}
-            Perubahan pengaturan profil gerai, pajak PB1, biaya kemasan, template struk kasir,
-            dan metode pembayaran akan langsung tersinkronisasi ke sistem kasir POS saat disimpan.
-          </p>
-        </div>
-
         {/* A. Profil Gerai & Identitas Restoran */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200">
           <div className="flex flex-wrap justify-between items-center gap-3 mb-6 pb-4 border-b border-neutral-200">
@@ -854,15 +825,9 @@ export default function PengaturanTokoPage() {
               <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-black font-display font-bold text-sm flex items-center justify-center shrink-0">
                 A
               </span>
-              <div>
-                <h3 className="font-display font-bold text-sm text-black">
-                  Profil Gerai &amp; Identitas Restoran
-                </h3>
-                <p className="text-xs text-neutral-800 mt-0.5 font-medium">
-                  Informasi utama yang tercetak pada kepala struk print dan
-                  aplikasi pemesanan.
-                </p>
-              </div>
+              <h3 className="font-display font-bold text-sm text-black">
+                Profil Gerai &amp; Identitas Restoran
+              </h3>
             </div>
             <span className="font-mono text-xs font-bold text-neutral-950 bg-gray-100 px-3.5 py-1.5 rounded-lg border border-neutral-200">
               ID: {currentConfig.outletId}
@@ -997,15 +962,9 @@ export default function PengaturanTokoPage() {
               <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-black font-display font-bold text-sm flex items-center justify-center shrink-0">
                 B
               </span>
-              <div>
-                <h3 className="font-display font-bold text-sm text-black">
-                  Jam Buka &amp; Jadwal Operasional
-                </h3>
-                <p className="text-xs text-neutral-800 mt-0.5 font-medium">
-                  Jadwal buka kasir otomatis dan pembatasan order dapur per
-                  hari.
-                </p>
-              </div>
+              <h3 className="font-display font-bold text-sm text-black">
+                Jam Buka &amp; Jadwal Operasional
+              </h3>
             </div>
             <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-3.5 py-1.5 rounded-lg border border-emerald-200">
               7 Hari Buka
@@ -1150,15 +1109,9 @@ export default function PengaturanTokoPage() {
               <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-black font-display font-bold text-sm flex items-center justify-center shrink-0">
                 C
               </span>
-              <div>
-                <h3 className="font-display font-bold text-sm text-black">
-                  Finansial, Pajak PB1 &amp; Biaya Pembungkusan
-                </h3>
-                <p className="text-xs text-neutral-800 mt-0.5 font-medium">
-                  Kalkulasi pajak daerah, kemasan box makan pulang, dan rounding
-                  kembalian.
-                </p>
-              </div>
+              <h3 className="font-display font-bold text-sm text-black">
+                Finansial, Pajak PB1 &amp; Biaya Pembungkusan
+              </h3>
             </div>
             <Wallet size={18} className="text-neutral-800" />
           </div>
@@ -1308,15 +1261,9 @@ export default function PengaturanTokoPage() {
               <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-black font-display font-bold text-sm flex items-center justify-center shrink-0">
                 D
               </span>
-              <div>
-                <h3 className="font-display font-bold text-sm text-black">
-                  Template Struk Kasir &amp; Thermal Printer
-                </h3>
-                <p className="text-xs text-neutral-800 mt-0.5 font-medium">
-                  Kustomisasi header, catatan bawah struk, dan preview cetak
-                  kertas kasir.
-                </p>
-              </div>
+              <h3 className="font-display font-bold text-sm text-black">
+                Template Struk Kasir &amp; Thermal Printer
+              </h3>
             </div>
             <span className="text-xs font-semibold text-black bg-gray-100 px-3.5 py-1.5 rounded-lg border border-neutral-200">
               Lebar Kertas: 80mm
@@ -1649,15 +1596,9 @@ export default function PengaturanTokoPage() {
               <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-black font-display font-bold text-sm flex items-center justify-center shrink-0">
                 E
               </span>
-              <div>
-                <h3 className="font-display font-bold text-sm text-black">
-                  Metode Pembayaran &amp; Integrasi EDC/QRIS
-                </h3>
-                <p className="text-xs text-neutral-800 mt-0.5 font-medium">
-                  Konfigurasi channel pembayaran aktif yang muncul di layar
-                  kasir checkout.
-                </p>
-              </div>
+              <h3 className="font-display font-bold text-sm text-black">
+                Metode Pembayaran &amp; Integrasi EDC/QRIS
+              </h3>
             </div>
             <span
               className={`text-xs font-semibold px-3.5 py-1.5 rounded-lg border ${
@@ -1807,15 +1748,9 @@ export default function PengaturanTokoPage() {
               <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-black font-display font-bold text-sm flex items-center justify-center shrink-0">
                 F
               </span>
-              <div>
-                <h3 className="font-display font-bold text-sm text-black">
-                  Perangkat Keras Kasir &amp; Tata Letak Meja
-                </h3>
-                <p className="text-xs text-neutral-800 mt-0.5 font-medium">
-                  Koneksi printer kasir bluetooth/LAN, kitchen display, dan
-                  total meja dine-in.
-                </p>
-              </div>
+              <h3 className="font-display font-bold text-sm text-black">
+                Perangkat Keras Kasir &amp; Tata Letak Meja
+              </h3>
             </div>
             <button
               type="button"
@@ -1906,7 +1841,7 @@ export default function PengaturanTokoPage() {
           <div className="flex items-center gap-3 text-xs font-semibold text-neutral-950">
             <Info size={16} className="text-[#2D452B] shrink-0" />
             <span>
-              Perubahan konfigurasi tersimpan otomatis ke database server MariaDB.
+              Simpan perubahan agar langsung diterapkan ke kasir.
             </span>
           </div>
 
@@ -1945,22 +1880,11 @@ export default function PengaturanTokoPage() {
         </section>
 
         {/* FOOTER SYSTEM */}
-        <footer className="pt-3 pb-4 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-800 font-medium gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-display font-bold text-[#EA8E18]">
-              PrekDuaDara POS v2.4
-            </span>
-            <span>•</span>
-            <span>Terminal Counter #01</span>
-            <span>•</span>
-            <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              MySQL (prekduadara_db) Terhubung
-            </span>
-          </div>
-          <div>
-            &copy; 2026 PrekDuaDara Quick-Service Culinary. All rights reserved.
-          </div>
+        <footer className="pt-3 pb-4 border-t border-neutral-200 flex items-center justify-between text-xs text-neutral-700 font-medium">
+          <span className="font-display font-bold text-[#EA8E18]">
+            PrekDuaDara
+          </span>
+          <span>&copy; 2026 PrekDuaDara. All rights reserved.</span>
         </footer>
       </main>
     </div>

@@ -1704,19 +1704,11 @@ export default function TransaksiPage() {
           <div className="lg:col-span-8 bg-white rounded-2xl p-6 shadow-sm border border-neutral-200 flex flex-col justify-between print:break-inside-avoid">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <span className="w-3 h-3 rounded-xs bg-[#F59E0B] shrink-0"></span>
-                  <h3 className="font-display font-bold text-base text-black">
-                    Tren Penjualan &amp; Fluktuasi Porsi Berdasarkan Waktu
-                    Operasional
-                  </h3>
-                </div>
-                <p className="text-xs text-neutral-800 font-medium mt-1 pl-5">
-                  Arahkan kursor atau klik pada titik jam (09:00 - 22:00 WIB) •{" "}
-                  <strong className="font-semibold text-black">{selectedBranch}</strong> (
-                  {activeMetrics.periodBadge})
-                </p>
+              <div className="flex items-center gap-2.5">
+                <span className="w-3 h-3 rounded-xs bg-[#F59E0B] shrink-0"></span>
+                <h3 className="font-display font-bold text-base text-black">
+                  Tren Penjualan &amp; Fluktuasi Porsi (09:00 - 22:00 WIB)
+                </h3>
               </div>
 
               <div className="flex items-center gap-4 text-xs font-semibold text-neutral-950 shrink-0">
@@ -2150,16 +2142,10 @@ export default function TransaksiPage() {
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
           {/* Left Card: Komparasi Penjualan Hari Kerja vs Weekend */}
           <div className="lg:col-span-5 bg-white rounded-2xl p-6 shadow-sm border border-neutral-200 flex flex-col justify-between gap-5 print:break-inside-avoid">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h3 className="font-display font-bold text-base text-black">
-                  Komparasi Penjualan Hari Kerja vs Weekend
-                </h3>
-                <p className="text-xs text-neutral-800 font-medium mt-1">
-                  Rata-rata penjualan harian • {selectedBranch} (
-                  {activeMetrics.periodBadge})
-                </p>
-              </div>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-display font-bold text-base text-black">
+                Komparasi Hari Kerja vs Weekend
+              </h3>
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-semibold whitespace-nowrap shrink-0">
                 {`Weekend +${comparisonData.weekendGrowthPct}%`}
               </span>
@@ -2289,22 +2275,18 @@ export default function TransaksiPage() {
                     Heatmap Kepadatan Order (Hari vs Jam)
                   </h3>
                 </div>
-                <p className="text-xs text-neutral-800 font-medium mt-1 pl-5">
-                  {hoveredHeatmap ? (
-                    <span className="text-black font-semibold">
-                      Detail {hoveredHeatmap.day} ({hoveredHeatmap.slotLabel}):{" "}
-                      <span className="text-[#DC2626] font-bold">
-                        Rata-rata {hoveredHeatmap.val} Struk
-                      </span>{" "}
-                      • Okupansi Meja{" "}
-                      <span className="text-[#1E562F] font-bold">
-                        {hoveredHeatmap.occ}%
-                      </span>
+                {hoveredHeatmap && (
+                  <p className="text-xs text-black font-semibold mt-1 pl-5">
+                    {hoveredHeatmap.day} ({hoveredHeatmap.slotLabel}):{" "}
+                    <span className="text-[#DC2626] font-bold">
+                      {hoveredHeatmap.val} Struk
+                    </span>{" "}
+                    • Okupansi{" "}
+                    <span className="text-[#1E562F] font-bold">
+                      {hoveredHeatmap.occ}%
                     </span>
-                  ) : (
-                    `Frekuensi struk & okupansi meja (${selectedBranch} • ${activeMetrics.periodBadge})`
-                  )}
-                </p>
+                  </p>
+                )}
               </div>
 
               {/* Scale Legend */}
@@ -2413,8 +2395,8 @@ export default function TransaksiPage() {
                 Rincian Transaksi Penjualan Terkini
               </h3>
             </div>
-            <p className="text-xs text-neutral-800 font-medium">
-              Sinkronisasi real-time dengan database POS ({isLoading ? 0 : displayedTransactions.length} transaksi)
+            <p className="text-xs text-neutral-700 font-semibold tabular-nums">
+              {isLoading ? 0 : displayedTransactions.length} transaksi
             </p>
           </div>
 
@@ -2721,18 +2703,9 @@ export default function TransaksiPage() {
         </section>
 
         {/* FOOTER SISTEM */}
-        <footer className="print:hidden bg-white rounded-2xl px-6 py-3.5 shadow-sm border border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-neutral-950 font-medium">
-          <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Logo" width={20} height={20} className="w-5 h-5 rounded-full object-cover shrink-0" />
-            <span><strong className="font-semibold">Sistem Analitik Bisnis PrekDuaDara</strong> &copy; 2025. Seluruh Hak Cipta Dilindungi.</span>
-          </div>
-          <div className="flex items-center gap-3 text-xs">
-            <span>Sinkronisasi Otomatis Terakhir: <strong className="font-mono font-bold">14:28 WIB</strong></span>
-            <span className="flex items-center gap-1.5 text-emerald-700 font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Sistem Cloud POS Terkoneksi
-            </span>
-          </div>
+        <footer className="print:hidden pt-3 pb-4 border-t border-neutral-200 flex items-center justify-between text-xs text-neutral-700 font-medium">
+          <span className="font-display font-bold text-[#EA8E18]">PrekDuaDara</span>
+          <span>&copy; 2026 PrekDuaDara. All rights reserved.</span>
         </footer>
       </main>
     </div>

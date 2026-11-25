@@ -20,7 +20,6 @@ import {
   CreditCard,
   Edit3,
   Filter,
-  Lock,
   Moon,
   Power,
   Printer,
@@ -178,7 +177,6 @@ export default function KasirShiftPage() {
   const shiftDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
-  const [dbConnected, setDbConnected] = useState(false);
 
   // Toast Notification dengan useRef Timer
   const [toastMsg, setToastMsg] = useState<{
@@ -271,7 +269,6 @@ export default function KasirShiftPage() {
       if (json.success && Array.isArray(json.data)) {
         if (json.data.length === 0) {
           setKasirList([]);
-          setDbConnected(true);
           return;
         }
 
@@ -309,7 +306,6 @@ export default function KasirShiftPage() {
           }
         );
 
-        setDbConnected(true);
         setKasirList(mappedDbItems);
 
         if (!editingIdRef.current && formNameRef.current === "") {
@@ -396,7 +392,7 @@ export default function KasirShiftPage() {
         }
       }
     } catch {
-      setDbConnected(false);
+      // ignore offline error
     } finally {
       if (!silent) setIsLoading(false);
     }
@@ -1545,25 +1541,10 @@ export default function KasirShiftPage() {
         </header>
 
         {/* PAGE TITLE & ACTION ROW */}
-        <section className="print:hidden bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-neutral-200 flex flex-col xl:flex-row xl:items-center justify-between gap-5">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
-                Pengaturan &amp; Manajemen Kasir
-              </h1>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-300 text-[11px] font-semibold uppercase tracking-wide shrink-0">
-                <ShieldCheck size={13} className="text-amber-600" />
-                DATABASE KASIR
-              </span>
-              <span className="px-2.5 py-0.5 rounded-md bg-gray-100 border border-neutral-200 text-neutral-950 text-[11px] font-medium shrink-0">
-                Tabel `kasir`
-              </span>
-            </div>
-            <p className="text-xs text-neutral-800 mt-1.5 font-medium leading-relaxed">
-              Kelola data kasir dari database MariaDB (tabel `kasir`), pantau
-              status shift kasir, dan atur hak akses akun secara real-time.
-            </p>
-          </div>
+        <section className="print:hidden bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-neutral-200 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+          <h1 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
+            Pengaturan &amp; Manajemen Kasir
+          </h1>
 
           <div className="flex items-center gap-2.5 self-start xl:self-auto flex-wrap sm:flex-nowrap shrink-0">
             {/* Filter Shift Dropdown */}
@@ -1675,10 +1656,6 @@ export default function KasirShiftPage() {
                   Staf Kasir
                 </span>
               </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-medium min-w-0">
-                <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                <span className="truncate">Database MariaDB</span>
-              </div>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-amber-50 border border-amber-200 text-[#EA8E18] flex items-center justify-center shrink-0">
               <Users size={20} />
@@ -1705,10 +1682,6 @@ export default function KasirShiftPage() {
                   Kasir Online
                 </span>
               </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-neutral-800 font-medium min-w-0">
-                <UserCheck size={14} className="text-emerald-600 shrink-0" />
-                <span className="truncate">Status: Aktif Melayani</span>
-              </div>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
               <UserCheck size={20} />
@@ -1729,10 +1702,6 @@ export default function KasirShiftPage() {
                   Kasir
                 </span>
               </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-neutral-800 font-medium min-w-0">
-                <Coffee size={14} className="text-[#EA8E18] shrink-0" />
-                <span className="truncate">Pergantian shift berikutnya</span>
-              </div>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-orange-50 border border-orange-200 text-[#EA8E18] flex items-center justify-center shrink-0">
               <Coffee size={20} />
@@ -1752,10 +1721,6 @@ export default function KasirShiftPage() {
                 <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
                   Kasir
                 </span>
-              </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-neutral-800 font-medium min-w-0">
-                <Lock size={14} className="text-neutral-800 shrink-0" />
-                <span className="truncate">Hak akses akun tertahan</span>
               </div>
             </div>
             <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-gray-100 border border-neutral-200 text-neutral-800 flex items-center justify-center shrink-0">
@@ -2092,17 +2057,8 @@ export default function KasirShiftPage() {
               </div>
 
               {/* Catatan Bawah Tabel */}
-              <div className="print:hidden flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-800 pt-4 border-t border-neutral-200 gap-2 font-medium">
-                <div className="flex items-center gap-1.5 text-emerald-700 font-bold">
-                  <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
-                  <span>
-                    Perubahan saklar status kasir tersinkron otomatis ke
-                    database MariaDB &amp; Flutter POS.
-                  </span>
-                </div>
-                <div className="font-semibold">
-                  Menampilkan {filteredKasir.length} dari {branchScopedKasir.length} Kasir
-                </div>
+              <div className="print:hidden flex items-center justify-end text-xs text-neutral-800 pt-4 border-t border-neutral-200 font-semibold">
+                Menampilkan {filteredKasir.length} dari {branchScopedKasir.length} Kasir
               </div>
             </div>
 
@@ -2140,23 +2096,18 @@ export default function KasirShiftPage() {
             {/* CARD 1: FORM KASIR */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200 flex flex-col gap-4">
               {/* Header Form */}
-              <div className="flex items-start justify-between gap-3 border-b border-neutral-200 pb-4">
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-display font-bold text-black text-sm sm:text-base flex items-center gap-2">
-                    <ClipboardList size={17} className="text-amber-600 shrink-0" />
-                    <span className="truncate">
-                      {editingId ? "Edit Profil Kasir" : "Form Kasir"}
-                    </span>
-                  </h3>
-                  <p className="text-xs text-neutral-800 mt-1.5 font-medium truncate">
-                    {editingId
-                      ? `Memperbarui data staf ${editingId}`
-                      : "Tambah atau perbarui profil staf kasir ke database."}
-                  </p>
-                </div>
-                <span className="w-[92px] py-1 rounded bg-amber-50 border border-amber-300 text-amber-800 text-xs font-semibold text-center shrink-0 whitespace-nowrap">
-                  {editingId ? "Mode Edit" : "Input Cepat"}
-                </span>
+              <div className="flex items-center justify-between gap-3 border-b border-neutral-200 pb-3.5">
+                <h3 className="font-display font-bold text-black text-sm sm:text-base flex items-center gap-2 min-w-0">
+                  <ClipboardList size={17} className="text-amber-600 shrink-0" />
+                  <span className="truncate">
+                    {editingId ? `Edit Profil Kasir (${editingId})` : "Form Kasir"}
+                  </span>
+                </h3>
+                {editingId && (
+                  <span className="px-2.5 py-0.5 rounded bg-amber-50 border border-amber-300 text-amber-800 text-[11px] font-semibold shrink-0 whitespace-nowrap">
+                    Mode Edit
+                  </span>
+                )}
               </div>
 
               {/* Form Input */}
@@ -2188,7 +2139,7 @@ export default function KasirShiftPage() {
                 {/* 2. Peran / role_title */}
                 <div>
                   <label className="block text-xs font-semibold text-black uppercase tracking-wider mb-1">
-                    PERAN (ROLE TITLE) *
+                    PERAN *
                   </label>
                   <input
                     type="text"
@@ -2209,7 +2160,7 @@ export default function KasirShiftPage() {
                 {/* 3. ID Kasir (cashier_code) */}
                 <div>
                   <label className="block text-xs font-semibold text-black uppercase tracking-wider mb-1">
-                    KODE KASIR (CASHIER CODE) *
+                    KODE KASIR *
                   </label>
                   <input
                     type="text"
@@ -2224,7 +2175,7 @@ export default function KasirShiftPage() {
                 {/* 4. Shift Kerja Reguler */}
                 <div>
                   <label className="block text-xs font-semibold text-black uppercase tracking-wider mb-1.5">
-                    SHIFT KERJA REGULER (DATABASE)
+                    SHIFT KERJA
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     {(
@@ -2334,14 +2285,14 @@ export default function KasirShiftPage() {
                   </div>
                 </div>
 
-                {/* 5. Status Akun Kasir Aktif (is_active) Toggle */}
+                {/* 5. Status Akun Kasir Aktif Toggle */}
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-neutral-200 mt-1">
                   <div>
                     <div className="text-xs font-semibold text-black">
-                      Status Akun Kasir Aktif (is_active)
+                      Akun Kasir Aktif
                     </div>
                     <div className="text-xs text-neutral-800 font-medium mt-0.5">
-                      Kasir dapat login ke sistem kasir
+                      Izinkan login ke aplikasi kasir
                     </div>
                   </div>
                   <button
@@ -2423,32 +2374,11 @@ export default function KasirShiftPage() {
         </section>
 
         {/* FOOTER SYSTEM */}
-        <footer className="print:hidden pt-3 pb-4 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-800 font-medium gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-display font-bold text-[#EA8E18]">
-              PrekDuaDara POS v2.4
-            </span>
-            <span>•</span>
-            <span>Terminal Counter #01</span>
-            <span>•</span>
-            <span
-              className={`flex items-center gap-1.5 font-bold ${
-                dbConnected ? "text-emerald-700" : "text-amber-700"
-              }`}
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  dbConnected ? "bg-emerald-500" : "bg-amber-500"
-                }`}
-              ></span>
-              {dbConnected
-                ? "MySQL (prekduadara_db) Terhubung"
-                : "Mode Lokal (Offline Sync)"}
-            </span>
-          </div>
-          <div>
-            &copy; 2026 PrekDuaDara Quick-Service Culinary. All rights reserved.
-          </div>
+        <footer className="print:hidden pt-3 pb-4 border-t border-neutral-200 flex items-center justify-between text-xs text-neutral-700 font-medium">
+          <span className="font-display font-bold text-[#EA8E18]">
+            PrekDuaDara
+          </span>
+          <span>&copy; 2026 PrekDuaDara. All rights reserved.</span>
         </footer>
       </main>
     </div>

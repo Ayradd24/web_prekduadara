@@ -11,7 +11,6 @@ import {
   Edit3,
   Flame,
   Layers,
-  Package,
   PlusCircle,
   RefreshCw,
   RotateCcw,
@@ -173,7 +172,6 @@ export default function ManajemenMenuPage() {
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [dbConnected, setDbConnected] = useState(false);
 
   // Filter & Pagination
   const [searchQuery, setSearchQuery] = useState("");
@@ -260,12 +258,9 @@ export default function ManajemenMenuPage() {
           })
         );
         setProducts(mapped);
-        setDbConnected(true);
-      } else {
-        setDbConnected(false);
       }
     } catch {
-      setDbConnected(false);
+      // ignore offline error
     } finally {
       setIsLoading(false);
     }
@@ -686,35 +681,10 @@ export default function ManajemenMenuPage() {
         </header>
 
         {/* PAGE TITLE & ACTION SECTION */}
-        <section className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-neutral-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
-                Manajemen Menu &amp; Katalog Produk
-              </h2>
-              <span
-                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
-                  dbConnected
-                    ? "bg-emerald-50 border-emerald-300 text-emerald-800"
-                    : "bg-amber-50 border-amber-300 text-amber-800"
-                }`}
-              >
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    dbConnected ? "bg-emerald-500" : "bg-amber-500"
-                  }`}
-                ></span>
-                {dbConnected
-                  ? "Tersambung ke Database MariaDB"
-                  : "Menunggu Koneksi Backend"}
-              </span>
-            </div>
-            <p className="text-xs text-neutral-800 mt-1.5 max-w-2xl leading-relaxed font-medium">
-              Kelola daftar menu Paket Utama dan Tambahan PrekDuaDara, atur
-              harga jual serta deskripsi menu agar langsung tersinkronisasi ke
-              aplikasi Kasir POS.
-            </p>
-          </div>
+        <section className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-neutral-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <h2 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
+            Manajemen Menu &amp; Katalog Produk
+          </h2>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end lg:self-center">
             <button
@@ -764,10 +734,6 @@ export default function ManajemenMenuPage() {
                   Produk
                 </span>
               </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-medium min-w-0">
-                <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                <span className="truncate">Database `products` Aktif</span>
-              </div>
             </div>
             <div className="w-11 h-11 rounded-xl bg-gray-100 border border-neutral-200 text-neutral-950 flex items-center justify-center shrink-0">
               <UtensilsCrossed size={20} />
@@ -787,10 +753,6 @@ export default function ManajemenMenuPage() {
                 <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
                   Paket
                 </span>
-              </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-[#2D452B] font-medium min-w-0">
-                <Package size={14} className="text-[#2D452B] shrink-0" />
-                <span className="truncate">Menu paket nasi &amp; geprek</span>
               </div>
             </div>
             <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
@@ -812,10 +774,6 @@ export default function ManajemenMenuPage() {
                   Add-on
                 </span>
               </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-amber-700 font-medium min-w-0">
-                <Tag size={14} className="text-[#D97706] shrink-0" />
-                <span className="truncate">Lauk, minuman &amp; ekstra</span>
-              </div>
             </div>
             <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 text-[#D97706] flex items-center justify-center shrink-0">
               <Tag size={20} />
@@ -833,10 +791,6 @@ export default function ManajemenMenuPage() {
                   {formatRupiah(kpiStats.avgPrice)}
                 </span>
               </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-neutral-800 font-medium min-w-0">
-                <Flame size={14} className="text-[#DC2626] shrink-0" />
-                <span className="truncate">4 Pilihan Sambal Tersedia</span>
-              </div>
             </div>
             <div className="w-11 h-11 rounded-xl bg-orange-50 border border-orange-200 text-[#EA8E18] flex items-center justify-center shrink-0">
               <Wallet size={20} />
@@ -850,24 +804,13 @@ export default function ManajemenMenuPage() {
           <div className="xl:col-span-8 flex flex-col gap-5 h-full">
             {/* INFO CARD RINGKAS: 4 PILIHAN SAMBAL SAAT ORDER */}
             <div className="bg-[#FAF8F3] rounded-2xl p-4 shadow-sm border border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-[#2D452B] text-[#F3A712] flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-[#2D452B] text-[#F3A712] flex items-center justify-center shrink-0 shadow-2xs">
                   <Flame size={18} />
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-display text-xs sm:text-sm font-bold text-black">
-                      4 Pilihan Sambal Tersedia Saat Order
-                    </h3>
-                    <span className="px-2 py-0.5 rounded-full bg-white border border-amber-300 text-[#B45309] text-[10px] font-semibold uppercase tracking-wide">
-                      Varian Kasir POS
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-neutral-700 font-medium mt-0.5 leading-relaxed">
-                    Pelanggan dapat memilih varian sambal berikut pada setiap
-                    pesanan dan otomatis tercatat di rincian transaksi.
-                  </p>
-                </div>
+                <h3 className="font-display text-xs sm:text-sm font-bold text-black">
+                  4 Pilihan Sambal
+                </h3>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -1180,33 +1123,19 @@ export default function ManajemenMenuPage() {
             className="xl:col-span-4 flex flex-col gap-5"
           >
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-neutral-200 flex flex-col gap-4">
-              <div className="flex items-start justify-between gap-2 pb-3.5 border-b border-neutral-200">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-black flex items-center justify-center shrink-0 shadow-xs">
-                    {editingId !== null ? (
-                      <Edit3 size={18} />
-                    ) : (
-                      <PlusCircle size={18} />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="font-display font-bold text-base text-black">
-                      {editingId !== null
-                        ? `Edit Menu #${editingId}`
-                        : "Tambah Menu Baru"}
-                    </h3>
-                    <p className="text-xs text-neutral-800 font-medium mt-0.5">
-                      {editingId !== null
-                        ? "Perbarui rincian menu lalu simpan perubahan"
-                        : "Simpan produk baru langsung ke database POS"}
-                    </p>
-                  </div>
+              <div className="flex items-center gap-3 pb-3.5 border-b border-neutral-200">
+                <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-black flex items-center justify-center shrink-0 shadow-xs">
+                  {editingId !== null ? (
+                    <Edit3 size={18} />
+                  ) : (
+                    <PlusCircle size={18} />
+                  )}
                 </div>
-                <span className="px-2.5 py-1 rounded-md bg-[#2D452B] text-white text-[10px] font-semibold uppercase leading-tight text-center shrink-0">
-                  MENU
-                  <br />
-                  POS
-                </span>
+                <h3 className="font-display font-bold text-base text-black">
+                  {editingId !== null
+                    ? `Edit Menu #${editingId}`
+                    : "Tambah Menu Baru"}
+                </h3>
               </div>
 
               <form onSubmit={handleSaveMenu} className="flex flex-col gap-4">
@@ -1385,8 +1314,8 @@ export default function ManajemenMenuPage() {
                           "Klik atau Tarik Foto Menu ke Sini"
                         )}
                       </div>
-                      <p className="text-[10px] text-neutral-700 font-medium max-w-xs">
-                        JPG, PNG, atau WebP. Otomatis dikompresi ke 600px agar ringan dan cepat di HP Flutter kasir.
+                      <p className="text-[10px] text-neutral-700 font-medium">
+                        JPG, PNG, atau WebP (maks. 600px)
                       </p>
                     </div>
                   )}

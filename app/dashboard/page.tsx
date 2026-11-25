@@ -825,19 +825,10 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* FOOTER SYSTEM DENGAN SINKRONISASI OTOMATIS */}
-        <footer className="print:hidden bg-white rounded-2xl px-6 py-3.5 shadow-sm border border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-neutral-950 font-semibold">
-          <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Logo" width={20} height={20} className="w-5 h-5 rounded-full object-cover shrink-0" />
-            <span><strong>Sistem Analitik Bisnis PrekDuaDara</strong> &copy; 2025. Seluruh Hak Cipta Dilindungi.</span>
-          </div>
-          <div className="flex items-center gap-3 text-xs">
-            <span>Sinkronisasi Otomatis Terakhir: <strong>14:28 WIB</strong></span>
-            <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Sistem Cloud POS Terkoneksi
-            </span>
-          </div>
+        {/* FOOTER SYSTEM */}
+        <footer className="print:hidden pt-3 pb-4 border-t border-neutral-200 flex items-center justify-between text-xs text-neutral-700 font-medium">
+          <span className="font-display font-bold text-[#EA8E18]">PrekDuaDara</span>
+          <span>&copy; 2026 PrekDuaDara. All rights reserved.</span>
         </footer>
       </main>
     </div>
