@@ -367,10 +367,9 @@ export default function DashboardPage() {
                   handlePrintReceipt(selectedTx.id);
                   setSelectedTx(null);
                 }}
-                className="px-4 py-2 bg-[#2D452B] hover:bg-[#1E3A1C] text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition cursor-pointer"
+                className="px-4 py-2 bg-[#2D452B] hover:bg-[#1E3A1C] text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
               >
-                <Printer size={14} />
-                <span>Cetak Struk</span>
+                Cetak Struk
               </button>
             </div>
           </div>
@@ -408,17 +407,16 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => window.print()}
-              className="h-9 px-3.5 border border-neutral-400 bg-white text-black rounded-xl text-xs font-semibold hover:bg-gray-50 cursor-pointer transition flex items-center gap-1.5 whitespace-nowrap shrink-0"
+              className="h-9 px-3.5 border border-neutral-400 bg-white text-black rounded-xl text-xs font-semibold hover:bg-gray-50 cursor-pointer transition whitespace-nowrap shrink-0"
             >
-              <Printer size={14} className="shrink-0" />
-              <span>Cetak Laporan</span>
+              Cetak Laporan
             </button>
             <button
               type="button"
               onClick={handleExportExcel}
-              className="h-9 px-3.5 border border-emerald-300 bg-emerald-50 text-emerald-800 rounded-xl text-xs font-semibold hover:bg-emerald-100 cursor-pointer transition flex items-center gap-1.5 whitespace-nowrap shrink-0"
+              className="h-9 px-3.5 border border-emerald-300 bg-emerald-50 text-emerald-800 rounded-xl text-xs font-semibold hover:bg-emerald-100 cursor-pointer transition whitespace-nowrap shrink-0"
             >
-              <span>📊 Export Excel</span>
+              Export Excel
             </button>
 
             {/* Online Sync Pill */}
@@ -456,75 +454,55 @@ export default function DashboardPage() {
         {/* 4 KARTU RINGKASAN SERAGAM (REAL-TIME DARI BACKEND MARIADB) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4 gap-4 print:gap-3">
           {/* Card 1: Total Transaksi Hari Ini */}
-          <div className="bg-white p-5 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-neutral-200 shadow-sm flex justify-between items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
-                Total Transaksi Hari Ini
-              </p>
-              <h2 className="font-sans text-2xl print:text-lg font-extrabold text-black mt-2 whitespace-nowrap tabular-nums">
-                {dashboardStats.totalCount}
-              </h2>
-              <p className="text-xs text-emerald-700 font-medium mt-1.5">
-                {dashboardStats.tunaiCount} Tunai • {dashboardStats.qrisCount} QRIS
-              </p>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 bg-orange-100 border border-orange-200 text-orange-700 rounded-xl flex items-center justify-center text-lg print:text-sm shrink-0">
-              📋
-            </div>
+          <div className="bg-white p-5 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-neutral-200 shadow-sm">
+            <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
+              Total Transaksi Hari Ini
+            </p>
+            <h2 className="font-sans text-2xl print:text-lg font-extrabold text-black mt-2 whitespace-nowrap tabular-nums">
+              {dashboardStats.totalCount}
+            </h2>
+            <p className="text-xs text-emerald-700 font-medium mt-1.5">
+              {dashboardStats.tunaiCount} Tunai • {dashboardStats.qrisCount} QRIS
+            </p>
           </div>
 
           {/* Card 2: Total Omset Bruto */}
-          <div className="bg-white p-5 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-neutral-200 shadow-sm flex justify-between items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
-                Total Omset Bruto
-              </p>
-              <h2 className="font-sans text-2xl print:text-lg font-extrabold text-black mt-2 whitespace-nowrap tabular-nums">
-                {formatRupiah(dashboardStats.totalOmset)}
-              </h2>
-              <p className="text-xs text-neutral-800 font-medium mt-1.5">
-                Tunai: {formatRupiah(dashboardStats.tunaiOmset)} | QRIS: {formatRupiah(dashboardStats.qrisOmset)}
-              </p>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl flex items-center justify-center text-lg print:text-sm shrink-0">
-              💵
-            </div>
+          <div className="bg-white p-5 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-neutral-200 shadow-sm">
+            <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
+              Total Omset Bruto
+            </p>
+            <h2 className="font-sans text-2xl print:text-lg font-extrabold text-black mt-2 whitespace-nowrap tabular-nums">
+              {formatRupiah(dashboardStats.totalOmset)}
+            </h2>
+            <p className="text-xs text-neutral-800 font-medium mt-1.5">
+              Tunai: {formatRupiah(dashboardStats.tunaiOmset)} | QRIS: {formatRupiah(dashboardStats.qrisOmset)}
+            </p>
           </div>
 
           {/* Card 3: Pembayaran QRIS Digital */}
-          <div className="bg-white p-5 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-neutral-200 shadow-sm flex justify-between items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
-                Pembayaran QRIS Digital
-              </p>
-              <h2 className="font-sans text-2xl print:text-lg font-extrabold text-black mt-2 whitespace-nowrap tabular-nums">
-                {formatRupiah(dashboardStats.qrisOmset)}
-              </h2>
-              <p className="text-xs text-neutral-800 font-medium mt-1.5">
-                {dashboardStats.qrisCount} Transaksi Non-Tunai
-              </p>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 bg-amber-100 border border-amber-200 text-amber-800 rounded-xl flex items-center justify-center text-lg print:text-sm shrink-0">
-              📱
-            </div>
+          <div className="bg-white p-5 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-neutral-200 shadow-sm">
+            <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
+              Pembayaran QRIS Digital
+            </p>
+            <h2 className="font-sans text-2xl print:text-lg font-extrabold text-black mt-2 whitespace-nowrap tabular-nums">
+              {formatRupiah(dashboardStats.qrisOmset)}
+            </h2>
+            <p className="text-xs text-neutral-800 font-medium mt-1.5">
+              {dashboardStats.qrisCount} Transaksi Non-Tunai
+            </p>
           </div>
 
           {/* Card 4: Transaksi Berhasil */}
-          <div className="bg-white p-5 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-neutral-200 shadow-sm flex justify-between items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
-                Transaksi Berhasil
-              </p>
-              <h2 className="font-sans text-2xl print:text-lg font-extrabold text-black mt-2 whitespace-nowrap tabular-nums">
-                {dashboardStats.successCount}
-              </h2>
-              <p className="text-xs text-emerald-700 font-medium mt-1.5">
-                {dashboardStats.successRate} success rate
-              </p>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl flex items-center justify-center text-lg print:text-sm shrink-0">
-              ✅
-            </div>
+          <div className="bg-white p-5 print:p-3.5 print:break-inside-avoid print:shadow-none print:min-h-0 rounded-2xl border border-neutral-200 shadow-sm">
+            <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
+              Transaksi Berhasil
+            </p>
+            <h2 className="font-sans text-2xl print:text-lg font-extrabold text-black mt-2 whitespace-nowrap tabular-nums">
+              {dashboardStats.successCount}
+            </h2>
+            <p className="text-xs text-emerald-700 font-medium mt-1.5">
+              {dashboardStats.successRate} success rate
+            </p>
           </div>
         </div>
 

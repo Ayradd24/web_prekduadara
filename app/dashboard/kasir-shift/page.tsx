@@ -15,27 +15,18 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
-  ClipboardList,
-  Coffee,
   CreditCard,
   Edit3,
-  Filter,
-  Moon,
   Power,
   Printer,
   RefreshCw,
   Repeat,
-  RotateCcw,
-  Save,
   ScanBarcode,
   Search,
   ShieldCheck,
   Trash2,
   User,
-  UserCheck,
   UserPlus,
-  Users,
-  Wallet,
   X,
 } from "lucide-react";
 
@@ -1552,13 +1543,10 @@ export default function KasirShiftPage() {
               <button
                 type="button"
                 onClick={() => setShowShiftDropdown((prev) => !prev)}
-                className="h-9 w-[185px] justify-between shrink-0 whitespace-nowrap px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 text-black rounded-xl text-xs font-semibold transition flex items-center gap-2 shadow-2xs cursor-pointer"
+                className="h-9 w-[175px] justify-between shrink-0 whitespace-nowrap px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 text-black rounded-xl text-xs font-semibold transition flex items-center gap-2 shadow-2xs cursor-pointer"
               >
-                <span className="flex items-center gap-2 min-w-0">
-                  <Filter size={14} className="text-black shrink-0" />
-                  <span className="truncate">
-                    Filter Shift: {selectedShiftFilter}
-                  </span>
+                <span className="truncate">
+                  Filter Shift: {selectedShiftFilter}
                 </span>
                 <ChevronDown size={14} className="text-black shrink-0" />
               </button>
@@ -1595,10 +1583,9 @@ export default function KasirShiftPage() {
             <button
               type="button"
               onClick={() => window.print()}
-              className="h-9 w-[92px] justify-center shrink-0 whitespace-nowrap px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 text-black rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
+              className="h-9 px-3.5 py-2 shrink-0 whitespace-nowrap bg-white border border-neutral-400 hover:bg-gray-50 text-black rounded-xl text-xs font-semibold transition cursor-pointer"
             >
-              <Printer size={14} className="shrink-0" />
-              <span>Cetak</span>
+              Cetak
             </button>
 
             {/* Tombol Refresh dari Database */}
@@ -1643,88 +1630,68 @@ export default function KasirShiftPage() {
         {/* 4 SUMMARY STAT CARDS */}
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4 gap-4 print:gap-3">
           {/* Card 1: Total Kasir */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold text-neutral-700 tracking-wider uppercase whitespace-nowrap">
-                TOTAL KASIR TERDAFTAR
-              </p>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
-                  {kpiStats.totalKasir}
-                </span>
-                <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
-                  Staf Kasir
-                </span>
-              </div>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-amber-50 border border-amber-200 text-[#EA8E18] flex items-center justify-center shrink-0">
-              <Users size={20} />
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 tracking-wider uppercase whitespace-nowrap">
+              TOTAL KASIR TERDAFTAR
+            </p>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
+                {kpiStats.totalKasir}
+              </span>
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
+                Staf Kasir
+              </span>
             </div>
           </div>
 
           {/* Card 2: Sedang Bertugas */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <p className="text-[11px] font-semibold text-neutral-700 tracking-wider uppercase whitespace-nowrap">
-                  SEDANG BERTUGAS
-                </p>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-200 shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Live
-                </span>
-              </div>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
-                  {kpiStats.kasirOnline}
-                </span>
-                <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
-                  Kasir Online
-                </span>
-              </div>
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <p className="text-[11px] font-semibold text-neutral-700 tracking-wider uppercase whitespace-nowrap">
+                SEDANG BERTUGAS
+              </p>
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-200 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Live
+              </span>
             </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
-              <UserCheck size={20} />
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
+                {kpiStats.kasirOnline}
+              </span>
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
+                Kasir Online
+              </span>
             </div>
           </div>
 
           {/* Card 3: Standby / Istirahat */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold text-neutral-700 tracking-wider uppercase whitespace-nowrap">
-                STANDBY / ISTIRAHAT
-              </p>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
-                  {kpiStats.kasirStandby}
-                </span>
-                <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
-                  Kasir
-                </span>
-              </div>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-orange-50 border border-orange-200 text-[#EA8E18] flex items-center justify-center shrink-0">
-              <Coffee size={20} />
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 tracking-wider uppercase whitespace-nowrap">
+              STANDBY / ISTIRAHAT
+            </p>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
+                {kpiStats.kasirStandby}
+              </span>
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
+                Kasir
+              </span>
             </div>
           </div>
 
           {/* Card 4: Off / Non-Aktif */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold text-neutral-700 tracking-wider uppercase whitespace-nowrap">
-                OFF / NON-AKTIF
-              </p>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
-                  {kpiStats.kasirOff}
-                </span>
-                <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
-                  Kasir
-                </span>
-              </div>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-gray-100 border border-neutral-200 text-neutral-800 flex items-center justify-center shrink-0">
-              <Moon size={20} />
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 tracking-wider uppercase whitespace-nowrap">
+              OFF / NON-AKTIF
+            </p>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
+                {kpiStats.kasirOff}
+              </span>
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
+                Kasir
+              </span>
             </div>
           </div>
         </section>
@@ -1738,54 +1705,43 @@ export default function KasirShiftPage() {
           }`}
         >
           {/* Sisi Kiri: Operator & Counter Info */}
-          <div className="flex items-start sm:items-center gap-4">
-            <div
-              className={`w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-xs ${
-                activeDrawer.isOpen
-                  ? "bg-[#FEF3C7] border-[#F59E0B]/50 text-amber-800"
-                  : "bg-gray-200 border-neutral-300 text-neutral-800"
-              }`}
-            >
-              <Wallet size={22} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className={`text-xs font-semibold flex items-center gap-1.5 ${
+                  activeDrawer.isOpen ? "text-emerald-700" : "text-neutral-800"
+                }`}
+              >
                 <span
-                  className={`text-xs font-semibold flex items-center gap-1.5 ${
-                    activeDrawer.isOpen ? "text-emerald-700" : "text-neutral-800"
+                  className={`w-2 h-2 rounded-full ${
+                    activeDrawer.isOpen
+                      ? "bg-emerald-500 animate-pulse"
+                      : "bg-gray-400"
                   }`}
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      activeDrawer.isOpen
-                        ? "bg-emerald-500 animate-pulse"
-                        : "bg-gray-400"
-                    }`}
-                  ></span>
-                  {activeDrawer.isOpen
-                    ? "LACI KASIR AKTIF SAAT INI"
-                    : "LACI KASIR DITUTUP (SELESAI SHIFT)"}
-                </span>
-                <span className="px-2.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-xs font-semibold">
-                  {activeDrawer.counter}
-                </span>
-              </div>
-              <h2 className="font-display text-base sm:text-lg font-bold text-black mt-1">
-                {activeDrawer.operatorName}{" "}
-                <span className="font-mono text-sm font-bold text-neutral-800">
-                  ({activeDrawer.operatorId})
-                </span>
-              </h2>
-              <p className="text-xs text-neutral-800 font-medium mt-0.5">
-                {activeDrawer.shiftInfo} • Modal Awal Rp{" "}
-                {activeDrawer.modalAwal.toLocaleString("id-ID")}
-              </p>
-              {!activeDrawer.isOpen && activeDrawer.lastClosedInfo && (
-                <p className="text-xs font-semibold text-rose-700 mt-1">
-                  {activeDrawer.lastClosedInfo}
-                </p>
-              )}
+                ></span>
+                {activeDrawer.isOpen
+                  ? "LACI KASIR AKTIF SAAT INI"
+                  : "LACI KASIR DITUTUP (SELESAI SHIFT)"}
+              </span>
+              <span className="px-2.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-xs font-semibold">
+                {activeDrawer.counter}
+              </span>
             </div>
+            <h2 className="font-display text-base sm:text-lg font-bold text-black mt-1">
+              {activeDrawer.operatorName}{" "}
+              <span className="font-mono text-sm font-bold text-neutral-800">
+                ({activeDrawer.operatorId})
+              </span>
+            </h2>
+            <p className="text-xs text-neutral-800 font-medium mt-0.5">
+              {activeDrawer.shiftInfo} • Modal Awal Rp{" "}
+              {activeDrawer.modalAwal.toLocaleString("id-ID")}
+            </p>
+            {!activeDrawer.isOpen && activeDrawer.lastClosedInfo && (
+              <p className="text-xs font-semibold text-rose-700 mt-1">
+                {activeDrawer.lastClosedInfo}
+              </p>
+            )}
           </div>
 
           {/* Sisi Tengah: Metrik Shift */}
@@ -1814,25 +1770,21 @@ export default function KasirShiftPage() {
               type="button"
               onClick={handleOpenSwitchOperator}
               disabled={!activeDrawer.isOpen}
-              className="h-9 w-[178px] shrink-0 justify-center whitespace-nowrap px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none text-black rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              className="h-9 px-3.5 py-2 shrink-0 whitespace-nowrap bg-white border border-neutral-400 hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none text-black rounded-xl text-xs font-semibold transition shadow-2xs cursor-pointer"
             >
-              <Repeat size={14} className="text-black shrink-0" />
-              <span>Ganti Operator Laci</span>
+              Ganti Operator Laci
             </button>
 
             <button
               type="button"
               onClick={handleOpenCloseShiftModal}
-              className={`h-9 w-[162px] shrink-0 justify-center whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs cursor-pointer ${
+              className={`h-9 px-3.5 py-2 shrink-0 whitespace-nowrap rounded-xl text-xs font-semibold transition shadow-2xs cursor-pointer ${
                 activeDrawer.isOpen
                   ? "bg-[#E11D48] hover:bg-[#BE123C] text-white"
                   : "bg-[#1E562F] hover:bg-[#164223] text-white"
               }`}
             >
-              <Power size={14} className="shrink-0" />
-              <span>
-                {activeDrawer.isOpen ? "Tutup Shift Paksa" : "Buka Shift Baru"}
-              </span>
+              {activeDrawer.isOpen ? "Tutup Shift Paksa" : "Buka Shift Baru"}
             </button>
           </div>
         </section>
@@ -2043,10 +1995,9 @@ export default function KasirShiftPage() {
                             <button
                               type="button"
                               onClick={handleResetFilters}
-                              className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-neutral-400 bg-white hover:bg-gray-50 text-xs font-semibold text-black transition cursor-pointer"
+                              className="mt-3 px-3.5 py-2 rounded-xl border border-neutral-400 bg-white hover:bg-gray-50 text-xs font-semibold text-black transition cursor-pointer"
                             >
-                              <RotateCcw size={13} />
-                              <span>Reset Semua Filter</span>
+                              Reset Semua Filter
                             </button>
                           )}
                         </td>
@@ -2064,19 +2015,14 @@ export default function KasirShiftPage() {
 
             {/* BOX KEBIJAKAN KEAMANAN POS */}
             <div className="print:hidden bg-white rounded-2xl p-6 shadow-sm border border-neutral-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0">
-                  <ShieldCheck size={20} />
-                </div>
-                <div>
-                  <h4 className="font-display font-bold text-black text-xs sm:text-sm">
-                    Kebijakan Keamanan Kasir POS PrekDuaDara
-                  </h4>
-                  <p className="text-xs text-neutral-800 mt-1.5 font-medium">
-                    Setiap pergantian operator wajib cetak struk rekap &apos;Shift
-                    X-Report&apos; sebelum serah terima laci tunai.
-                  </p>
-                </div>
+              <div>
+                <h4 className="font-display font-bold text-black text-xs sm:text-sm">
+                  Kebijakan Keamanan Kasir POS PrekDuaDara
+                </h4>
+                <p className="text-xs text-neutral-800 mt-1.5 font-medium">
+                  Setiap pergantian operator wajib cetak struk rekap &apos;Shift
+                  X-Report&apos; sebelum serah terima laci tunai.
+                </p>
               </div>
               <button
                 type="button"
@@ -2097,11 +2043,8 @@ export default function KasirShiftPage() {
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200 flex flex-col gap-4">
               {/* Header Form */}
               <div className="flex items-center justify-between gap-3 border-b border-neutral-200 pb-3.5">
-                <h3 className="font-display font-bold text-black text-sm sm:text-base flex items-center gap-2 min-w-0">
-                  <ClipboardList size={17} className="text-amber-600 shrink-0" />
-                  <span className="truncate">
-                    {editingId ? `Edit Profil Kasir (${editingId})` : "Form Kasir"}
-                  </span>
+                <h3 className="font-display font-bold text-black text-sm sm:text-base truncate">
+                  {editingId ? `Edit Profil Kasir (${editingId})` : "Form Kasir"}
                 </h3>
                 {editingId && (
                   <span className="px-2.5 py-0.5 rounded bg-amber-50 border border-amber-300 text-amber-800 text-[11px] font-semibold shrink-0 whitespace-nowrap">
@@ -2321,10 +2264,9 @@ export default function KasirShiftPage() {
                   </button>
                   <button
                     type="submit"
-                    className="h-10 px-3 bg-[#1E562F] hover:bg-[#164223] text-white rounded-xl text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5 shadow-xs whitespace-nowrap cursor-pointer"
+                    className="h-10 px-3 bg-[#1E562F] hover:bg-[#164223] text-white rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs whitespace-nowrap cursor-pointer"
                   >
-                    <Save size={15} className="shrink-0" />
-                    <span>{editingId ? "Perbarui Kasir" : "Simpan Kasir"}</span>
+                    {editingId ? "Perbarui Kasir" : "Simpan Kasir"}
                   </button>
                 </div>
               </form>

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, Sparkles, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 interface MenuItem {
@@ -188,15 +188,14 @@ export default function Sidebar() {
             <span className="truncate flex-1">{item.name}</span>
             {item.badge && (
               <span
-                title="Dilengkapi AI Agent"
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide whitespace-nowrap shrink-0 border shadow-2xs ${
+                title="Prediksi Stok AI"
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wider whitespace-nowrap shrink-0 border ${
                   isActive
-                    ? 'bg-[#17371C] text-[#FFE38F] border-[#17371C]/60'
-                    : 'bg-[#2D452B] text-[#FFE38F] border-[#1E3A1C]/40'
+                    ? 'bg-[#17371C]/90 text-[#FFE38F] border-[#17371C]'
+                    : 'bg-[#2D452B] text-[#FFE38F] border-[#1E3A1C]/50'
                 }`}
               >
-                <Sparkles size={10} className="shrink-0 text-[#F3A712]" />
-                <span>{item.badge}</span>
+                {item.badge}
               </span>
             )}
           </Link>
@@ -223,9 +222,8 @@ export default function Sidebar() {
       <button
         type="button"
         onClick={logout}
-        className="w-full mt-1 py-2 px-3 bg-[#1E3A1C] hover:bg-red-700 text-red-200 hover:text-white rounded-xl text-xs font-semibold transition-colors duration-150 flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+        className="w-full mt-1 py-2 px-3 bg-[#1E3A1C] hover:bg-red-700 text-red-200 hover:text-white rounded-xl text-xs font-semibold transition-colors duration-150 flex items-center justify-center shadow-sm cursor-pointer"
       >
-        <span>🚪</span>
         <span>Logout Sistem</span>
       </button>
     </div>

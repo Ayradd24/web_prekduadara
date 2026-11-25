@@ -5,12 +5,9 @@ import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
 import { useTransactions, Transaction } from "@/context/TransactionContext";
 import {
-  Calendar,
   CheckCircle2,
   ChevronDown,
   Eye,
-  FileSpreadsheet,
-  FileText,
   Info,
   Printer,
   RefreshCw,
@@ -1398,10 +1395,9 @@ export default function TransaksiPage() {
                   handlePrintReceipt(selectedTx.id);
                   setSelectedTx(null);
                 }}
-                className="px-4 py-2 bg-[#2D452B] hover:bg-[#223520] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                className="px-4 py-2 bg-[#2D452B] hover:bg-[#223520] text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-xs"
               >
-                <Printer size={14} />
-                <span>Cetak Struk</span>
+                Cetak Struk
               </button>
             </div>
           </div>
@@ -1497,14 +1493,13 @@ export default function TransaksiPage() {
               <button
                 type="button"
                 onClick={() => handleSelectPeriod("Kustom")}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   selectedPeriod === "Kustom"
                     ? "bg-white text-black font-semibold shadow-xs"
                     : "text-black font-medium hover:text-black"
                 }`}
               >
-                <Calendar size={12} />
-                <span>Kustom</span>
+                Kustom
               </button>
             </div>
 
@@ -1513,34 +1508,29 @@ export default function TransaksiPage() {
               <button
                 type="button"
                 onClick={handleSyncPos}
-                className="flex items-center gap-2 px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-300 text-emerald-800 rounded-xl text-xs font-semibold transition cursor-pointer whitespace-nowrap"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-300 text-emerald-800 rounded-xl text-xs font-semibold transition cursor-pointer whitespace-nowrap"
                 title="Klik untuk sinkronisasi manual dengan mesin kasir POS"
               >
-                <RefreshCw
-                  size={13}
-                  className={`text-emerald-600 ${
-                    isSyncing ? "animate-spin" : ""
-                  }`}
-                />
+                {isSyncing && (
+                  <RefreshCw size={13} className="text-emerald-600 animate-spin" />
+                )}
                 <span>{isSyncing ? "Syncing POS..." : "Sync POS: Live"}</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleExportExcel}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-neutral-400 hover:bg-gray-50 text-black rounded-xl text-xs font-semibold transition cursor-pointer whitespace-nowrap"
+                className="px-3.5 py-1.5 bg-white border border-neutral-400 hover:bg-gray-50 text-black rounded-xl text-xs font-semibold transition cursor-pointer whitespace-nowrap"
               >
-                <FileSpreadsheet size={14} className="text-emerald-700" />
-                <span>Excel</span>
+                Excel
               </button>
 
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="flex items-center gap-1.5 px-4 py-1.5 bg-[#D92D20] hover:bg-[#B91C1C] text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer whitespace-nowrap"
+                className="px-4 py-1.5 bg-[#D92D20] hover:bg-[#B91C1C] text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer whitespace-nowrap"
               >
-                <FileText size={14} />
-                <span>Export PDF</span>
+                Export PDF
               </button>
             </div>
           </div>

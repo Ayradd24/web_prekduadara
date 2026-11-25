@@ -20,17 +20,10 @@ import {
   Info,
   Mail,
   Phone,
-  Printer,
   QrCode,
   RefreshCw,
-  RotateCcw,
-  Save,
-  Scissors,
-  Store,
-  Upload,
   User,
   UtensilsCrossed,
-  Wallet,
   X,
 } from "lucide-react";
 
@@ -669,10 +662,9 @@ export default function PengaturanTokoPage() {
               <button
                 type="button"
                 onClick={handleConfirmResetSaved}
-                className="px-4 py-2.5 rounded-xl bg-[#EA8E18] hover:bg-[#d67f12] text-xs font-semibold text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-[#EA8E18] hover:bg-[#d67f12] text-xs font-semibold text-white transition shadow-xs cursor-pointer"
               >
-                <RotateCcw size={14} />
-                <span>Ya, Kembalikan Data</span>
+                Ya, Kembalikan Data
               </button>
             </div>
           </div>
@@ -695,10 +687,9 @@ export default function PengaturanTokoPage() {
           <button
             type="button"
             onClick={() => setShowResetModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black hover:text-black transition shadow-lg cursor-pointer"
+            className="px-4 py-2.5 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black hover:text-black transition shadow-lg cursor-pointer"
           >
-            <RotateCcw size={14} />
-            <span>Reset ke Data Terakhir</span>
+            Reset ke Data Terakhir
           </button>
           <button
             type="button"
@@ -706,17 +697,8 @@ export default function PengaturanTokoPage() {
             disabled={isSaving}
             className="flex items-center gap-2 px-4 py-2.5 bg-[#2D452B] hover:bg-[#223520] disabled:opacity-60 rounded-xl text-xs font-semibold text-white transition shadow-lg cursor-pointer"
           >
-            {isSaving ? (
-              <>
-                <RefreshCw size={14} className="animate-spin" />
-                <span>Menyimpan...</span>
-              </>
-            ) : (
-              <>
-                <Save size={14} />
-                <span>Simpan Perubahan</span>
-              </>
-            )}
+            {isSaving && <RefreshCw size={14} className="animate-spin" />}
+            <span>{isSaving ? "Menyimpan..." : "Simpan Perubahan"}</span>
           </button>
         </div>
 
@@ -768,12 +750,9 @@ export default function PengaturanTokoPage() {
 
         {/* PAGE HEADER & ACTION BUTTONS */}
         <section className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-neutral-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-          <div className="flex items-center gap-2.5">
-            <Store size={18} className="text-[#2D452B] shrink-0" />
-            <h2 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
-              Pengaturan &amp; Konfigurasi Toko
-            </h2>
-          </div>
+          <h2 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
+            Pengaturan &amp; Konfigurasi Toko
+          </h2>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0 self-end lg:self-center">
             {/* Indikator Status Simpan */}
@@ -792,10 +771,9 @@ export default function PengaturanTokoPage() {
             <button
               type="button"
               onClick={() => setShowResetModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black hover:text-black transition shadow-2xs cursor-pointer"
+              className="px-4 py-2.5 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black hover:text-black transition shadow-2xs cursor-pointer"
             >
-              <RotateCcw size={14} />
-              <span>Reset ke Data Terakhir</span>
+              Reset ke Data Terakhir
             </button>
             <button
               type="button"
@@ -803,17 +781,8 @@ export default function PengaturanTokoPage() {
               disabled={isSaving}
               className="flex items-center gap-2 px-4 py-2.5 bg-[#2D452B] hover:bg-[#223520] disabled:opacity-60 rounded-xl text-xs font-semibold text-white transition shadow-xs cursor-pointer"
             >
-              {isSaving ? (
-                <>
-                  <RefreshCw size={14} className="animate-spin" />
-                  <span>Menyimpan...</span>
-                </>
-              ) : (
-                <>
-                  <Save size={14} />
-                  <span>Simpan Perubahan</span>
-                </>
-              )}
+              {isSaving && <RefreshCw size={14} className="animate-spin" />}
+              <span>{isSaving ? "Menyimpan..." : "Simpan Perubahan"}</span>
             </button>
           </div>
         </section>
@@ -861,10 +830,9 @@ export default function PengaturanTokoPage() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="bg-[#0D8A52] hover:bg-[#097343] text-white text-xs font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition cursor-pointer"
+                className="bg-[#0D8A52] hover:bg-[#097343] text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
               >
-                <Upload size={14} />
-                <span>Unggah File Baru</span>
+                Unggah File Baru
               </button>
             </div>
 
@@ -1113,7 +1081,6 @@ export default function PengaturanTokoPage() {
                 Finansial, Pajak PB1 &amp; Biaya Pembungkusan
               </h3>
             </div>
-            <Wallet size={18} className="text-neutral-800" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1221,12 +1188,9 @@ export default function PengaturanTokoPage() {
 
             {/* Col 3: Pembulatan Tunai */}
             <div className="p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200">
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-[13px] font-semibold text-black">
-                  Pembulatan Tunai
-                </label>
-                <RefreshCw size={14} className="text-neutral-800" />
-              </div>
+              <label className="block text-[13px] font-semibold text-black mb-2">
+                Pembulatan Tunai
+              </label>
               <span className="block text-xs text-neutral-800 font-medium mb-2">
                 Aturan pembulatan kembalian kasir
               </span>
@@ -1415,9 +1379,8 @@ export default function PengaturanTokoPage() {
               </div>
 
               <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-neutral-200 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-xs font-semibold text-black">
-                  <Printer size={14} className="text-[#D97706] shrink-0" />
-                  <span>Uji Perangkat Printer (ESC/POS 80mm)</span>
+                <div className="text-xs font-semibold text-black">
+                  Uji Perangkat Printer (ESC/POS 80mm)
                 </div>
                 <div className="flex flex-wrap items-center gap-2.5">
                   <button
@@ -1427,20 +1390,18 @@ export default function PengaturanTokoPage() {
                         `Mengirim sinyal Tes Cetak Thermal (${activeBranchKey})...`
                       )
                     }
-                    className="flex items-center gap-2 px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black hover:text-black transition cursor-pointer shadow-2xs"
+                    className="px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black hover:text-black transition cursor-pointer shadow-2xs"
                   >
-                    <Printer size={14} />
-                    <span>Tes Cetak Thermal</span>
+                    Tes Cetak Thermal
                   </button>
                   <button
                     type="button"
                     onClick={() =>
                       showToast("Menguji pemotong kertas (Auto-Cutter)...")
                     }
-                    className="flex items-center gap-2 px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black hover:text-black transition cursor-pointer shadow-2xs"
+                    className="px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black hover:text-black transition cursor-pointer shadow-2xs"
                   >
-                    <Scissors size={14} />
-                    <span>Uji Auto-Cutter</span>
+                    Uji Auto-Cutter
                   </button>
                 </div>
               </div>
@@ -1758,10 +1719,9 @@ export default function PengaturanTokoPage() {
               disabled={isScanningDevices}
               className="text-xs font-semibold text-black hover:text-black bg-gray-50 hover:bg-gray-100 disabled:opacity-60 border border-neutral-400 px-4 py-2 rounded-xl flex items-center gap-2 transition cursor-pointer"
             >
-              <RefreshCw
-                size={13}
-                className={isScanningDevices ? "animate-spin text-[#EA8E18]" : ""}
-              />
+              {isScanningDevices && (
+                <RefreshCw size={13} className="animate-spin text-[#EA8E18]" />
+              )}
               <span>
                 {isScanningDevices
                   ? "Memindai Perangkat..."
@@ -1864,17 +1824,8 @@ export default function PengaturanTokoPage() {
               disabled={isSaving}
               className="flex items-center gap-2 text-xs font-semibold text-white bg-[#2D452B] hover:bg-[#223520] disabled:opacity-60 px-5 py-2.5 rounded-xl transition cursor-pointer shadow-xs"
             >
-              {isSaving ? (
-                <>
-                  <RefreshCw size={15} className="animate-spin" />
-                  <span>Menyimpan...</span>
-                </>
-              ) : (
-                <>
-                  <Save size={15} />
-                  <span>Simpan Konfigurasi Lengkap</span>
-                </>
-              )}
+              {isSaving && <RefreshCw size={15} className="animate-spin" />}
+              <span>{isSaving ? "Menyimpan..." : "Simpan Konfigurasi Lengkap"}</span>
             </button>
           </div>
         </section>

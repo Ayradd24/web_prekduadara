@@ -9,19 +9,13 @@ import {
   AlertTriangle,
   CheckCircle2,
   Edit3,
-  Flame,
-  Layers,
   PlusCircle,
   RefreshCw,
-  RotateCcw,
-  Save,
   Search,
-  Tag,
   Trash2,
   UploadCloud,
   User,
   UtensilsCrossed,
-  Wallet,
   X,
 } from "lucide-react";
 
@@ -693,13 +687,9 @@ export default function ManajemenMenuPage() {
                 loadProductsFromDB();
                 showToast("Menyegarkan daftar menu dari database...", "info");
               }}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black transition cursor-pointer whitespace-nowrap"
+              className="px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black transition cursor-pointer whitespace-nowrap"
             >
-              <RefreshCw
-                size={14}
-                className={isLoading ? "animate-spin" : ""}
-              />
-              <span>Segarkan Data</span>
+              {isLoading ? "Memuat..." : "Segarkan Data"}
             </button>
 
             <button
@@ -721,79 +711,59 @@ export default function ManajemenMenuPage() {
         {/* 4 SUMMARY KPI CARDS */}
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {/* Card 1: TOTAL MENU */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
-                TOTAL MENU AKTIF
-              </p>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl font-extrabold text-black whitespace-nowrap tabular-nums">
-                  {kpiStats.totalMenus}
-                </span>
-                <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
-                  Produk
-                </span>
-              </div>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-gray-100 border border-neutral-200 text-neutral-950 flex items-center justify-center shrink-0">
-              <UtensilsCrossed size={20} />
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
+              TOTAL MENU AKTIF
+            </p>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl font-extrabold text-black whitespace-nowrap tabular-nums">
+                {kpiStats.totalMenus}
+              </span>
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
+                Produk
+              </span>
             </div>
           </div>
 
           {/* Card 2: PAKET MENU */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
-                PAKET MENU UTAMA
-              </p>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl font-extrabold text-black whitespace-nowrap tabular-nums">
-                  {kpiStats.paketCount}
-                </span>
-                <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
-                  Paket
-                </span>
-              </div>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
-              <Layers size={20} />
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
+              PAKET MENU UTAMA
+            </p>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl font-extrabold text-black whitespace-nowrap tabular-nums">
+                {kpiStats.paketCount}
+              </span>
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
+                Paket
+              </span>
             </div>
           </div>
 
           {/* Card 3: MENU TAMBAHAN */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
-                MENU TAMBAHAN
-              </p>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl font-extrabold text-black whitespace-nowrap tabular-nums">
-                  {kpiStats.tambahanCount}
-                </span>
-                <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
-                  Add-on
-                </span>
-              </div>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 text-[#D97706] flex items-center justify-center shrink-0">
-              <Tag size={20} />
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
+              MENU TAMBAHAN
+            </p>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl font-extrabold text-black whitespace-nowrap tabular-nums">
+                {kpiStats.tambahanCount}
+              </span>
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
+                Add-on
+              </span>
             </div>
           </div>
 
           {/* Card 4: RATA-RATA HARGA */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
-                RATA-RATA HARGA
-              </p>
-              <div className="mt-2">
-                <span className="text-lg xl:text-xl font-extrabold text-black whitespace-nowrap tabular-nums">
-                  {formatRupiah(kpiStats.avgPrice)}
-                </span>
-              </div>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-orange-50 border border-orange-200 text-[#EA8E18] flex items-center justify-center shrink-0">
-              <Wallet size={20} />
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
+              RATA-RATA HARGA
+            </p>
+            <div className="mt-2">
+              <span className="text-lg xl:text-xl font-extrabold text-black whitespace-nowrap tabular-nums">
+                {formatRupiah(kpiStats.avgPrice)}
+              </span>
             </div>
           </div>
         </section>
@@ -804,14 +774,9 @@ export default function ManajemenMenuPage() {
           <div className="xl:col-span-8 flex flex-col gap-5 h-full">
             {/* INFO CARD RINGKAS: 4 PILIHAN SAMBAL SAAT ORDER */}
             <div className="bg-[#FAF8F3] rounded-2xl p-4 shadow-sm border border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-[#2D452B] text-[#F3A712] flex items-center justify-center shrink-0 shadow-2xs">
-                  <Flame size={18} />
-                </div>
-                <h3 className="font-display text-xs sm:text-sm font-bold text-black">
-                  4 Pilihan Sambal
-                </h3>
-              </div>
+              <h3 className="font-display text-xs sm:text-sm font-bold text-black">
+                4 Pilihan Sambal
+              </h3>
 
               <div className="flex flex-wrap items-center gap-2 shrink-0">
                 {SAMBAL_OPTIONS.map((sambal) => (
@@ -866,10 +831,9 @@ export default function ManajemenMenuPage() {
                   type="button"
                   onClick={handleResetFilters}
                   title="Reset Filter"
-                  className="px-3 py-2 border border-neutral-400 rounded-xl text-black hover:bg-gray-100 transition cursor-pointer flex items-center justify-center gap-1.5 text-xs font-bold shrink-0"
+                  className="px-3 py-2 border border-neutral-400 rounded-xl text-black hover:bg-gray-100 transition cursor-pointer text-xs font-semibold shrink-0"
                 >
-                  <RotateCcw size={13} />
-                  <span>Reset</span>
+                  Reset
                 </button>
               </div>
 
@@ -1123,14 +1087,7 @@ export default function ManajemenMenuPage() {
             className="xl:col-span-4 flex flex-col gap-5"
           >
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-neutral-200 flex flex-col gap-4">
-              <div className="flex items-center gap-3 pb-3.5 border-b border-neutral-200">
-                <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-black flex items-center justify-center shrink-0 shadow-xs">
-                  {editingId !== null ? (
-                    <Edit3 size={18} />
-                  ) : (
-                    <PlusCircle size={18} />
-                  )}
-                </div>
+              <div className="pb-3.5 border-b border-neutral-200">
                 <h3 className="font-display font-bold text-base text-black">
                   {editingId !== null
                     ? `Edit Menu #${editingId}`
@@ -1337,16 +1294,13 @@ export default function ManajemenMenuPage() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 py-3 bg-[#F3A712] hover:bg-[#df980e] disabled:opacity-60 text-black font-semibold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
+                    className="flex-1 py-3 bg-[#F3A712] hover:bg-[#df980e] disabled:opacity-60 text-black font-semibold text-xs sm:text-sm rounded-xl shadow-xs transition cursor-pointer"
                   >
-                    <Save size={15} />
-                    <span>
-                      {isSubmitting
-                        ? "Menyimpan..."
-                        : editingId !== null
-                          ? "Simpan Perubahan Menu"
-                          : "Simpan Menu Baru"}
-                    </span>
+                    {isSubmitting
+                      ? "Menyimpan..."
+                      : editingId !== null
+                        ? "Simpan Perubahan Menu"
+                        : "Simpan Menu Baru"}
                   </button>
                 </div>
               </form>

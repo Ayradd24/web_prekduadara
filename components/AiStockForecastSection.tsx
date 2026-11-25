@@ -4,21 +4,10 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { API_BASE_URL, getAuthHeaders } from "@/lib/api";
 import {
   AlertTriangle,
-  CalendarClock,
   Check,
-  CheckCircle2,
   ChevronDown,
-  ChevronUp,
-  Flame,
-  Lightbulb,
   Loader2,
-  Megaphone,
-  MessageSquarePlus,
-  RefreshCw,
-  Send,
   ShoppingCart,
-  SlidersHorizontal,
-  Sparkles,
   X,
 } from "lucide-react";
 
@@ -170,54 +159,6 @@ const TREND_CATEGORY_BADGE: Record<
     className: "bg-neutral-100 text-neutral-800 border-neutral-300",
   },
 };
-
-function AiAgentBadge({
-  variant = "light",
-  compact = false,
-  label = "AI Agent",
-  title,
-}: {
-  variant?: "dark" | "light" | "red";
-  compact?: boolean;
-  label?: string;
-  title?: string;
-}) {
-  if (compact) {
-    return (
-      <span
-        title={title}
-        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[9px] font-semibold normal-case tracking-normal whitespace-nowrap align-middle"
-      >
-        <Sparkles size={8} className="text-violet-600 shrink-0" />
-        <span>{label}</span>
-      </span>
-    );
-  }
-
-  const styles =
-    variant === "dark"
-      ? "bg-gradient-to-r from-[#F3A712] via-[#FBBF24] to-[#F59E0B] text-black border-amber-200 shadow-xs"
-      : variant === "red"
-        ? "bg-white text-violet-800 border-violet-200 shadow-2xs"
-        : "bg-violet-50 text-violet-800 border-violet-200";
-
-  return (
-    <span
-      title={title}
-      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wide whitespace-nowrap shrink-0 border ${styles}`}
-    >
-      <Sparkles
-        size={10}
-        className={
-          variant === "dark"
-            ? "text-[#2D452B] shrink-0"
-            : "text-violet-600 shrink-0"
-        }
-      />
-      <span>{label}</span>
-    </span>
-  );
-}
 
 const INTEGER_UNITS = [
   "pcs",
@@ -408,12 +349,6 @@ export default function AiStockForecastSection({
 
   const activeMeta = forecast?.activeTrendMeta;
   const geminiInsight = forecast?.geminiInsight;
-  const isGeminiActive = Boolean(
-    forecast?.aiEngine && forecast.aiEngine.toLowerCase().includes("gemini")
-  );
-  const analysisCardBadgeLabel = isGeminiActive
-    ? "AI Agent • Gemini"
-    : "AI Agent • Hybrid";
   const isAutoMode = selectedTrend === "auto";
   const activeManualOption = MANUAL_SCENARIO_OPTIONS.find(
     (opt) => opt.key === selectedTrend
@@ -441,31 +376,18 @@ export default function AiStockForecastSection({
     <section className="print:hidden bg-white rounded-2xl shadow-sm border border-neutral-200 flex flex-col">
       {/* LAPISAN 1 — HEADER UTAMA */}
       <div className="bg-[#2D452B] text-white px-5 py-4 rounded-t-2xl flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-black flex items-center justify-center shrink-0 shadow-xs">
-            <Sparkles size={19} />
-          </div>
-          <div className="flex items-center gap-2 flex-wrap min-w-0">
-            <h3 className="font-display text-sm sm:text-base font-bold tracking-tight text-white">
-              Prediksi Kebutuhan Stok &amp; Analisis Tren Pasar
-            </h3>
-            <AiAgentBadge variant="dark" />
-            {forecast && (
-              <span
-                title={
-                  forecast.aiFallbackReason || forecast.aiEngine || undefined
-                }
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap bg-emerald-500/20 border-emerald-300/40 text-emerald-100"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
-                <span>
-                  {isGeminiActive
-                    ? `Powered by ${forecast.aiEngine}`
-                    : "AI Hybrid Engine"}
-                </span>
-              </span>
-            )}
-          </div>
+        <div className="flex items-center gap-2.5 flex-wrap min-w-0">
+          <h3 className="font-display text-sm sm:text-base font-bold tracking-tight text-white">
+            Prediksi Kebutuhan Stok &amp; Analisis Tren Pasar
+          </h3>
+          <span
+            title={
+              forecast?.aiFallbackReason || forecast?.aiEngine || "Prediksi AI"
+            }
+            className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wider border border-[#F3A712]/60 text-[#FFE38F] bg-[#F3A712]/10 whitespace-nowrap"
+          >
+            AI
+          </span>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0 self-end lg:self-center">
@@ -477,10 +399,7 @@ export default function AiStockForecastSection({
             disabled={isLoading}
             className="h-9 flex items-center gap-1.5 px-3.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
           >
-            <RefreshCw
-              size={13}
-              className={isLoading ? "animate-spin" : ""}
-            />
+            {isLoading && <Loader2 size={13} className="animate-spin" />}
             <span>{isLoading ? "Menganalisis..." : "Hitung Ulang"}</span>
           </button>
 
@@ -508,17 +427,13 @@ export default function AiStockForecastSection({
             type="button"
             disabled={isLoading}
             onClick={() => handleSelectTrend("auto")}
-            className={`h-8 inline-flex items-center gap-1.5 px-3.5 rounded-full text-xs border transition cursor-pointer disabled:opacity-60 whitespace-nowrap ${
+            className={`h-8 inline-flex items-center px-3.5 rounded-full text-xs border transition cursor-pointer disabled:opacity-60 whitespace-nowrap ${
               isAutoMode
                 ? "bg-[#2D452B] text-white border-[#2D452B] font-semibold shadow-2xs"
                 : "bg-white text-black border-neutral-400 font-semibold hover:border-[#2D452B] hover:text-[#2D452B]"
             }`}
           >
-            <Sparkles
-              size={12}
-              className={isAutoMode ? "text-[#F3A712]" : "text-neutral-700"}
-            />
-            <span>Otomatis (AI Agent)</span>
+            <span>Mode Otomatis</span>
           </button>
 
           <div ref={simMenuRef} className="relative inline-flex items-center">
@@ -529,16 +444,12 @@ export default function AiStockForecastSection({
               aria-expanded={isSimMenuOpen}
               disabled={isLoading}
               onClick={() => setIsSimMenuOpen((prev) => !prev)}
-              className={`h-8 inline-flex items-center gap-2 pl-3 pr-2.5 rounded-full text-xs border transition cursor-pointer disabled:opacity-60 whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-[#2D452B]/25 ${
+              className={`h-8 inline-flex items-center gap-2 pl-3.5 pr-2.5 rounded-full text-xs border transition cursor-pointer disabled:opacity-60 whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-[#2D452B]/25 ${
                 !isAutoMode
                   ? "bg-[#2D452B] text-white border-[#2D452B] font-semibold shadow-2xs"
                   : "bg-white text-black border-neutral-400 font-semibold hover:border-[#2D452B] hover:text-[#2D452B]"
               }`}
             >
-              <SlidersHorizontal
-                size={12}
-                className={!isAutoMode ? "text-[#F3A712] shrink-0" : "text-neutral-700 shrink-0"}
-              />
               <span>
                 {!isAutoMode && activeManualOption
                   ? `Simulasi: ${activeManualOption.label}`
@@ -597,10 +508,9 @@ export default function AiStockForecastSection({
                         setIsSimMenuOpen(false);
                         handleSelectTrend("auto");
                       }}
-                      className="w-full px-3 py-2 text-left text-xs font-semibold text-[#2D452B] bg-white hover:bg-emerald-50/70 flex items-center gap-1.5 transition-colors cursor-pointer"
+                      className="w-full px-3 py-2 text-left text-xs font-semibold text-[#2D452B] bg-white hover:bg-emerald-50/70 transition-colors cursor-pointer"
                     >
-                      <Sparkles size={12} className="text-[#EA8E18] shrink-0" />
-                      <span>Kembali ke Otomatis (AI)</span>
+                      Kembali ke Mode Otomatis
                     </button>
                   </div>
                 )}
@@ -619,10 +529,6 @@ export default function AiStockForecastSection({
           className="flex items-center gap-2 flex-1 min-w-0"
         >
           <div className="relative flex-1 min-w-0">
-            <MessageSquarePlus
-              size={14}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-amber-600"
-            />
             <input
               type="text"
               maxLength={300}
@@ -630,7 +536,7 @@ export default function AiStockForecastSection({
               value={customContextInput}
               onChange={(e) => setCustomContextInput(e.target.value)}
               placeholder="Konteks lapangan opsional: misal hujan deras, wisuda UM, atau ada event kampus..."
-              className="h-8 w-full pl-8 pr-7 bg-white border border-neutral-300 rounded-xl text-xs font-medium text-black placeholder:text-neutral-400 focus:outline-none focus:border-[#EA8E18] disabled:opacity-60"
+              className="h-8 w-full px-3 pr-7 bg-white border border-neutral-300 rounded-xl text-xs font-medium text-black placeholder:text-neutral-400 focus:outline-none focus:border-[#EA8E18] disabled:opacity-60"
             />
             {(customContextInput || appliedCustomContext) && (
               <button
@@ -650,11 +556,7 @@ export default function AiStockForecastSection({
             disabled={isLoading}
             className="h-8 inline-flex items-center gap-1.5 px-3.5 rounded-xl bg-[#2D452B] hover:bg-[#1f331e] disabled:opacity-50 text-white text-xs font-semibold shadow-2xs transition cursor-pointer shrink-0 whitespace-nowrap"
           >
-            {isLoading ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : (
-              <Send size={12} />
-            )}
+            {isLoading && <Loader2 size={12} className="animate-spin" />}
             <span>{isLoading ? "Menganalisis..." : "Analisis"}</span>
           </button>
         </form>
@@ -699,25 +601,19 @@ export default function AiStockForecastSection({
                 }`}
               >
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                  <div className="flex items-start gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-[#DC2626] text-white flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
-                      <Flame size={16} />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-display text-xs sm:text-sm font-bold text-[#991B1B]">
+                        Peringatan Dini Stok Kritis (&lt; 2 Hari)
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-full bg-[#DC2626] text-white text-[10px] font-semibold uppercase tracking-wider">
+                        {urgentItems.length} Bahan Urgent
+                      </span>
                     </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="font-display text-xs sm:text-sm font-bold text-[#991B1B]">
-                          Peringatan Dini Stok Kritis (&lt; 2 Hari)
-                        </h4>
-                        <AiAgentBadge variant="red" />
-                        <span className="px-2 py-0.5 rounded-full bg-[#DC2626] text-white text-[10px] font-semibold uppercase tracking-wider">
-                          {urgentItems.length} Bahan Urgent
-                        </span>
-                      </div>
-                      <p className="text-xs text-red-950 font-medium mt-1 leading-relaxed">
-                        {geminiInsight?.urgentAnalysis ||
-                          `Terdapat ${urgentItems.length} bahan baku dengan estimasi habis < 2 hari atau di bawah batas aman pada kondisi ${detectedTrendTitle}.`}
-                      </p>
-                    </div>
+                    <p className="text-xs text-red-950 font-medium mt-1 leading-relaxed">
+                      {geminiInsight?.urgentAnalysis ||
+                        `Terdapat ${urgentItems.length} bahan baku dengan estimasi habis < 2 hari atau di bawah batas aman pada kondisi ${detectedTrendTitle}.`}
+                    </p>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 shrink-0 self-end lg:self-center">
@@ -737,10 +633,9 @@ export default function AiStockForecastSection({
                           "Peringatan PO ditandai sudah dipesan ke supplier!"
                         );
                       }}
-                      className="h-8 px-3.5 rounded-xl bg-white hover:bg-neutral-50 border border-neutral-400 text-black text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap"
+                      className="h-8 px-3.5 rounded-xl bg-white hover:bg-neutral-50 border border-neutral-400 text-black text-xs font-semibold transition cursor-pointer whitespace-nowrap"
                     >
-                      <CheckCircle2 size={13} className="text-[#2D452B]" />
-                      <span>Tandai Sudah Dipesan</span>
+                      Tandai Sudah Dipesan
                     </button>
                   </div>
                 </div>
@@ -801,22 +696,10 @@ export default function AiStockForecastSection({
               >
                 {/* KARTU KIRI: STRATEGI OPERASIONAL & DETEKSI TREN */}
                 <div className="bg-[#FAF8F3] border border-amber-200/90 rounded-xl p-4 flex flex-col gap-3 h-full">
-                  <div className="flex items-start justify-between gap-2.5">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-[#2D452B] text-[#F3A712] flex items-center justify-center shrink-0 shadow-2xs">
-                        <Lightbulb size={16} />
-                      </div>
-                      <div className="flex items-center gap-2 flex-wrap min-w-0">
-                        <h4 className="font-display text-xs sm:text-sm font-bold text-black leading-tight">
-                          Strategi Operasional &amp; Deteksi Tren
-                        </h4>
-                        <AiAgentBadge
-                          variant="light"
-                          label={analysisCardBadgeLabel}
-                          title={forecast?.aiEngine || undefined}
-                        />
-                      </div>
-                    </div>
+                  <div className="flex items-center justify-between gap-2.5">
+                    <h4 className="font-display text-xs sm:text-sm font-bold text-black leading-tight">
+                      Strategi Operasional &amp; Deteksi Tren
+                    </h4>
 
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white border border-amber-300 text-[#B45309] text-[10px] font-semibold whitespace-nowrap shrink-0">
                       {activeMeta.impactRange}
@@ -835,12 +718,8 @@ export default function AiStockForecastSection({
                         {categoryBadge.label}
                       </span>
                       {activeMeta.cycleInfo && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-emerald-200 text-[#2D452B] text-[10px] font-medium">
-                          <CalendarClock
-                            size={10}
-                            className="text-[#EA8E18] shrink-0"
-                          />
-                          <span>{activeMeta.cycleInfo.subPhaseLabel}</span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white border border-emerald-200 text-[#2D452B] text-[10px] font-medium">
+                          {activeMeta.cycleInfo.subPhaseLabel}
                         </span>
                       )}
                     </div>
@@ -867,11 +746,7 @@ export default function AiStockForecastSection({
                   </div>
 
                   {/* Narasi Strategi Dapur */}
-                  <div className="bg-white rounded-xl border border-amber-200/70 p-3.5 flex-1 flex items-start gap-2.5">
-                    <CheckCircle2
-                      size={15}
-                      className="text-[#2D452B] shrink-0 mt-0.5"
-                    />
+                  <div className="bg-white rounded-xl border border-amber-200/70 p-3.5 flex-1">
                     <p className="text-xs text-black font-medium leading-relaxed">
                       {geminiInsight?.kitchenStrategy || activeMeta.description}
                     </p>
@@ -880,27 +755,11 @@ export default function AiStockForecastSection({
 
                 {/* KARTU KANAN: REKOMENDASI PROMO & BUNDLING MENU */}
                 <div className="bg-gradient-to-br from-[#FAF8F3] via-white to-emerald-50/40 border border-[#2D452B]/20 rounded-xl p-4 flex flex-col gap-3 h-full">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-[#F3A712]/20 border border-[#F3A712]/50 text-[#B45309] flex items-center justify-center shrink-0">
-                      <Megaphone size={16} />
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap min-w-0">
-                      <h4 className="font-display text-xs sm:text-sm font-bold text-black leading-tight">
-                        Rekomendasi Promo &amp; Bundling Menu
-                      </h4>
-                      <AiAgentBadge
-                        variant="light"
-                        label={analysisCardBadgeLabel}
-                        title={forecast?.aiEngine || undefined}
-                      />
-                    </div>
-                  </div>
+                  <h4 className="font-display text-xs sm:text-sm font-bold text-black leading-tight">
+                    Rekomendasi Promo &amp; Bundling Menu
+                  </h4>
 
-                  <div className="bg-white rounded-xl border border-[#2D452B]/15 p-3.5 flex-1 flex items-start gap-2.5">
-                    <Sparkles
-                      size={15}
-                      className="text-[#EA8E18] shrink-0 mt-0.5"
-                    />
+                  <div className="bg-white rounded-xl border border-[#2D452B]/15 p-3.5 flex-1">
                     <p className="text-xs text-black font-medium leading-relaxed">
                       {geminiInsight?.promoSuggestion ||
                         "Optimalkan paket bundling menu utama dengan lauk tambahan untuk menjaga margin dan perputaran bahan harian."}
@@ -933,30 +792,19 @@ export default function AiStockForecastSection({
               }`}
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="font-display text-xs sm:text-sm font-bold text-black">
-                    Proyeksi Konsumsi &amp; Rekomendasi PO per Bahan Baku
-                  </h4>
-                  <AiAgentBadge compact />
-                </div>
+                <h4 className="font-display text-xs sm:text-sm font-bold text-black">
+                  Proyeksi Konsumsi &amp; Rekomendasi PO per Bahan Baku
+                </h4>
 
                 {forecast.items.length > 6 && (
                   <button
                     type="button"
                     onClick={() => setShowAllRows((prev) => !prev)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-neutral-100 border border-neutral-400 text-black text-xs font-semibold transition cursor-pointer self-start sm:self-center shrink-0"
+                    className="inline-flex items-center px-3 py-1.5 rounded-xl bg-white hover:bg-neutral-100 border border-neutral-400 text-black text-xs font-semibold transition cursor-pointer self-start sm:self-center shrink-0"
                   >
-                    {showAllRows ? (
-                      <>
-                        <ChevronUp size={14} />
-                        <span>Tampilkan Ringkas (6)</span>
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown size={14} />
-                        <span>Lihat Semua ({forecast.items.length} Bahan)</span>
-                      </>
-                    )}
+                    {showAllRows
+                      ? "Tampilkan Ringkas (6)"
+                      : `Lihat Semua (${forecast.items.length} Bahan)`}
                   </button>
                 )}
               </div>

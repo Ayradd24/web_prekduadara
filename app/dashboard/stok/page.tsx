@@ -11,25 +11,17 @@ import { useStok } from "@/context/StokContext";
 import { API_BASE_URL, getAuthHeaders } from "@/lib/api";
 import {
   AlertTriangle,
-  Bell,
   CheckCircle2,
   ClipboardCheck,
-  Clock,
-  Download,
-  Layers,
   PackagePlus,
   Plus,
   PlusCircle,
-  Printer,
   RotateCcw,
   Save,
   Search,
   ShoppingCart,
-  SlidersHorizontal,
-  Sparkles,
   Trash2,
   User,
-  Wallet,
   X,
 } from "lucide-react";
 
@@ -1156,21 +1148,18 @@ export default function StokPage() {
                       key={item.sku}
                       className="p-3.5 rounded-xl bg-gray-50 border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg">{item.icon}</span>
-                        <div>
-                          <div className="text-xs sm:text-sm font-semibold text-black">
-                            {item.name}{" "}
-                            <span className="font-mono text-[11px] text-neutral-700 font-bold">
-                              [{item.sku}]
-                            </span>
-                          </div>
-                          <div className="text-xs text-neutral-800 font-medium">
-                            Stok Sistem:{" "}
-                            <strong className="font-semibold text-black">
-                              {item.stock} {item.unit}
-                            </strong>
-                          </div>
+                      <div>
+                        <div className="text-xs sm:text-sm font-semibold text-black">
+                          {item.name}{" "}
+                          <span className="font-mono text-[11px] text-neutral-700 font-bold">
+                            [{item.sku}]
+                          </span>
+                        </div>
+                        <div className="text-xs text-neutral-800 font-medium">
+                          Stok Sistem:{" "}
+                          <strong className="font-semibold text-black">
+                            {item.stock} {item.unit}
+                          </strong>
                         </div>
                       </div>
 
@@ -1738,42 +1727,33 @@ export default function StokPage() {
 
         {/* PAGE TITLE & ACTION SECTION */}
         <section className="print:hidden bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-neutral-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-          <div className="flex items-center gap-2.5 flex-wrap min-w-0">
-            <h2 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
-              Manajemen Stok &amp; Bahan Baku
-            </h2>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-800 text-[11px] font-semibold whitespace-nowrap">
-              <Sparkles size={11} className="text-violet-600 shrink-0" />
-              AI Agent
-            </span>
-          </div>
+          <h2 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
+            Manajemen Stok &amp; Bahan Baku
+          </h2>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end lg:self-center">
             <button
               type="button"
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black transition cursor-pointer whitespace-nowrap"
+              className="px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black transition cursor-pointer whitespace-nowrap"
             >
-              <Printer size={14} />
-              <span>Cetak Laporan</span>
+              Cetak Laporan
             </button>
 
             <button
               type="button"
               onClick={handleExportExcel}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 rounded-xl text-xs font-semibold text-emerald-800 transition cursor-pointer whitespace-nowrap"
+              className="px-3.5 py-2 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 rounded-xl text-xs font-semibold text-emerald-800 transition cursor-pointer whitespace-nowrap"
             >
-              <Download size={14} />
-              <span>Export Excel</span>
+              Export Excel
             </button>
 
             <button
               type="button"
               onClick={handleOpenOpnameModal}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black transition cursor-pointer whitespace-nowrap"
+              className="px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black transition cursor-pointer whitespace-nowrap"
             >
-              <ClipboardCheck size={14} className="text-black" />
-              <span>Audit / Opname Fisik</span>
+              Audit / Opname Fisik
             </button>
 
             <button
@@ -1790,132 +1770,94 @@ export default function StokPage() {
         {/* 4 SUMMARY KPI CARDS */}
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4 gap-4 print:gap-3">
           {/* Card 1: TOTAL ITEM AKTIF */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
-                TOTAL ITEM AKTIF
-              </p>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
-                  {kpiStats.totalItems}
-                </span>
-                <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
-                  Bahan Baku
-                </span>
-              </div>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-gray-100 border border-neutral-200 text-neutral-950 flex items-center justify-center shrink-0">
-              <Layers size={20} />
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
+              TOTAL ITEM AKTIF
+            </p>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
+                {kpiStats.totalItems}
+              </span>
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
+                Bahan Baku
+              </span>
             </div>
           </div>
 
           {/* Card 2: STOK KRITIS / RESTOCK */}
           <div
-            className={`rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border flex items-center justify-between gap-3 ${
+            className={`rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border ${
               kpiStats.criticalCount > 0
                 ? "bg-[#FFF5F5] border-red-300"
                 : "bg-emerald-50/60 border-emerald-300"
             }`}
           >
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <p
-                  className={`text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap ${
-                    kpiStats.criticalCount > 0
-                      ? "text-[#DC2626]"
-                      : "text-emerald-800"
-                  }`}
-                >
-                  STOK KRITIS / RESTOCK
-                </p>
-                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[9px] font-semibold whitespace-nowrap shrink-0">
-                  <Sparkles size={8} className="text-violet-600 shrink-0" />
-                  <span>AI Agent</span>
-                </span>
-              </div>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span
-                  className={`text-2xl print:text-lg font-extrabold whitespace-nowrap tabular-nums ${
-                    kpiStats.criticalCount > 0
-                      ? "text-[#DC2626]"
-                      : "text-emerald-800"
-                  }`}
-                >
-                  {kpiStats.criticalCount}
-                </span>
-                <span
-                  className={`text-xs font-medium whitespace-nowrap ${
-                    kpiStats.criticalCount > 0
-                      ? "text-red-700"
-                      : "text-emerald-700"
-                  }`}
-                >
-                  Bahan Baku
-                </span>
-              </div>
-              <div
-                className={`mt-1.5 flex items-center gap-1.5 text-xs font-medium min-w-0 ${
-                  kpiStats.criticalCount > 0
-                    ? "text-[#DC2626]"
-                    : "text-emerald-700"
-                }`}
-                title={kpiStats.criticalLabel}
-              >
-                <AlertTriangle size={14} className="shrink-0" />
-                <span className="truncate">{kpiStats.criticalLabel}</span>
-              </div>
-            </div>
-            <div
-              className={`w-11 h-11 print:w-8 print:h-8 rounded-xl border flex items-center justify-center shrink-0 ${
+            <p
+              className={`text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap ${
                 kpiStats.criticalCount > 0
-                  ? "bg-red-100 border-red-200 text-[#DC2626]"
-                  : "bg-emerald-100 border-emerald-200 text-emerald-700"
+                  ? "text-[#DC2626]"
+                  : "text-emerald-800"
               }`}
             >
-              <Bell size={20} />
+              STOK KRITIS / RESTOCK
+            </p>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span
+                className={`text-2xl print:text-lg font-extrabold whitespace-nowrap tabular-nums ${
+                  kpiStats.criticalCount > 0
+                    ? "text-[#DC2626]"
+                    : "text-emerald-800"
+                }`}
+              >
+                {kpiStats.criticalCount}
+              </span>
+              <span
+                className={`text-xs font-medium whitespace-nowrap ${
+                  kpiStats.criticalCount > 0
+                    ? "text-red-700"
+                    : "text-emerald-700"
+                }`}
+              >
+                Bahan Baku
+              </span>
+            </div>
+            <div
+              className={`mt-1.5 flex items-center gap-1.5 text-xs font-medium min-w-0 ${
+                kpiStats.criticalCount > 0
+                  ? "text-[#DC2626]"
+                  : "text-emerald-700"
+              }`}
+              title={kpiStats.criticalLabel}
+            >
+              <AlertTriangle size={14} className="shrink-0" />
+              <span className="truncate">{kpiStats.criticalLabel}</span>
             </div>
           </div>
 
           {/* Card 3: KETAHANAN OPERASIONAL */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
-                  KETAHANAN OPERASIONAL
-                </p>
-                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[9px] font-semibold whitespace-nowrap shrink-0">
-                  <Sparkles size={8} className="text-violet-600 shrink-0" />
-                  <span>AI Agent</span>
-                </span>
-              </div>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
-                  {kpiStats.avgDays}
-                </span>
-                <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
-                  Hari
-                </span>
-              </div>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-amber-50 border border-amber-200 text-[#D97706] flex items-center justify-center shrink-0">
-              <Clock size={20} />
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
+              KETAHANAN OPERASIONAL
+            </p>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
+                {kpiStats.avgDays}
+              </span>
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
+                Hari
+              </span>
             </div>
           </div>
 
           {/* Card 4: NILAI TOTAL INVENTARIS */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
-                NILAI TOTAL INVENTARIS
-              </p>
-              <div className="mt-2">
-                <span className="text-lg xl:text-xl print:text-base font-extrabold text-black whitespace-nowrap tabular-nums">
-                  Rp {Math.round(kpiStats.totalValue).toLocaleString("id-ID")}
-                </span>
-              </div>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
-              <Wallet size={20} />
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
+              NILAI TOTAL INVENTARIS
+            </p>
+            <div className="mt-2">
+              <span className="text-lg xl:text-xl print:text-base font-extrabold text-black whitespace-nowrap tabular-nums">
+                Rp {Math.round(kpiStats.totalValue).toLocaleString("id-ID")}
+              </span>
             </div>
           </div>
         </section>
@@ -1988,10 +1930,9 @@ export default function StokPage() {
                   type="button"
                   onClick={handleResetFilters}
                   title="Reset Filter"
-                  className="p-1.5 border border-neutral-400 rounded-xl text-black hover:bg-gray-100 transition cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                  className="px-2.5 py-1.5 border border-neutral-400 rounded-xl text-black hover:bg-gray-100 transition cursor-pointer text-xs font-semibold"
                 >
-                  <RotateCcw size={13} />
-                  <span>Reset</span>
+                  Reset
                 </button>
               </div>
             </div>
@@ -2082,26 +2023,23 @@ export default function StokPage() {
                       >
                         {/* Bahan Baku & SKU */}
                         <td className="py-2.5 px-2.5">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-base shrink-0">{item.icon}</span>
-                            <div className="min-w-0 flex-1">
-                              <div
-                                className="font-semibold text-black text-xs truncate"
-                                title={item.name}
+                          <div className="min-w-0">
+                            <div
+                              className="font-semibold text-black text-xs truncate"
+                              title={item.name}
+                            >
+                              {item.name}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                              <span className="font-mono inline-block px-1 py-0.2 rounded bg-gray-100 border border-neutral-200 text-neutral-950 font-bold text-[9px] shrink-0">
+                                {item.sku}
+                              </span>
+                              <span
+                                className="text-[10px] text-neutral-700 font-medium truncate"
+                                title={item.supplier}
                               >
-                                {item.name}
-                              </div>
-                              <div className="flex items-center gap-1 mt-0.5 min-w-0">
-                                <span className="font-mono inline-block px-1 py-0.2 rounded bg-gray-100 border border-neutral-200 text-neutral-950 font-bold text-[9px] shrink-0">
-                                  {item.sku}
-                                </span>
-                                <span
-                                  className="text-[10px] text-neutral-700 font-medium truncate"
-                                  title={item.supplier}
-                                >
-                                  {item.supplier.replace(/^Supplier:\s*/i, "")}
-                                </span>
-                              </div>
+                                {item.supplier.replace(/^Supplier:\s*/i, "")}
+                              </span>
                             </div>
                           </div>
                         </td>
@@ -2260,10 +2198,7 @@ export default function StokPage() {
           <div className="print:hidden xl:col-span-4 flex flex-col gap-5">
             {/* CARD 1: PENYESUAIAN CEPAT */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-neutral-200 flex flex-col gap-4">
-              <div className="flex items-center gap-3 pb-3.5 border-b border-neutral-200">
-                <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-black flex items-center justify-center shrink-0 shadow-xs">
-                  <SlidersHorizontal size={18} />
-                </div>
+              <div className="pb-3.5 border-b border-neutral-200">
                 <h3 className="font-display font-bold text-base text-black">
                   Penyesuaian Cepat
                 </h3>
@@ -2391,10 +2326,9 @@ export default function StokPage() {
 
                 <button
                   type="submit"
-                  className="w-full py-3 bg-[#F3A712] hover:bg-[#df980e] text-black font-semibold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-xs transition cursor-pointer mt-1"
+                  className="w-full py-3 bg-[#F3A712] hover:bg-[#df980e] text-black font-semibold text-xs sm:text-sm rounded-xl shadow-xs transition cursor-pointer mt-1"
                 >
-                  <Save size={15} />
-                  <span>Simpan Mutasi Stok</span>
+                  Simpan Mutasi Stok
                 </button>
               </form>
             </div>
