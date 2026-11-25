@@ -167,7 +167,7 @@ const TREND_CATEGORY_BADGE: Record<
   },
   operasional_normal: {
     label: "Operasional Normal",
-    className: "bg-slate-100 text-slate-700 border-slate-300",
+    className: "bg-neutral-100 text-neutral-800 border-neutral-300",
   },
 };
 
@@ -186,7 +186,7 @@ function AiAgentBadge({
     return (
       <span
         title={title}
-        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[9px] font-extrabold normal-case tracking-normal whitespace-nowrap align-middle"
+        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-[9px] font-semibold normal-case tracking-normal whitespace-nowrap align-middle"
       >
         <Sparkles size={8} className="text-violet-600 shrink-0" />
         <span>{label}</span>
@@ -196,7 +196,7 @@ function AiAgentBadge({
 
   const styles =
     variant === "dark"
-      ? "bg-gradient-to-r from-[#F3A712] via-[#FBBF24] to-[#F59E0B] text-gray-950 border-amber-200 shadow-xs"
+      ? "bg-gradient-to-r from-[#F3A712] via-[#FBBF24] to-[#F59E0B] text-black border-amber-200 shadow-xs"
       : variant === "red"
         ? "bg-white text-violet-800 border-violet-200 shadow-2xs"
         : "bg-violet-50 text-violet-800 border-violet-200";
@@ -204,7 +204,7 @@ function AiAgentBadge({
   return (
     <span
       title={title}
-      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide whitespace-nowrap shrink-0 border ${styles}`}
+      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wide whitespace-nowrap shrink-0 border ${styles}`}
     >
       <Sparkles
         size={10}
@@ -434,20 +434,20 @@ export default function AiStockForecastSection({
     "siklus_mahasiswa";
   const categoryBadge = TREND_CATEGORY_BADGE[rawTrendCategory] || {
     label: String(rawTrendCategory).replace(/_/g, " "),
-    className: "bg-gray-100 text-gray-700 border-gray-300",
+    className: "bg-neutral-100 text-neutral-800 border-neutral-300",
   };
 
   return (
-    <section className="print:hidden bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col">
+    <section className="print:hidden bg-white rounded-2xl shadow-sm border border-neutral-200 flex flex-col">
       {/* LAPISAN 1 — HEADER UTAMA */}
       <div className="bg-[#2D452B] text-white px-5 py-4 rounded-t-2xl flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-start gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-gray-950 flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+          <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-black flex items-center justify-center shrink-0 shadow-xs mt-0.5">
             <Sparkles size={19} />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm sm:text-base font-black tracking-tight text-white">
+              <h3 className="font-display text-sm sm:text-base font-bold tracking-tight text-white">
                 Prediksi Kebutuhan Stok &amp; Analisis Tren Pasar
               </h3>
               <AiAgentBadge variant="dark" />
@@ -456,7 +456,7 @@ export default function AiStockForecastSection({
                   title={
                     forecast.aiFallbackReason || forecast.aiEngine || undefined
                   }
-                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap bg-emerald-500/20 border-emerald-300/40 text-emerald-100"
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap bg-emerald-500/20 border-emerald-300/40 text-emerald-100"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
                   <span>
@@ -467,7 +467,7 @@ export default function AiStockForecastSection({
                 </span>
               )}
             </div>
-            <p className="text-xs text-emerald-100/90 font-medium mt-1 leading-relaxed">
+            <p className="text-xs text-emerald-100/95 font-medium mt-1 leading-relaxed">
               Deteksi mandiri tren pasar Malang, proyeksi konsumsi harian, dan
               saran PO otomatis untuk menjaga stok aman{" "}
               {forecast?.summary.targetSafeDays ?? 4} hari.
@@ -482,7 +482,7 @@ export default function AiStockForecastSection({
               fetchForecast(selectedTrend, appliedCustomContext, true)
             }
             disabled={isLoading}
-            className="h-9 flex items-center gap-1.5 px-3.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
+            className="h-9 flex items-center gap-1.5 px-3.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
           >
             <RefreshCw
               size={13}
@@ -495,7 +495,7 @@ export default function AiStockForecastSection({
             type="button"
             onClick={handleTriggerSmartPo}
             disabled={isLoading || recommendedPoItems.length === 0}
-            className="h-9 flex items-center gap-1.5 px-3.5 rounded-xl bg-[#F3A712] hover:bg-[#df980e] disabled:opacity-50 disabled:cursor-not-allowed text-gray-950 text-xs font-extrabold shadow-xs transition cursor-pointer whitespace-nowrap"
+            className="h-9 flex items-center gap-1.5 px-3.5 rounded-xl bg-[#F3A712] hover:bg-[#df980e] disabled:opacity-50 disabled:cursor-not-allowed text-black text-xs font-semibold shadow-xs transition cursor-pointer whitespace-nowrap"
           >
             <ShoppingCart size={14} />
             <span>
@@ -517,13 +517,13 @@ export default function AiStockForecastSection({
             onClick={() => handleSelectTrend("auto")}
             className={`h-8 inline-flex items-center gap-1.5 px-3.5 rounded-full text-xs border transition cursor-pointer disabled:opacity-60 whitespace-nowrap ${
               isAutoMode
-                ? "bg-[#2D452B] text-white border-[#2D452B] font-extrabold shadow-2xs"
-                : "bg-white text-gray-700 border-gray-300 font-bold hover:border-[#2D452B]/50 hover:text-[#2D452B]"
+                ? "bg-[#2D452B] text-white border-[#2D452B] font-semibold shadow-2xs"
+                : "bg-white text-black border-neutral-400 font-semibold hover:border-[#2D452B] hover:text-[#2D452B]"
             }`}
           >
             <Sparkles
               size={12}
-              className={isAutoMode ? "text-[#F3A712]" : "text-gray-500"}
+              className={isAutoMode ? "text-[#F3A712]" : "text-neutral-700"}
             />
             <span>Otomatis (AI Agent)</span>
           </button>
@@ -538,13 +538,13 @@ export default function AiStockForecastSection({
               onClick={() => setIsSimMenuOpen((prev) => !prev)}
               className={`h-8 inline-flex items-center gap-2 pl-3 pr-2.5 rounded-full text-xs border transition cursor-pointer disabled:opacity-60 whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-[#2D452B]/25 ${
                 !isAutoMode
-                  ? "bg-[#2D452B] text-white border-[#2D452B] font-extrabold shadow-2xs"
-                  : "bg-white text-gray-700 border-gray-300 font-bold hover:border-[#2D452B]/50 hover:text-[#2D452B]"
+                  ? "bg-[#2D452B] text-white border-[#2D452B] font-semibold shadow-2xs"
+                  : "bg-white text-black border-neutral-400 font-semibold hover:border-[#2D452B] hover:text-[#2D452B]"
               }`}
             >
               <SlidersHorizontal
                 size={12}
-                className={!isAutoMode ? "text-[#F3A712] shrink-0" : "text-gray-500 shrink-0"}
+                className={!isAutoMode ? "text-[#F3A712] shrink-0" : "text-neutral-700 shrink-0"}
               />
               <span>
                 {!isAutoMode && activeManualOption
@@ -555,7 +555,7 @@ export default function AiStockForecastSection({
                 size={13}
                 className={`transition-transform duration-150 shrink-0 ${
                   isSimMenuOpen ? "rotate-180" : ""
-                } ${!isAutoMode ? "text-emerald-100" : "text-gray-500"}`}
+                } ${!isAutoMode ? "text-emerald-100" : "text-neutral-700"}`}
               />
             </button>
 
@@ -563,9 +563,9 @@ export default function AiStockForecastSection({
               <div
                 role="listbox"
                 aria-label="Pilihan Skenario Simulasi Tren"
-                className="absolute left-0 top-full mt-1.5 z-30 w-56 bg-white text-gray-900 border border-gray-200 rounded-xl shadow-lg py-1.5 overflow-hidden"
+                className="absolute left-0 top-full mt-1.5 z-30 w-56 bg-white text-black border border-neutral-300 rounded-xl shadow-lg py-1.5 overflow-hidden"
               >
-                <div className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-gray-400">
+                <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-700">
                   Pilih Skenario Simulasi
                 </div>
                 {MANUAL_SCENARIO_OPTIONS.map((opt) => {
@@ -582,8 +582,8 @@ export default function AiStockForecastSection({
                       }}
                       className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between gap-2 transition-colors cursor-pointer ${
                         isSelected
-                          ? "bg-emerald-50 text-[#2D452B] font-extrabold"
-                          : "bg-white text-gray-800 font-semibold hover:bg-gray-50"
+                          ? "bg-emerald-50 text-[#2D452B] font-semibold"
+                          : "bg-white text-black font-medium hover:bg-neutral-100"
                       }`}
                     >
                       <span className="truncate">Simulasi: {opt.label}</span>
@@ -597,14 +597,14 @@ export default function AiStockForecastSection({
                   );
                 })}
                 {!isAutoMode && (
-                  <div className="mt-1 pt-1 border-t border-gray-100">
+                  <div className="mt-1 pt-1 border-t border-neutral-200">
                     <button
                       type="button"
                       onClick={() => {
                         setIsSimMenuOpen(false);
                         handleSelectTrend("auto");
                       }}
-                      className="w-full px-3 py-2 text-left text-xs font-bold text-[#2D452B] bg-white hover:bg-emerald-50/70 flex items-center gap-1.5 transition-colors cursor-pointer"
+                      className="w-full px-3 py-2 text-left text-xs font-semibold text-[#2D452B] bg-white hover:bg-emerald-50/70 flex items-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <Sparkles size={12} className="text-[#EA8E18] shrink-0" />
                       <span>Kembali ke Otomatis (AI)</span>
@@ -637,7 +637,7 @@ export default function AiStockForecastSection({
               value={customContextInput}
               onChange={(e) => setCustomContextInput(e.target.value)}
               placeholder="Konteks lapangan opsional: misal hujan deras, wisuda UM, atau ada event kampus..."
-              className="h-8 w-full pl-8 pr-7 bg-white border border-gray-300 rounded-xl text-xs font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#EA8E18] disabled:opacity-60"
+              className="h-8 w-full pl-8 pr-7 bg-white border border-neutral-300 rounded-xl text-xs font-medium text-black placeholder:text-neutral-400 focus:outline-none focus:border-[#EA8E18] disabled:opacity-60"
             />
             {(customContextInput || appliedCustomContext) && (
               <button
@@ -645,7 +645,7 @@ export default function AiStockForecastSection({
                 onClick={handleClearCustomContext}
                 title="Hapus konteks lapangan"
                 aria-label="Hapus konteks lapangan"
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 cursor-pointer"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black cursor-pointer"
               >
                 <X size={13} />
               </button>
@@ -655,7 +655,7 @@ export default function AiStockForecastSection({
           <button
             type="submit"
             disabled={isLoading}
-            className="h-8 inline-flex items-center gap-1.5 px-3.5 rounded-xl bg-[#2D452B] hover:bg-[#1f331e] disabled:opacity-50 text-white text-xs font-extrabold shadow-2xs transition cursor-pointer shrink-0 whitespace-nowrap"
+            className="h-8 inline-flex items-center gap-1.5 px-3.5 rounded-xl bg-[#2D452B] hover:bg-[#1f331e] disabled:opacity-50 text-white text-xs font-semibold shadow-2xs transition cursor-pointer shrink-0 whitespace-nowrap"
           >
             {isLoading ? (
               <Loader2 size={12} className="animate-spin" />
@@ -680,7 +680,7 @@ export default function AiStockForecastSection({
               onClick={() =>
                 fetchForecast(selectedTrend, appliedCustomContext, true)
               }
-              className="px-3 py-1 rounded-lg bg-white border border-red-300 text-[#DC2626] hover:bg-red-100 text-[11px] font-extrabold cursor-pointer shrink-0"
+              className="px-3 py-1 rounded-lg bg-white border border-red-300 text-[#DC2626] hover:bg-red-100 text-[11px] font-semibold cursor-pointer shrink-0"
             >
               Coba Lagi
             </button>
@@ -688,7 +688,7 @@ export default function AiStockForecastSection({
         )}
 
         {isLoading && !forecast ? (
-          <div className="py-10 flex flex-col items-center justify-center gap-2.5 text-gray-500">
+          <div className="py-10 flex flex-col items-center justify-center gap-2.5 text-neutral-700">
             <Loader2 size={24} className="animate-spin text-[#EA8E18]" />
             <p className="text-xs font-bold text-[#2D452B]">
               Gemini AI sedang menganalisis stok...
@@ -712,15 +712,15 @@ export default function AiStockForecastSection({
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-xs sm:text-sm font-black text-[#991B1B]">
+                        <h4 className="font-display text-xs sm:text-sm font-bold text-[#991B1B]">
                           Peringatan Dini Stok Kritis (&lt; 2 Hari)
                         </h4>
                         <AiAgentBadge variant="red" />
-                        <span className="px-2 py-0.5 rounded-full bg-[#DC2626] text-white text-[10px] font-extrabold uppercase tracking-wider">
+                        <span className="px-2 py-0.5 rounded-full bg-[#DC2626] text-white text-[10px] font-semibold uppercase tracking-wider">
                           {urgentItems.length} Bahan Urgent
                         </span>
                       </div>
-                      <p className="text-xs text-red-900/90 font-medium mt-1 leading-relaxed">
+                      <p className="text-xs text-red-950 font-medium mt-1 leading-relaxed">
                         {geminiInsight?.urgentAnalysis ||
                           `Terdapat ${urgentItems.length} bahan baku dengan estimasi habis < 2 hari atau di bawah batas aman pada kondisi ${detectedTrendTitle}.`}
                       </p>
@@ -731,7 +731,7 @@ export default function AiStockForecastSection({
                     <button
                       type="button"
                       onClick={handleTriggerSmartPo}
-                      className="h-8 px-3.5 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-2xs transition cursor-pointer whitespace-nowrap"
+                      className="h-8 px-3.5 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition cursor-pointer whitespace-nowrap"
                     >
                       <ShoppingCart size={13} />
                       <span>Muat ke Form PO</span>
@@ -744,7 +744,7 @@ export default function AiStockForecastSection({
                           "Peringatan PO ditandai sudah dipesan ke supplier!"
                         );
                       }}
-                      className="h-8 px-3.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-300 text-gray-800 text-xs font-extrabold flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap"
+                      className="h-8 px-3.5 rounded-xl bg-white hover:bg-neutral-50 border border-neutral-400 text-black text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap"
                     >
                       <CheckCircle2 size={13} className="text-[#2D452B]" />
                       <span>Tandai Sudah Dipesan</span>
@@ -763,16 +763,16 @@ export default function AiStockForecastSection({
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-extrabold text-gray-900 truncate">
+                            <span className="text-xs font-semibold text-black truncate">
                               {item.name}
                             </span>
-                            <span className="text-[10px] font-bold text-gray-400 shrink-0">
+                            <span className="font-mono text-[10px] font-bold text-neutral-700 shrink-0">
                               {sku}
                             </span>
                           </div>
-                          <div className="text-[11px] font-semibold text-gray-500 mt-0.5 tabular-nums">
+                          <div className="text-[11px] font-medium text-neutral-800 mt-0.5 tabular-nums">
                             Sisa{" "}
-                            <strong className="text-gray-800">
+                            <strong className="font-semibold text-black">
                               {formatQty(item.currentStock, item.unit)}{" "}
                               {item.unit}
                             </strong>{" "}
@@ -781,10 +781,10 @@ export default function AiStockForecastSection({
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="text-xs font-black text-[#DC2626] tabular-nums">
+                          <div className="text-xs font-bold text-[#DC2626] tabular-nums">
                             ~{item.estimatedDaysLeft.toFixed(1)} Hari
                           </div>
-                          <div className="text-[11px] font-extrabold text-[#B45309] tabular-nums mt-0.5">
+                          <div className="text-[11px] font-semibold text-[#B45309] tabular-nums mt-0.5">
                             {poQty > 0
                               ? `PO +${formatQty(poQty, item.unit)} ${item.unit}`
                               : "Di bawah aman"}
@@ -814,7 +814,7 @@ export default function AiStockForecastSection({
                         <Lightbulb size={16} />
                       </div>
                       <div className="flex items-center gap-2 flex-wrap min-w-0">
-                        <h4 className="text-xs sm:text-sm font-black text-gray-900 leading-tight">
+                        <h4 className="font-display text-xs sm:text-sm font-bold text-black leading-tight">
                           Strategi Operasional &amp; Deteksi Tren
                         </h4>
                         <AiAgentBadge
@@ -825,7 +825,7 @@ export default function AiStockForecastSection({
                       </div>
                     </div>
 
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white border border-amber-300 text-[#B45309] text-[10px] font-extrabold whitespace-nowrap shrink-0">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white border border-amber-300 text-[#B45309] text-[10px] font-semibold whitespace-nowrap shrink-0">
                       {activeMeta.impactRange}
                     </span>
                   </div>
@@ -833,16 +833,16 @@ export default function AiStockForecastSection({
                   {/* Ringkasan Tren Terdeteksi & Kategori */}
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs sm:text-[13px] font-black text-[#2D452B]">
+                      <span className="text-xs sm:text-[13px] font-bold text-[#2D452B]">
                         {detectedTrendTitle}
                       </span>
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${categoryBadge.className}`}
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${categoryBadge.className}`}
                       >
                         {categoryBadge.label}
                       </span>
                       {activeMeta.cycleInfo && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-emerald-200 text-[#2D452B] text-[10px] font-bold">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-emerald-200 text-[#2D452B] text-[10px] font-medium">
                           <CalendarClock
                             size={10}
                             className="text-[#EA8E18] shrink-0"
@@ -853,13 +853,13 @@ export default function AiStockForecastSection({
                     </div>
 
                     {detectionReasonText && (
-                      <p className="text-[11px] font-semibold text-gray-600 leading-relaxed">
+                      <p className="text-[11px] font-medium text-neutral-800 leading-relaxed">
                         {detectionReasonText}
                       </p>
                     )}
 
                     {appliedCustomContext && (
-                      <div className="inline-flex items-center gap-1.5 self-start px-2.5 py-0.5 rounded-full bg-amber-100/90 border border-amber-300 text-[10px] font-bold text-[#92400E]">
+                      <div className="inline-flex items-center gap-1.5 self-start px-2.5 py-0.5 rounded-full bg-amber-100/90 border border-amber-300 text-[10px] font-medium text-[#92400E]">
                         <span>Konteks: &ldquo;{appliedCustomContext}&rdquo;</span>
                         <button
                           type="button"
@@ -879,7 +879,7 @@ export default function AiStockForecastSection({
                       size={15}
                       className="text-[#2D452B] shrink-0 mt-0.5"
                     />
-                    <p className="text-xs text-gray-800 font-semibold leading-relaxed">
+                    <p className="text-xs text-black font-medium leading-relaxed">
                       {geminiInsight?.kitchenStrategy || activeMeta.description}
                     </p>
                   </div>
@@ -893,7 +893,7 @@ export default function AiStockForecastSection({
                         <Megaphone size={16} />
                       </div>
                       <div className="flex items-center gap-2 flex-wrap min-w-0">
-                        <h4 className="text-xs sm:text-sm font-black text-gray-900 leading-tight">
+                        <h4 className="font-display text-xs sm:text-sm font-bold text-black leading-tight">
                           Rekomendasi Promo &amp; Bundling Menu
                         </h4>
                         <AiAgentBadge
@@ -904,12 +904,12 @@ export default function AiStockForecastSection({
                       </div>
                     </div>
 
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#2D452B]/10 border border-[#2D452B]/20 text-[#2D452B] text-[10px] font-extrabold whitespace-nowrap shrink-0">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#2D452B]/10 border border-[#2D452B]/20 text-[#2D452B] text-[10px] font-semibold whitespace-nowrap shrink-0">
                       Ide Penjualan
                     </span>
                   </div>
 
-                  <p className="text-[11px] font-semibold text-gray-600 leading-relaxed">
+                  <p className="text-[11px] font-medium text-neutral-800 leading-relaxed">
                     Saran bundling menu &amp; taktik promo untuk mengoptimalkan
                     stok bahan yang melimpah dan menyesuaikan daya beli
                     pelanggan saat ini.
@@ -920,21 +920,21 @@ export default function AiStockForecastSection({
                       size={15}
                       className="text-[#EA8E18] shrink-0 mt-0.5"
                     />
-                    <p className="text-xs text-gray-800 font-semibold leading-relaxed">
+                    <p className="text-xs text-black font-medium leading-relaxed">
                       {geminiInsight?.promoSuggestion ||
                         "Optimalkan paket bundling menu utama dengan lauk tambahan untuk menjaga margin dan perputaran bahan harian."}
                     </p>
                   </div>
 
-                  <div className="pt-2 border-t border-gray-200/80 flex items-center justify-between gap-2 flex-wrap text-[11px] text-gray-500 font-semibold">
+                  <div className="pt-2 border-t border-neutral-200 flex items-center justify-between gap-2 flex-wrap text-[11px] text-neutral-800 font-medium">
                     <span>
                       Basis POS:{" "}
-                      <strong className="text-gray-800 tabular-nums">
+                      <strong className="font-semibold text-black tabular-nums">
                         {forecast.summary.totalTransactions7d} transaksi
                       </strong>{" "}
                       ({forecast.summary.totalItemsSold7d} item / 7 hr)
                     </span>
-                    <span className="text-[#2D452B] font-extrabold tabular-nums">
+                    <span className="text-[#2D452B] font-semibold tabular-nums">
                       {forecast.summary.needPoCount} perlu PO •{" "}
                       {forecast.summary.safeCount} aman
                     </span>
@@ -953,14 +953,14 @@ export default function AiStockForecastSection({
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <h4 className="text-xs sm:text-sm font-extrabold text-gray-900">
+                  <h4 className="font-display text-xs sm:text-sm font-bold text-black">
                     Proyeksi Konsumsi &amp; Rekomendasi PO per Bahan Baku
                   </h4>
-                  <p className="text-[11px] text-gray-500 font-medium">
-                    Kolom bertanda <strong className="text-violet-700">AI Agent</strong>{" "}
+                  <p className="text-[11px] text-neutral-800 font-medium">
+                    Kolom bertanda <strong className="font-semibold text-violet-700">AI Agent</strong>{" "}
                     dihitung dinamis dari pola transaksi POS dan tren aktif,
-                    sedangkan <strong>Bahan Baku</strong> &amp;{" "}
-                    <strong>Stok Saat Ini</strong> adalah data aktual MariaDB.
+                    sedangkan <strong className="font-semibold text-black">Bahan Baku</strong> &amp;{" "}
+                    <strong className="font-semibold text-black">Stok Saat Ini</strong> adalah data aktual MariaDB.
                   </p>
                 </div>
 
@@ -968,7 +968,7 @@ export default function AiStockForecastSection({
                   <button
                     type="button"
                     onClick={() => setShowAllRows((prev) => !prev)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-extrabold transition cursor-pointer self-start sm:self-center shrink-0"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-neutral-100 border border-neutral-400 text-black text-xs font-semibold transition cursor-pointer self-start sm:self-center shrink-0"
                   >
                     {showAllRows ? (
                       <>
@@ -985,10 +985,10 @@ export default function AiStockForecastSection({
                 )}
               </div>
 
-              <div className="overflow-x-auto border border-gray-200 rounded-xl">
+              <div className="overflow-x-auto border border-neutral-300 rounded-xl">
                 <table className="w-full min-w-[780px] text-left border-collapse text-xs">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200 text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">
+                    <tr className="bg-neutral-50 border-b border-neutral-300 text-[10px] font-semibold text-neutral-700 uppercase tracking-wider">
                       <th className="py-3 pl-4 pr-3 whitespace-nowrap">
                         Bahan Baku
                       </th>
@@ -1018,7 +1018,7 @@ export default function AiStockForecastSection({
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 text-gray-800">
+                  <tbody className="divide-y divide-neutral-200 text-black">
                     {visibleItems.map((item) => {
                       const sku = formatSkuFromId(item.id);
                       const isPositiveImpact = item.trendImpactPercent > 0;
@@ -1042,33 +1042,33 @@ export default function AiStockForecastSection({
                           }`}
                         >
                           <td className="py-3 pl-4 pr-3">
-                            <div className="font-extrabold text-gray-900">
+                            <div className="font-semibold text-black">
                               {item.name}
                             </div>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-gray-600 text-[10px] font-bold">
+                              <span className="font-mono px-1.5 py-0.5 rounded bg-neutral-100 border border-neutral-300 text-neutral-800 text-[10px] font-bold">
                                 {sku}
                               </span>
-                              <span className="text-[10px] text-gray-500 font-medium tabular-nums">
+                              <span className="text-[10px] text-neutral-700 font-medium tabular-nums">
                                 Safety: {formatQty(item.minStock, item.unit)}{" "}
                                 {item.unit}
                               </span>
                             </div>
                           </td>
 
-                          <td className="py-3 px-3 text-right font-extrabold text-gray-900 whitespace-nowrap tabular-nums">
+                          <td className="py-3 px-3 text-right font-semibold text-black whitespace-nowrap tabular-nums">
                             {formatQty(item.currentStock, item.unit)}{" "}
-                            <span className="text-gray-500 font-semibold">
+                            <span className="text-neutral-700 font-medium">
                               {item.unit}
                             </span>
                           </td>
 
                           <td className="py-3 px-3 text-right whitespace-nowrap tabular-nums">
-                            <div className="font-extrabold text-gray-900">
+                            <div className="font-semibold text-black">
                               {formatQty(item.projectedDailyBurn, item.unit)}{" "}
                               {item.unit}/hr
                             </div>
-                            <div className="text-[10px] text-gray-500 font-medium">
+                            <div className="text-[10px] text-neutral-700 font-medium">
                               {item.burnSource === "sales_7d"
                                 ? "Data jual 7 hr"
                                 : item.burnSource === "blended"
@@ -1079,12 +1079,12 @@ export default function AiStockForecastSection({
 
                           <td className="py-3 px-3 text-center whitespace-nowrap">
                             <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold border tabular-nums ${
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border tabular-nums ${
                                 isPositiveImpact
                                   ? "bg-amber-50 text-[#B45309] border-amber-300"
                                   : isNegativeImpact
                                     ? "bg-blue-50 text-blue-700 border-blue-200"
-                                    : "bg-gray-100 text-gray-600 border-gray-200"
+                                    : "bg-neutral-100 text-neutral-800 border-neutral-300"
                               }`}
                             >
                               {isPositiveImpact
@@ -1095,7 +1095,7 @@ export default function AiStockForecastSection({
 
                           <td className="py-3 px-3 text-center whitespace-nowrap">
                             <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border tabular-nums ${
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border tabular-nums ${
                                 item.urgencyLevel === "KRITIS"
                                   ? "bg-red-50 text-[#DC2626] border-red-300"
                                   : item.urgencyLevel === "WASPADA"
@@ -1110,7 +1110,7 @@ export default function AiStockForecastSection({
                           <td className="py-3 pl-3 pr-4 text-right whitespace-nowrap tabular-nums">
                             {roundedPo > 0 ? (
                               <span
-                                className={`font-black ${
+                                className={`font-bold ${
                                   isCriticalRow
                                     ? "text-[#DC2626]"
                                     : "text-[#EA8E18]"
@@ -1120,7 +1120,7 @@ export default function AiStockForecastSection({
                                 +{formatQty(roundedPo, item.unit)} {item.unit}
                               </span>
                             ) : (
-                              <span className="text-[11px] font-bold text-emerald-700">
+                              <span className="text-[11px] font-medium text-emerald-700">
                                 Stok Aman
                               </span>
                             )}

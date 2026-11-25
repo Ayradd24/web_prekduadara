@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE_URL, getAuthHeaders } from "@/lib/api";
@@ -9,7 +10,6 @@ import {
   CheckCircle2,
   Edit3,
   Flame,
-  ImageIcon,
   Layers,
   Package,
   PlusCircle,
@@ -272,7 +272,10 @@ export default function ManajemenMenuPage() {
   }, []);
 
   useEffect(() => {
-    loadProductsFromDB();
+    const timer = setTimeout(() => {
+      void loadProductsFromDB();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [loadProductsFromDB]);
 
   // Handler saat user memilih file gambar (klik atau drag & drop)
@@ -527,7 +530,7 @@ export default function ManajemenMenuPage() {
     const pages: number[] = [];
     const maxVisible = 5;
     let start = Math.max(1, currentPage - 2);
-    let end = Math.min(totalPages, start + maxVisible - 1);
+    const end = Math.min(totalPages, start + maxVisible - 1);
     if (end - start + 1 < maxVisible) {
       start = Math.max(1, end - maxVisible + 1);
     }
@@ -545,7 +548,7 @@ export default function ManajemenMenuPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans items-start text-gray-900">
+    <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans items-start text-black">
       {/* Toast Notification */}
       {toastMsg && (
         <div
@@ -575,13 +578,13 @@ export default function ManajemenMenuPage() {
           onClick={() => !isDeleting && setDeleteTarget(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden"
+            className="bg-white rounded-2xl shadow-2xl border border-neutral-200 w-full max-w-md overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-[#2D452B] text-white px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <AlertTriangle size={18} className="text-[#F3A712]" />
-                <h3 className="text-sm sm:text-base font-extrabold">
+                <h3 className="font-display text-sm sm:text-base font-bold">
                   Hapus Menu dari Database?
                 </h3>
               </div>
@@ -596,26 +599,26 @@ export default function ManajemenMenuPage() {
             </div>
 
             <div className="p-5 space-y-3">
-              <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
+              <p className="text-xs sm:text-sm text-neutral-950 leading-relaxed">
                 Anda akan menghapus menu{" "}
-                <strong className="text-gray-950 font-extrabold">
+                <strong className="text-black font-semibold">
                   {deleteTarget.name}
                 </strong>{" "}
                 ({formatRupiah(deleteTarget.price)}) dari daftar produk POS.
               </p>
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-semibold">
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-medium">
                 Tindakan ini akan menghapus data menu secara permanen dari tabel{" "}
                 <code className="font-mono font-bold">products</code> di
                 MariaDB.
               </div>
             </div>
 
-            <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-2.5">
+            <div className="px-5 py-3.5 bg-gray-50 border-t border-neutral-200 flex items-center justify-end gap-2.5">
               <button
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setDeleteTarget(null)}
-                className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 transition cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-neutral-400 bg-white hover:bg-gray-100 text-xs font-semibold text-black transition cursor-pointer"
               >
                 Batal
               </button>
@@ -623,7 +626,7 @@ export default function ManajemenMenuPage() {
                 type="button"
                 disabled={isDeleting}
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] disabled:opacity-60 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] disabled:opacity-60 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
               >
                 <Trash2 size={14} />
                 <span>{isDeleting ? "Menghapus..." : "Ya, Hapus Menu"}</span>
@@ -641,39 +644,41 @@ export default function ManajemenMenuPage() {
       {/* 2. KONTEN UTAMA MANAJEMEN MENU */}
       <main className="flex-1 flex flex-col gap-5 overflow-x-hidden max-w-full">
         {/* TOP HEADER BAR (SERAGAM DENGAN SELURUH HALAMAN DASHBOARD) */}
-        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
+        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-neutral-200 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img
+            <Image
               src="/logo.png"
               alt="Logo PrekDuaDara"
-              className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-xs shrink-0"
+              width={40}
+              height={40}
+              className="w-10 h-10 rounded-full object-cover border border-neutral-200 shadow-xs shrink-0"
             />
             <div>
-              <div className="font-extrabold text-base text-[#EA8E18] tracking-tight leading-tight">
+              <div className="font-display font-bold text-lg text-[#EA8E18] tracking-tight leading-tight">
                 PrekDuaDara
               </div>
-              <div className="text-xs text-gray-600 font-medium leading-tight mt-0.5">
+              <div className="text-xs text-neutral-800 font-medium leading-tight mt-0.5">
                 Manajemen Menu &amp; Daftar Produk POS
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
-            <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
+            <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-semibold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
-            <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
+            <div className="flex items-center gap-2.5 pl-3 border-l border-neutral-200 shrink-0">
               <div className="text-right">
-                <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
+                <div className="text-xs font-semibold text-black leading-tight whitespace-nowrap">
                   {user?.name || "Admin"}
                 </div>
-                <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
+                <div className="text-[11px] text-[#EA8E18] font-medium leading-tight mt-0.5 whitespace-nowrap">
                   {user?.role || "Owner"}
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-semibold text-xs flex items-center justify-center shadow-xs shrink-0">
                 <User size={16} />
               </div>
             </div>
@@ -681,14 +686,14 @@ export default function ManajemenMenuPage() {
         </header>
 
         {/* PAGE TITLE & ACTION SECTION */}
-        <section className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
+        <section className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-neutral-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+              <h2 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
                 Manajemen Menu &amp; Katalog Produk
               </h2>
               <span
-                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
                   dbConnected
                     ? "bg-emerald-50 border-emerald-300 text-emerald-800"
                     : "bg-amber-50 border-amber-300 text-amber-800"
@@ -704,7 +709,7 @@ export default function ManajemenMenuPage() {
                   : "Menunggu Koneksi Backend"}
               </span>
             </div>
-            <p className="text-xs text-gray-600 mt-1.5 max-w-2xl leading-relaxed font-medium">
+            <p className="text-xs text-neutral-800 mt-1.5 max-w-2xl leading-relaxed font-medium">
               Kelola daftar menu Paket Utama dan Tambahan PrekDuaDara, atur
               harga jual serta deskripsi menu agar langsung tersinkronisasi ke
               aplikasi Kasir POS.
@@ -718,7 +723,7 @@ export default function ManajemenMenuPage() {
                 loadProductsFromDB();
                 showToast("Menyegarkan daftar menu dari database...", "info");
               }}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 transition cursor-pointer whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black transition cursor-pointer whitespace-nowrap"
             >
               <RefreshCw
                 size={14}
@@ -735,7 +740,7 @@ export default function ManajemenMenuPage() {
                 el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
                 setTimeout(() => nameInputRef.current?.focus(), 120);
               }}
-              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#F3A712] hover:bg-[#df980e] text-gray-950 font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#F3A712] hover:bg-[#df980e] text-black font-semibold text-xs rounded-xl shadow-xs transition cursor-pointer whitespace-nowrap"
             >
               <PlusCircle size={14} />
               <span>+ Tambah Menu Baru</span>
@@ -746,44 +751,44 @@ export default function ManajemenMenuPage() {
         {/* 4 SUMMARY KPI CARDS */}
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {/* Card 1: TOTAL MENU */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex items-center justify-between gap-3">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+              <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
                 TOTAL MENU AKTIF
               </p>
               <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-gray-900 whitespace-nowrap tabular-nums">
+                <span className="text-2xl font-extrabold text-black whitespace-nowrap tabular-nums">
                   {kpiStats.totalMenus}
                 </span>
-                <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
+                <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
                   Produk
                 </span>
               </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-semibold min-w-0">
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-medium min-w-0">
                 <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
                 <span className="truncate">Database `products` Aktif</span>
               </div>
             </div>
-            <div className="w-11 h-11 rounded-xl bg-gray-100 border border-gray-200 text-gray-700 flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 rounded-xl bg-gray-100 border border-neutral-200 text-neutral-950 flex items-center justify-center shrink-0">
               <UtensilsCrossed size={20} />
             </div>
           </div>
 
           {/* Card 2: PAKET MENU */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex items-center justify-between gap-3">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+              <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
                 PAKET MENU UTAMA
               </p>
               <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-gray-900 whitespace-nowrap tabular-nums">
+                <span className="text-2xl font-extrabold text-black whitespace-nowrap tabular-nums">
                   {kpiStats.paketCount}
                 </span>
-                <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
+                <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
                   Paket
                 </span>
               </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-[#2D452B] font-semibold min-w-0">
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-[#2D452B] font-medium min-w-0">
                 <Package size={14} className="text-[#2D452B] shrink-0" />
                 <span className="truncate">Menu paket nasi &amp; geprek</span>
               </div>
@@ -794,20 +799,20 @@ export default function ManajemenMenuPage() {
           </div>
 
           {/* Card 3: MENU TAMBAHAN */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex items-center justify-between gap-3">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+              <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
                 MENU TAMBAHAN
               </p>
               <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-gray-900 whitespace-nowrap tabular-nums">
+                <span className="text-2xl font-extrabold text-black whitespace-nowrap tabular-nums">
                   {kpiStats.tambahanCount}
                 </span>
-                <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
+                <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
                   Add-on
                 </span>
               </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-amber-700 font-semibold min-w-0">
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-amber-700 font-medium min-w-0">
                 <Tag size={14} className="text-[#D97706] shrink-0" />
                 <span className="truncate">Lauk, minuman &amp; ekstra</span>
               </div>
@@ -818,17 +823,17 @@ export default function ManajemenMenuPage() {
           </div>
 
           {/* Card 4: RATA-RATA HARGA */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex items-center justify-between gap-3">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+              <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
                 RATA-RATA HARGA
               </p>
               <div className="mt-2">
-                <span className="text-lg xl:text-xl font-black text-gray-900 whitespace-nowrap tabular-nums">
+                <span className="text-lg xl:text-xl font-extrabold text-black whitespace-nowrap tabular-nums">
                   {formatRupiah(kpiStats.avgPrice)}
                 </span>
               </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-600 font-semibold min-w-0">
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-neutral-800 font-medium min-w-0">
                 <Flame size={14} className="text-[#DC2626] shrink-0" />
                 <span className="truncate">4 Pilihan Sambal Tersedia</span>
               </div>
@@ -851,14 +856,14 @@ export default function ManajemenMenuPage() {
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-xs sm:text-sm font-extrabold text-gray-900">
+                    <h3 className="font-display text-xs sm:text-sm font-bold text-black">
                       4 Pilihan Sambal Tersedia Saat Order
                     </h3>
-                    <span className="px-2 py-0.5 rounded-full bg-white border border-amber-300 text-[#B45309] text-[10px] font-extrabold uppercase tracking-wide">
+                    <span className="px-2 py-0.5 rounded-full bg-white border border-amber-300 text-[#B45309] text-[10px] font-semibold uppercase tracking-wide">
                       Varian Kasir POS
                     </span>
                   </div>
-                  <p className="text-[11px] text-gray-600 font-medium mt-0.5 leading-relaxed">
+                  <p className="text-[11px] text-neutral-700 font-medium mt-0.5 leading-relaxed">
                     Pelanggan dapat memilih varian sambal berikut pada setiap
                     pesanan dan otomatis tercatat di rincian transaksi.
                   </p>
@@ -869,7 +874,7 @@ export default function ManajemenMenuPage() {
                 {SAMBAL_OPTIONS.map((sambal) => (
                   <span
                     key={sambal.name}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-extrabold whitespace-nowrap ${sambal.badge}`}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold whitespace-nowrap ${sambal.badge}`}
                   >
                     <span
                       className={`w-1.5 h-1.5 rounded-full shrink-0 ${sambal.dot}`}
@@ -881,14 +886,14 @@ export default function ManajemenMenuPage() {
             </div>
 
             {/* KARTU TABEL DAFTAR MENU */}
-            <div className="flex-1 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-200 flex flex-col justify-between gap-4">
+            <div className="flex-1 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-neutral-200 flex flex-col justify-between gap-4">
               <div className="flex flex-col gap-4 flex-1">
               {/* SEARCH & RESET */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="relative flex-1">
                   <Search
                     size={15}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400"
                   />
                   <input
                     type="text"
@@ -898,7 +903,7 @@ export default function ManajemenMenuPage() {
                       setSearchQuery(e.target.value);
                       setActivePage(1);
                     }}
-                    className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-xl text-xs font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#D97706] bg-gray-50/50"
+                    className="w-full pl-9 pr-8 py-2 border border-neutral-300 rounded-xl text-xs font-semibold text-black placeholder:text-neutral-400 focus:outline-none focus:border-[#D97706] bg-gray-50/50"
                   />
                   {searchQuery && (
                     <button
@@ -907,7 +912,7 @@ export default function ManajemenMenuPage() {
                         setSearchQuery("");
                         setActivePage(1);
                       }}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 cursor-pointer"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black cursor-pointer"
                     >
                       <X size={13} />
                     </button>
@@ -918,7 +923,7 @@ export default function ManajemenMenuPage() {
                   type="button"
                   onClick={handleResetFilters}
                   title="Reset Filter"
-                  className="px-3 py-2 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-100 transition cursor-pointer flex items-center justify-center gap-1.5 text-xs font-bold shrink-0"
+                  className="px-3 py-2 border border-neutral-400 rounded-xl text-black hover:bg-gray-100 transition cursor-pointer flex items-center justify-center gap-1.5 text-xs font-bold shrink-0"
                 >
                   <RotateCcw size={13} />
                   <span>Reset</span>
@@ -926,7 +931,7 @@ export default function ManajemenMenuPage() {
               </div>
 
               {/* CATEGORY TABS */}
-              <div className="flex items-center gap-1.5 flex-wrap pb-2 text-[11px] font-extrabold border-b border-gray-100">
+              <div className="flex items-center gap-1.5 flex-wrap pb-2 text-[11px] font-semibold border-b border-neutral-200">
                 {(
                   ["Semua Menu", "Paket Menu", "Tambahan"] as const
                 ).map((cat) => {
@@ -946,8 +951,8 @@ export default function ManajemenMenuPage() {
                       }}
                       className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer ${
                         activeCategory === cat
-                          ? "bg-[#F3A712] text-gray-950 shadow-2xs font-black"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          ? "bg-[#F3A712] text-black shadow-2xs font-semibold"
+                          : "bg-gray-100 text-black font-medium hover:bg-gray-200"
                       }`}
                     >
                       {cat} ({count})
@@ -967,7 +972,7 @@ export default function ManajemenMenuPage() {
                     <col className="w-[12%]" />
                   </colgroup>
                   <thead>
-                    <tr className="border-y border-gray-200 bg-gray-50/80 text-[11px] font-extrabold text-gray-500 uppercase tracking-wider">
+                    <tr className="border-y border-neutral-300 bg-gray-50/80 text-[11px] font-semibold text-neutral-700 uppercase tracking-wider">
                       <th className="py-3 pl-4 pr-3 text-left whitespace-nowrap">
                         NAMA MENU
                       </th>
@@ -985,12 +990,12 @@ export default function ManajemenMenuPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 text-gray-800">
+                  <tbody className="divide-y divide-neutral-200 text-black">
                     {isLoading ? (
                       <tr>
                         <td
                           colSpan={5}
-                          className="py-12 text-center text-gray-500 font-medium"
+                          className="py-12 text-center text-neutral-800 font-medium"
                         >
                           Memuat daftar menu dari database MariaDB...
                         </td>
@@ -999,7 +1004,7 @@ export default function ManajemenMenuPage() {
                       <tr>
                         <td
                           colSpan={5}
-                          className="py-12 text-center text-gray-500 font-medium"
+                          className="py-12 text-center text-neutral-800 font-medium"
                         >
                           Tidak ada menu yang sesuai dengan pencarian atau
                           filter kategori.
@@ -1024,6 +1029,7 @@ export default function ManajemenMenuPage() {
                               <div className="flex items-start gap-2.5 min-w-0">
                                 {item.image ? (
                                   <div className="w-9 h-9 rounded-xl overflow-hidden border border-amber-200 bg-amber-50 shrink-0 mt-0.5 shadow-2xs relative">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                       src={resolveImageUrl(item.image)}
                                       alt={item.name}
@@ -1044,15 +1050,15 @@ export default function ManajemenMenuPage() {
                                   </div>
                                 )}
                                 <div className="min-w-0 flex-1">
-                                  <div className="font-extrabold text-gray-900 text-xs sm:text-[13px] leading-snug break-words">
+                                  <div className="font-semibold text-black text-xs sm:text-[13px] leading-snug break-words">
                                     {item.name}
                                   </div>
                                   <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                                    <span className="inline-block px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-gray-600 font-bold text-[10px]">
+                                    <span className="font-mono inline-block px-1.5 py-0.5 rounded bg-gray-100 border border-neutral-200 text-neutral-700 font-bold text-[10px]">
                                       ID #{item.id}
                                     </span>
                                     {isEditingRow && (
-                                      <span className="inline-block px-1.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-[#B45309] font-extrabold text-[10px]">
+                                      <span className="inline-block px-1.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-[#B45309] font-semibold text-[10px]">
                                         Sedang Diedit
                                       </span>
                                     )}
@@ -1062,11 +1068,11 @@ export default function ManajemenMenuPage() {
                             </td>
 
                             {/* DESKRIPSI */}
-                            <td className="py-3.5 px-3 align-middle text-gray-600 font-medium whitespace-normal break-words leading-relaxed">
+                            <td className="py-3.5 px-3 align-middle text-neutral-800 font-medium whitespace-normal break-words leading-relaxed">
                               {item.description ? (
                                 item.description
                               ) : (
-                                <span className="text-gray-400 italic">
+                                <span className="text-neutral-700 italic">
                                   Tidak ada deskripsi
                                 </span>
                               )}
@@ -1075,7 +1081,7 @@ export default function ManajemenMenuPage() {
                             {/* KATEGORI */}
                             <td className="py-3.5 px-3 align-middle text-center whitespace-nowrap">
                               <span
-                                className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
+                                className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide border ${
                                   isPaket
                                     ? "bg-emerald-50 text-[#2D452B] border-emerald-300"
                                     : "bg-amber-50 text-[#B45309] border-amber-300"
@@ -1086,7 +1092,7 @@ export default function ManajemenMenuPage() {
                             </td>
 
                             {/* HARGA */}
-                            <td className="py-3.5 px-3 align-middle text-right font-black text-gray-900 whitespace-nowrap tabular-nums text-xs sm:text-[13px]">
+                            <td className="py-3.5 px-3 align-middle text-right font-semibold text-black whitespace-nowrap tabular-nums text-xs sm:text-[13px]">
                               {formatRupiah(item.price)}
                             </td>
 
@@ -1105,7 +1111,7 @@ export default function ManajemenMenuPage() {
                                   type="button"
                                   onClick={() => setDeleteTarget(item)}
                                   title="Hapus Menu"
-                                  className="w-7 h-7 rounded-lg border border-gray-200 hover:border-red-400 hover:bg-red-50 text-gray-500 hover:text-red-600 flex items-center justify-center transition cursor-pointer"
+                                  className="w-7 h-7 rounded-lg border border-neutral-300 hover:border-red-400 hover:bg-red-50 text-black hover:text-red-600 flex items-center justify-center transition cursor-pointer"
                                 >
                                   <Trash2 size={13} />
                                 </button>
@@ -1121,10 +1127,10 @@ export default function ManajemenMenuPage() {
               </div>
 
               {/* PAGINATION & SUMMARY */}
-              <div className="pt-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-600 font-medium">
+              <div className="pt-3 border-t border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-neutral-800 font-medium">
                 <div>
                   Menampilkan{" "}
-                  <strong className="text-gray-900 font-extrabold">
+                  <strong className="text-black font-semibold">
                     {paginatedProducts.length} dari {filteredProducts.length}
                   </strong>{" "}
                   menu produk POS
@@ -1135,7 +1141,7 @@ export default function ManajemenMenuPage() {
                     type="button"
                     disabled={currentPage <= 1}
                     onClick={() => setActivePage((p) => Math.max(1, p - 1))}
-                    className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-600 font-semibold hover:text-gray-900 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
+                    className="px-3 py-1.5 border border-neutral-400 rounded-lg text-black font-medium hover:text-black hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
                   >
                     Sebelumnya
                   </button>
@@ -1144,10 +1150,10 @@ export default function ManajemenMenuPage() {
                       key={p}
                       type="button"
                       onClick={() => setActivePage(p)}
-                      className={`w-7 h-7 rounded-lg font-extrabold transition cursor-pointer ${
+                      className={`w-7 h-7 rounded-lg font-semibold transition cursor-pointer ${
                         currentPage === p
-                          ? "bg-[#F3A712] text-gray-950 shadow-2xs"
-                          : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                          ? "bg-[#F3A712] text-black shadow-2xs"
+                          : "border border-neutral-400 text-black hover:bg-gray-50"
                       }`}
                     >
                       {p}
@@ -1159,7 +1165,7 @@ export default function ManajemenMenuPage() {
                     onClick={() =>
                       setActivePage((p) => Math.min(totalPages, p + 1))
                     }
-                    className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-800 font-bold hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
+                    className="px-3 py-1.5 border border-neutral-400 rounded-lg text-black font-semibold hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
                   >
                     Selanjutnya
                   </button>
@@ -1173,10 +1179,10 @@ export default function ManajemenMenuPage() {
             id="form-menu-cepat"
             className="xl:col-span-4 flex flex-col gap-5"
           >
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col gap-4">
-              <div className="flex items-start justify-between gap-2 pb-3.5 border-b border-gray-200">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-neutral-200 flex flex-col gap-4">
+              <div className="flex items-start justify-between gap-2 pb-3.5 border-b border-neutral-200">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-gray-950 flex items-center justify-center shrink-0 shadow-xs">
+                  <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-black flex items-center justify-center shrink-0 shadow-xs">
                     {editingId !== null ? (
                       <Edit3 size={18} />
                     ) : (
@@ -1184,19 +1190,19 @@ export default function ManajemenMenuPage() {
                     )}
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-base text-gray-900">
+                    <h3 className="font-display font-bold text-base text-black">
                       {editingId !== null
                         ? `Edit Menu #${editingId}`
                         : "Tambah Menu Baru"}
                     </h3>
-                    <p className="text-xs text-gray-600 font-medium mt-0.5">
+                    <p className="text-xs text-neutral-800 font-medium mt-0.5">
                       {editingId !== null
                         ? "Perbarui rincian menu lalu simpan perubahan"
                         : "Simpan produk baru langsung ke database POS"}
                     </p>
                   </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-md bg-[#2D452B] text-white text-[10px] font-extrabold uppercase leading-tight text-center shrink-0">
+                <span className="px-2.5 py-1 rounded-md bg-[#2D452B] text-white text-[10px] font-semibold uppercase leading-tight text-center shrink-0">
                   MENU
                   <br />
                   POS
@@ -1205,7 +1211,7 @@ export default function ManajemenMenuPage() {
 
               <form onSubmit={handleSaveMenu} className="flex flex-col gap-4">
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                  <label className="block text-xs font-semibold text-black mb-1.5">
                     Nama Menu <span className="text-red-600">*</span>
                   </label>
                   <input
@@ -1215,12 +1221,12 @@ export default function ManajemenMenuPage() {
                     placeholder="Contoh: Ayam Geprek Mozarella + Es Teh"
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:border-[#D97706]"
+                    className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium text-black placeholder:text-neutral-400 bg-white focus:outline-none focus:border-[#D97706]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                  <label className="block text-xs font-semibold text-black mb-1.5">
                     Kategori <span className="text-red-600">*</span>
                   </label>
                   <select
@@ -1228,7 +1234,7 @@ export default function ManajemenMenuPage() {
                     onChange={(e) =>
                       setFormCategory(e.target.value as MenuCategory)
                     }
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-gray-900 bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
+                    className="w-full border border-neutral-400 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium text-black bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
                   >
                     <option value="Paket Menu">Paket Menu</option>
                     <option value="Tambahan">Tambahan</option>
@@ -1237,17 +1243,17 @@ export default function ManajemenMenuPage() {
 
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-extrabold text-gray-800">
+                    <label className="text-xs font-semibold text-black">
                       Harga Jual <span className="text-red-600">*</span>
                     </label>
                     {formPrice && !Number.isNaN(Number(formPrice)) && (
-                      <span className="text-[11px] font-extrabold text-[#2D452B] tabular-nums">
+                      <span className="text-[11px] font-semibold text-[#2D452B] tabular-nums">
                         {formatRupiah(Number(formPrice))}
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center border border-gray-300 rounded-xl bg-white px-3.5 py-2.5 focus-within:border-[#D97706]">
-                    <span className="text-xs font-extrabold text-gray-500 mr-2 shrink-0">
+                  <div className="flex items-center border border-neutral-300 rounded-xl bg-white px-3.5 py-2.5 focus-within:border-[#D97706]">
+                    <span className="text-xs font-semibold text-neutral-800 mr-2 shrink-0">
                       Rp
                     </span>
                     <input
@@ -1258,13 +1264,13 @@ export default function ManajemenMenuPage() {
                       placeholder="18000"
                       value={formPrice}
                       onChange={(e) => setFormPrice(e.target.value)}
-                      className="w-full text-xs sm:text-sm font-bold text-gray-900 outline-none bg-transparent tabular-nums"
+                      className="w-full text-xs sm:text-sm font-semibold text-black outline-none bg-transparent tabular-nums"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                  <label className="block text-xs font-semibold text-black mb-1.5">
                     Deskripsi Menu
                   </label>
                   <textarea
@@ -1272,16 +1278,16 @@ export default function ManajemenMenuPage() {
                     placeholder="Contoh: Nasi hangat + Ayam Geprek Bakar + Es Teh Manis + Pilihan Sambal"
                     value={formDescription}
                     onChange={(e) => setFormDescription(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium text-gray-900 placeholder:text-gray-400 bg-white resize-none focus:outline-none focus:border-[#D97706]"
+                    className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium text-black placeholder:text-neutral-400 bg-white resize-none focus:outline-none focus:border-[#D97706]"
                   />
                 </div>
 
                 {/* UPLOAD FOTO MENU MAKANAN */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-extrabold text-gray-800 flex items-center gap-1.5">
+                    <label className="text-xs font-semibold text-black flex items-center gap-1.5">
                       <span>Foto Menu Makanan</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
                         Auto Kompres
                       </span>
                     </label>
@@ -1294,7 +1300,7 @@ export default function ManajemenMenuPage() {
                           setImageMeta(null);
                           if (fileInputRef.current) fileInputRef.current.value = "";
                         }}
-                        className="text-[11px] font-bold text-red-600 hover:text-red-700 hover:underline cursor-pointer flex items-center gap-1"
+                        className="text-[11px] font-semibold text-red-600 hover:text-red-700 hover:underline cursor-pointer flex items-center gap-1"
                       >
                         <Trash2 size={12} />
                         Hapus Foto
@@ -1316,6 +1322,7 @@ export default function ManajemenMenuPage() {
                   {imagePreview ? (
                     <div className="relative border-2 border-dashed border-amber-300 rounded-2xl p-3 bg-amber-50/40 flex items-center gap-3">
                       <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-amber-200 bg-white shrink-0 shadow-xs">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={imagePreview}
                           alt="Preview Menu"
@@ -1323,28 +1330,28 @@ export default function ManajemenMenuPage() {
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1 text-[11px] font-extrabold text-[#2D452B]">
+                        <div className="flex items-center gap-1 text-[11px] font-semibold text-[#2D452B]">
                           <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
                           <span>Foto Siap Disimpan</span>
                         </div>
                         {imageMeta ? (
                           <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                            <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-extrabold">
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-semibold">
                               {imageMeta.compressedSize} ({imageMeta.ratio})
                             </span>
-                            <span className="text-[10px] text-gray-400 font-semibold line-through">
+                            <span className="text-[10px] text-neutral-700 font-medium line-through">
                               {imageMeta.originalSize}
                             </span>
                           </div>
                         ) : (
-                          <p className="text-[10px] text-gray-500 font-medium mt-0.5">
+                          <p className="text-[10px] text-neutral-700 font-medium mt-0.5">
                             Foto aktif di database POS
                           </p>
                         )}
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          className="mt-2 inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-amber-50 text-[#D97706] border border-amber-300 rounded-lg text-[11px] font-extrabold transition cursor-pointer shadow-2xs"
+                          className="mt-2 inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-amber-50 text-[#D97706] border border-amber-300 rounded-lg text-[11px] font-semibold transition cursor-pointer shadow-2xs"
                         >
                           <UploadCloud size={12} />
                           Ganti Foto
@@ -1364,12 +1371,12 @@ export default function ManajemenMenuPage() {
                         const file = e.dataTransfer.files?.[0];
                         if (file) handleImageFileChange(file);
                       }}
-                      className="border-2 border-dashed border-gray-300 hover:border-[#D97706] hover:bg-amber-50/20 rounded-2xl p-4 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1.5 bg-gray-50/50"
+                      className="border-2 border-dashed border-neutral-300 hover:border-[#D97706] hover:bg-amber-50/20 rounded-2xl p-4 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1.5 bg-gray-50/50"
                     >
                       <div className="w-10 h-10 rounded-xl bg-amber-100 text-[#D97706] flex items-center justify-center">
                         <UploadCloud size={20} />
                       </div>
-                      <div className="text-xs font-extrabold text-gray-800">
+                      <div className="text-xs font-semibold text-black">
                         {isCompressing ? (
                           <span className="text-[#D97706] flex items-center gap-1.5">
                             <RefreshCw size={13} className="animate-spin" /> Mengompresi Foto...
@@ -1378,7 +1385,7 @@ export default function ManajemenMenuPage() {
                           "Klik atau Tarik Foto Menu ke Sini"
                         )}
                       </div>
-                      <p className="text-[10px] text-gray-500 font-medium max-w-xs">
+                      <p className="text-[10px] text-neutral-700 font-medium max-w-xs">
                         JPG, PNG, atau WebP. Otomatis dikompresi ke 600px agar ringan dan cepat di HP Flutter kasir.
                       </p>
                     </div>
@@ -1393,7 +1400,7 @@ export default function ManajemenMenuPage() {
                         handleResetForm();
                         showToast("Mode edit dibatalkan.", "info");
                       }}
-                      className="px-4 py-3 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-extrabold text-xs sm:text-sm rounded-xl transition cursor-pointer shrink-0"
+                      className="px-4 py-3 border border-neutral-400 bg-white hover:bg-gray-50 text-black font-semibold text-xs sm:text-sm rounded-xl transition cursor-pointer shrink-0"
                     >
                       Batal
                     </button>
@@ -1401,7 +1408,7 @@ export default function ManajemenMenuPage() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 py-3 bg-[#F3A712] hover:bg-[#df980e] disabled:opacity-60 text-gray-950 font-extrabold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
+                    className="flex-1 py-3 bg-[#F3A712] hover:bg-[#df980e] disabled:opacity-60 text-black font-semibold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
                   >
                     <Save size={15} />
                     <span>

@@ -175,7 +175,7 @@ export default function Sidebar() {
             key={item.name}
             href={item.href}
             onClick={onNavigate}
-            className={`h-11 px-3 rounded-xl text-left text-sm font-bold flex items-center gap-2 transition-colors duration-150 cursor-pointer border ${
+            className={`h-11 px-3 rounded-xl text-left text-sm font-semibold flex items-center gap-2 transition-colors duration-150 cursor-pointer border ${
               isActive
                 ? /* Kolom Kanan: Saat Dipencet / Terpilih (Active/Pressed - Olive Gold Kalem) */
                   'bg-gradient-to-b from-[#BAA66D] via-[#A18F57] to-[#887844] text-[#17371C] shadow-inner border-[#7D6B38]/50'
@@ -189,7 +189,7 @@ export default function Sidebar() {
             {item.badge && (
               <span
                 title="Dilengkapi AI Agent"
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide whitespace-nowrap shrink-0 border shadow-2xs ${
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide whitespace-nowrap shrink-0 border shadow-2xs ${
                   isActive
                     ? 'bg-[#17371C] text-[#FFE38F] border-[#17371C]/60'
                     : 'bg-[#2D452B] text-[#FFE38F] border-[#1E3A1C]/40'
@@ -223,7 +223,7 @@ export default function Sidebar() {
       <button
         type="button"
         onClick={logout}
-        className="w-full mt-1 py-2 px-3 bg-[#1E3A1C] hover:bg-red-700 text-red-200 hover:text-white rounded-xl text-xs font-bold transition-colors duration-150 flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+        className="w-full mt-1 py-2 px-3 bg-[#1E3A1C] hover:bg-red-700 text-red-200 hover:text-white rounded-xl text-xs font-semibold transition-colors duration-150 flex items-center justify-center gap-2 shadow-sm cursor-pointer"
       >
         <span>🚪</span>
         <span>Logout Sistem</span>
@@ -238,7 +238,7 @@ export default function Sidebar() {
         type="button"
         onClick={() => setMobileOpenPathname(pathname)}
         aria-label="Buka menu navigasi"
-        className="md:hidden print:hidden fixed bottom-5 left-5 z-40 h-11 px-4 rounded-full bg-[#2D4F2A] hover:bg-[#1E3A1C] text-white border border-[#F3A712]/60 shadow-xl flex items-center gap-2 text-xs font-extrabold cursor-pointer transition-colors"
+        className="md:hidden print:hidden fixed bottom-5 left-5 z-40 h-11 px-4 rounded-full bg-[#2D4F2A] hover:bg-[#1E3A1C] text-white border border-[#F3A712]/60 shadow-xl flex items-center gap-2 text-xs font-semibold cursor-pointer transition-colors"
       >
         <Menu size={18} className="text-[#F3A712] shrink-0" />
         <span>Menu</span>
@@ -258,7 +258,7 @@ export default function Sidebar() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2">
-              <div className="flex-1 bg-[#5C7D55] text-white h-11 px-4 rounded-xl flex items-center justify-center font-bold text-xs uppercase tracking-wider shadow-sm">
+              <div className="flex-1 bg-[#5C7D55] text-white h-11 px-4 rounded-xl flex items-center justify-center font-display font-bold text-xs uppercase tracking-wider shadow-sm">
                 Navigasi Utama
               </div>
               <button
@@ -286,7 +286,7 @@ export default function Sidebar() {
       {/* Sidebar Fixed: Paten di posisi kiri layar, tidak goyah saat di-scroll maupun pindah halaman */}
       <aside className="fixed top-4 bottom-4 left-4 sm:top-6 sm:bottom-6 sm:left-6 z-40 w-64 lg:w-72 bg-[#2D4F2A] rounded-2xl p-4 flex flex-col gap-3 text-white shrink-0 hidden md:flex print:hidden select-none shadow-lg overflow-y-auto">
         {/* Header Navigasi */}
-        <div className="bg-[#5C7D55] text-white h-11 px-4 rounded-xl flex items-center justify-center font-bold text-xs uppercase tracking-wider shadow-sm">
+        <div className="bg-[#5C7D55] text-white h-11 px-4 rounded-xl flex items-center justify-center font-display font-bold text-xs uppercase tracking-wider shadow-sm">
           Navigasi Utama
         </div>
 

@@ -41,9 +41,12 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const valueRef = useRef(value);
-  valueRef.current = value;
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+
+  useEffect(() => {
+    valueRef.current = value;
+    onChangeRef.current = onChange;
+  }, [value, onChange]);
 
   const dragStartYRef = useRef(0);
   const dragAccumRef = useRef(0);
@@ -198,12 +201,12 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`inline-flex items-center justify-center rounded px-1 py-0.5 font-black tabular-nums transition cursor-pointer leading-none ${
+        className={`inline-flex items-center justify-center rounded px-1 py-0.5 font-mono font-bold tabular-nums transition cursor-pointer leading-none ${
           compact ? "text-xs" : "text-xs sm:text-sm"
         } ${
           isOpen
             ? "text-[#EA8E18] bg-amber-100 ring-1 ring-[#EA8E18]"
-            : "text-gray-900 hover:bg-amber-50 hover:text-[#EA8E18]"
+            : "text-black hover:bg-amber-50 hover:text-[#EA8E18]"
         }`}
         title={`Klik untuk atur ${label.toLowerCase()}`}
       >
@@ -223,7 +226,7 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
           } rounded-xl bg-white border border-[#EA8E18] shadow-[0_8px_18px_-4px_rgba(0,0,0,0.24)] py-1 px-0.5 flex flex-col items-center select-none touch-none cursor-ns-resize`}
         >
           {/* Label mini */}
-          <span className="text-[8px] font-black uppercase tracking-wider text-amber-700/80 leading-none mb-0.5 pointer-events-none">
+          <span className="text-[8px] font-semibold uppercase tracking-wider text-amber-700/80 leading-none mb-0.5 pointer-events-none">
             {label}
           </span>
 
@@ -235,7 +238,7 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
               e.stopPropagation();
               if (!didDragRef.current) stepBy(-1);
             }}
-            className="w-full py-0.5 rounded text-center text-[10px] font-bold tabular-nums text-gray-400 hover:text-gray-800 hover:bg-gray-100 transition cursor-pointer leading-tight"
+            className="w-full py-0.5 rounded text-center text-[10px] font-mono font-medium tabular-nums text-neutral-700 hover:text-black hover:bg-neutral-100 transition cursor-pointer leading-tight"
             title={`Kurangi ${label.toLowerCase()}`}
           >
             {pad2(prevVal)}
@@ -249,7 +252,7 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
               e.stopPropagation();
               if (!didDragRef.current) setIsOpen(false);
             }}
-            className={`w-full py-0.5 my-0.5 rounded-md bg-amber-50 border border-amber-300 text-center font-black tabular-nums text-gray-950 leading-tight cursor-pointer ${
+            className={`w-full py-0.5 my-0.5 rounded-md bg-amber-50 border border-amber-300 text-center font-mono font-bold tabular-nums text-black leading-tight cursor-pointer ${
               compact ? "text-xs" : "text-[13px]"
             }`}
             title="Klik untuk selesai"
@@ -265,7 +268,7 @@ function WheelUnit({ label, value, max, compact, onChange }: WheelUnitProps) {
               e.stopPropagation();
               if (!didDragRef.current) stepBy(1);
             }}
-            className="w-full py-0.5 rounded text-center text-[10px] font-bold tabular-nums text-gray-400 hover:text-gray-800 hover:bg-gray-100 transition cursor-pointer leading-tight"
+            className="w-full py-0.5 rounded text-center text-[10px] font-mono font-medium tabular-nums text-neutral-700 hover:text-black hover:bg-neutral-100 transition cursor-pointer leading-tight"
             title={`Tambah ${label.toLowerCase()}`}
           >
             {pad2(nextVal)}
@@ -301,7 +304,7 @@ export default function TimeWheelPicker({
       } ${
         active
           ? "border-[#EA8E18] ring-1 ring-[#EA8E18]/30"
-          : "border-gray-300 hover:border-[#EA8E18]/70"
+          : "border-neutral-300 hover:border-[#EA8E18]/70"
       }`}
     >
       <WheelUnit
@@ -313,7 +316,7 @@ export default function TimeWheelPicker({
       />
 
       <span
-        className={`font-black text-gray-400 select-none px-0.5 leading-none ${
+        className={`font-mono font-bold text-neutral-700 select-none px-0.5 leading-none ${
           compact ? "text-xs" : "text-xs sm:text-sm"
         }`}
       >
@@ -329,7 +332,7 @@ export default function TimeWheelPicker({
       />
 
       {suffix && (
-        <span className="ml-1.5 px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-[10px] font-extrabold text-gray-600 select-none whitespace-nowrap leading-none">
+        <span className="ml-1.5 px-1.5 py-0.5 rounded bg-neutral-100 border border-neutral-300 text-[10px] font-mono font-bold text-neutral-800 select-none whitespace-nowrap leading-none">
           {suffix}
         </span>
       )}

@@ -7,6 +7,7 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
+import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
 import TimeWheelPicker from "@/components/TimeWheelPicker";
 import { API_BASE_URL, getAuthHeaders } from "@/lib/api";
@@ -14,7 +15,6 @@ import {
   AlertTriangle,
   Banknote,
   CheckCircle2,
-  ChevronDown,
   Clock,
   CreditCard,
   Info,
@@ -81,19 +81,6 @@ interface BranchStoreSettings {
   channelOjol: boolean;
   kapasitasMeja: number;
 }
-
-const BRANCH_OPTIONS: BranchOption[] = [
-  "Semua Cabang",
-  "Cabang Sudirman Utama",
-  "Cabang Tebet Eco Park",
-  "Cabang Dago Heritage",
-];
-
-const SINGLE_BRANCHES: SingleBranchName[] = [
-  "Cabang Sudirman Utama",
-  "Cabang Tebet Eco Park",
-  "Cabang Dago Heritage",
-];
 
 const ROUNDING_OPTIONS: RoundingOption[] = [
   "Tanpa Pembulatan",
@@ -210,13 +197,8 @@ const DEFAULT_BRANCH_SETTINGS: Record<SingleBranchName, BranchStoreSettings> = {
 };
 
 export default function PengaturanTokoPage() {
-  // State Pemilih Cabang di Header Atas
-  const [selectedBranch, setSelectedBranch] =
-    useState<BranchOption>("Semua Cabang");
-  const [showBranchMenu, setShowBranchMenu] = useState(false);
-  const branchDropdownRef = useRef<HTMLDivElement>(null);
-
   // Cabang aktif yang sedang dikonfigurasi
+  const selectedBranch: BranchOption = "Semua Cabang";
   const activeBranchKey: SingleBranchName =
     selectedBranch === "Semua Cabang"
       ? "Cabang Sudirman Utama"
@@ -282,37 +264,42 @@ export default function PengaturanTokoPage() {
 
   // Muat dari localStorage dan backend MariaDB saat halaman pertama kali dibuka
   useEffect(() => {
-    try {
-      const local = localStorage.getItem(STORAGE_KEY);
-      if (local) {
-        const parsed = JSON.parse(local);
-        if (parsed && typeof parsed === "object") {
-          const merged: Record<SingleBranchName, BranchStoreSettings> = {
-            "Cabang Sudirman Utama": {
-              ...DEFAULT_BRANCH_SETTINGS["Cabang Sudirman Utama"],
-              ...(parsed["Cabang Sudirman Utama"] || {}),
-            },
-            "Cabang Tebet Eco Park": {
-              ...DEFAULT_BRANCH_SETTINGS["Cabang Tebet Eco Park"],
-              ...(parsed["Cabang Tebet Eco Park"] || {}),
-            },
-            "Cabang Dago Heritage": {
-              ...DEFAULT_BRANCH_SETTINGS["Cabang Dago Heritage"],
-              ...(parsed["Cabang Dago Heritage"] || {}),
-            },
-          };
-          setConfigsByBranch(merged);
-          setSavedConfigsByBranch(merged);
-        }
-      }
-    } catch {}
+    let isCancelled = false;
 
-    const fetchBackendSettings = async () => {
+    const loadInitialSettings = async () => {
+      await Promise.resolve();
+      if (isCancelled) return;
+
+      try {
+        const local = localStorage.getItem(STORAGE_KEY);
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (parsed && typeof parsed === "object") {
+            const merged: Record<SingleBranchName, BranchStoreSettings> = {
+              "Cabang Sudirman Utama": {
+                ...DEFAULT_BRANCH_SETTINGS["Cabang Sudirman Utama"],
+                ...(parsed["Cabang Sudirman Utama"] || {}),
+              },
+              "Cabang Tebet Eco Park": {
+                ...DEFAULT_BRANCH_SETTINGS["Cabang Tebet Eco Park"],
+                ...(parsed["Cabang Tebet Eco Park"] || {}),
+              },
+              "Cabang Dago Heritage": {
+                ...DEFAULT_BRANCH_SETTINGS["Cabang Dago Heritage"],
+                ...(parsed["Cabang Dago Heritage"] || {}),
+              },
+            };
+            setConfigsByBranch(merged);
+            setSavedConfigsByBranch(merged);
+          }
+        }
+      } catch {}
+
       try {
         const res = await fetch(`${API_BASE_URL}/api/settings`, {
           headers: getAuthHeaders(),
         });
-        if (res.ok) {
+        if (res.ok && !isCancelled) {
           const json = await res.json();
           if (json.success && json.data) {
             const d = json.data;
@@ -395,21 +382,10 @@ export default function PengaturanTokoPage() {
         console.warn("Gagal memuat pengaturan dari backend:", e);
       }
     };
-    fetchBackendSettings();
-  }, []);
-
-  // Tutup dropdown cabang saat klik di luar
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        branchDropdownRef.current &&
-        !branchDropdownRef.current.contains(e.target as Node)
-      ) {
-        setShowBranchMenu(false);
-      }
+    void loadInitialSettings();
+    return () => {
+      isCancelled = true;
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Konfigurasi cabang aktif saat ini
@@ -622,7 +598,7 @@ export default function PengaturanTokoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans items-start text-gray-900">
+    <div className="min-h-screen bg-[#FAF6E9] flex p-4 sm:p-6 gap-6 font-sans items-start text-black">
       {/* Toast Notification */}
       {toastMsg && (
         <div
@@ -653,7 +629,7 @@ export default function PengaturanTokoPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200 animate-in fade-in zoom-in-95 duration-150"
+            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-neutral-200 animate-in fade-in zoom-in-95 duration-150"
           >
             <div className="flex items-start justify-between gap-3 mb-4">
               <div className="flex items-center gap-3">
@@ -661,24 +637,24 @@ export default function PengaturanTokoPage() {
                   <AlertTriangle size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-gray-900">
+                  <h3 className="font-display text-base font-bold text-black">
                     Reset ke Data Terakhir Disimpan?
                   </h3>
-                  <p className="text-xs text-gray-500 font-semibold mt-0.5">
-                    PrekDuaDara ({currentConfig.outletId || "OUT-001"})
+                  <p className="text-xs text-neutral-800 font-medium mt-0.5">
+                    PrekDuaDara (<span className="font-mono">{currentConfig.outletId || "OUT-001"}</span>)
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowResetModal(false)}
-                className="text-gray-400 hover:text-gray-700 p-1 rounded-lg cursor-pointer"
+                className="text-neutral-700 hover:text-black p-1 rounded-lg cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed font-medium mb-6">
+            <p className="text-xs sm:text-sm text-neutral-800 leading-relaxed font-medium mb-6">
               Seluruh perubahan konfigurasi yang belum disimpan akan dibatalkan
               dan dikembalikan ke data yang terakhir Anda simpan di database.
             </p>
@@ -687,14 +663,14 @@ export default function PengaturanTokoPage() {
               <button
                 type="button"
                 onClick={() => setShowResetModal(false)}
-                className="px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-xs font-bold text-gray-700 transition cursor-pointer"
+                className="px-4 py-2.5 rounded-xl border border-neutral-400 bg-white hover:bg-gray-50 text-xs font-semibold text-black transition cursor-pointer"
               >
                 Batal
               </button>
               <button
                 type="button"
                 onClick={handleConfirmResetSaved}
-                className="px-4 py-2.5 rounded-xl bg-[#EA8E18] hover:bg-[#d67f12] text-xs font-extrabold text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-[#EA8E18] hover:bg-[#d67f12] text-xs font-semibold text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer"
               >
                 <RotateCcw size={14} />
                 <span>Ya, Kembalikan Data</span>
@@ -720,7 +696,7 @@ export default function PengaturanTokoPage() {
           <button
             type="button"
             onClick={() => setShowResetModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 transition shadow-lg cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black hover:text-black transition shadow-lg cursor-pointer"
           >
             <RotateCcw size={14} />
             <span>Reset ke Data Terakhir</span>
@@ -729,7 +705,7 @@ export default function PengaturanTokoPage() {
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#2D452B] hover:bg-[#223520] disabled:opacity-60 rounded-xl text-xs font-extrabold text-white transition shadow-lg cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#2D452B] hover:bg-[#223520] disabled:opacity-60 rounded-xl text-xs font-semibold text-white transition shadow-lg cursor-pointer"
           >
             {isSaving ? (
               <>
@@ -746,19 +722,21 @@ export default function PengaturanTokoPage() {
         </div>
 
         {/* TOP NAVBAR HEADER (SERAGAM DENGAN MANAJEMEN KASIR & STOK) */}
-        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
+        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-neutral-200 flex flex-wrap items-center justify-between gap-4">
           {/* Brand */}
           <div className="flex items-center gap-3">
-            <img
+            <Image
               src="/logo.png"
               alt="Logo PrekDuaDara"
-              className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-xs shrink-0"
+              width={40}
+              height={40}
+              className="w-10 h-10 rounded-full object-cover border border-neutral-200 shadow-xs shrink-0"
             />
             <div>
-              <div className="font-extrabold text-base text-[#EA8E18] tracking-tight leading-tight">
+              <div className="font-display font-bold text-lg text-[#EA8E18] tracking-tight leading-tight">
                 PrekDuaDara
               </div>
-              <div className="text-xs text-gray-600 font-medium leading-tight mt-0.5">
+              <div className="text-xs text-neutral-800 font-medium leading-tight mt-0.5">
                 Pengaturan &amp; Konfigurasi Gerai
               </div>
             </div>
@@ -767,22 +745,22 @@ export default function PengaturanTokoPage() {
           {/* Right Controls: Online Sync & Admin Owner Profile */}
           <div className="print:hidden flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
             {/* Online Sync Pill */}
-            <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
+            <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-semibold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
             {/* User Profile: Admin / Owner */}
-            <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
+            <div className="flex items-center gap-2.5 pl-3 border-l border-neutral-200 shrink-0">
               <div className="text-right">
-                <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
+                <div className="text-xs font-semibold text-black leading-tight whitespace-nowrap">
                   Admin
                 </div>
-                <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
+                <div className="text-[11px] text-[#EA8E18] font-medium leading-tight mt-0.5 whitespace-nowrap">
                   Owner
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-semibold text-xs flex items-center justify-center shadow-xs shrink-0">
                 <User size={16} />
               </div>
             </div>
@@ -790,24 +768,24 @@ export default function PengaturanTokoPage() {
         </header>
 
         {/* PAGE HEADER & ACTION BUTTONS */}
-        <section className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-gray-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <section className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-neutral-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">
               <Store size={18} className="text-[#2D452B]" />
-              <h2 className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+              <h2 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
                 Pengaturan &amp; Konfigurasi Toko
               </h2>
-              <span className="text-[11px] font-extrabold text-amber-900 bg-amber-50 border border-amber-300 px-3 py-0.5 rounded-md uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-amber-900 bg-amber-50 border border-amber-300 px-3 py-0.5 rounded-md uppercase tracking-wider">
                 SUPERVISOR / OWNER ACCESS
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 mt-2 text-xs font-extrabold text-gray-800">
+            <div className="flex items-center gap-1.5 mt-2 text-xs font-semibold text-black">
               <MapPin size={14} className="text-[#D97706] shrink-0" />
               <span>Gerai Utama PrekDuaDara</span>
             </div>
 
-            <p className="text-xs text-gray-600 mt-1 max-w-2xl leading-relaxed font-medium">
+            <p className="text-xs text-neutral-800 mt-1 max-w-2xl leading-relaxed font-medium">
               Atur identitas gerai, jam operasional warung, pajak PB1 &amp;
               servis, template struk kasir, serta integrasi QRIS &amp;
               pembayaran PrekDuaDara.
@@ -817,12 +795,12 @@ export default function PengaturanTokoPage() {
           <div className="flex flex-wrap items-center gap-3 shrink-0 self-end lg:self-center">
             {/* Indikator Status Simpan */}
             {hasUnsavedChanges ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-xs font-extrabold whitespace-nowrap">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-xs font-semibold whitespace-nowrap">
                 <Clock size={13} className="shrink-0" />
                 <span>Ada Perubahan Belum Disimpan</span>
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-extrabold whitespace-nowrap">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold whitespace-nowrap">
                 <CheckCircle2 size={13} className="shrink-0" />
                 <span>Tersimpan</span>
               </span>
@@ -831,7 +809,7 @@ export default function PengaturanTokoPage() {
             <button
               type="button"
               onClick={() => setShowResetModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 transition shadow-2xs cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black hover:text-black transition shadow-2xs cursor-pointer"
             >
               <RotateCcw size={14} />
               <span>Reset ke Data Terakhir</span>
@@ -840,7 +818,7 @@ export default function PengaturanTokoPage() {
               type="button"
               onClick={handleSave}
               disabled={isSaving}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#2D452B] hover:bg-[#223520] disabled:opacity-60 rounded-xl text-xs font-extrabold text-white transition shadow-xs cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#2D452B] hover:bg-[#223520] disabled:opacity-60 rounded-xl text-xs font-semibold text-white transition shadow-xs cursor-pointer"
             >
               {isSaving ? (
                 <>
@@ -861,7 +839,7 @@ export default function PengaturanTokoPage() {
         <div className="bg-amber-50/90 border border-amber-300 rounded-2xl px-4 py-3 flex items-start sm:items-center gap-3 shadow-2xs">
           <Info size={16} className="text-[#D97706] shrink-0 mt-0.5 sm:mt-0" />
           <p className="text-xs text-amber-950 font-medium leading-relaxed">
-            <strong className="font-extrabold">
+            <strong className="font-semibold">
               Konfigurasi Operasional &amp; POS PrekDuaDara:
             </strong>{" "}
             Perubahan pengaturan profil gerai, pajak PB1, biaya kemasan, template struk kasir,
@@ -870,41 +848,42 @@ export default function PengaturanTokoPage() {
         </div>
 
         {/* A. Profil Gerai & Identitas Restoran */}
-        <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-          <div className="flex flex-wrap justify-between items-center gap-3 mb-6 pb-4 border-b border-gray-200">
+        <section className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200">
+          <div className="flex flex-wrap justify-between items-center gap-3 mb-6 pb-4 border-b border-neutral-200">
             <div className="flex items-center gap-3.5">
-              <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-gray-900 font-black text-sm flex items-center justify-center shrink-0">
+              <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-black font-display font-bold text-sm flex items-center justify-center shrink-0">
                 A
               </span>
               <div>
-                <h3 className="font-extrabold text-sm text-gray-900">
+                <h3 className="font-display font-bold text-sm text-black">
                   Profil Gerai &amp; Identitas Restoran
                 </h3>
-                <p className="text-xs text-gray-600 mt-0.5 font-medium">
+                <p className="text-xs text-neutral-800 mt-0.5 font-medium">
                   Informasi utama yang tercetak pada kepala struk print dan
                   aplikasi pemesanan.
                 </p>
               </div>
             </div>
-            <span className="text-xs font-extrabold text-gray-700 bg-gray-100 px-3.5 py-1.5 rounded-lg border border-gray-200">
+            <span className="font-mono text-xs font-bold text-neutral-950 bg-gray-100 px-3.5 py-1.5 rounded-lg border border-neutral-200">
               ID: {currentConfig.outletId}
             </span>
           </div>
 
           <div className="flex flex-col md:flex-row gap-8 items-stretch">
             {/* Logo Upload Box */}
-            <div className="w-full md:w-64 shrink-0 bg-[#F8F9FA] border-2 border-dashed border-gray-300 rounded-2xl p-6 flex flex-col items-center justify-center">
-              <div className="w-28 h-28 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center p-2.5 mb-3.5 overflow-hidden">
+            <div className="w-full md:w-64 shrink-0 bg-[#F8F9FA] border-2 border-dashed border-neutral-300 rounded-2xl p-6 flex flex-col items-center justify-center">
+              <div className="w-28 h-28 rounded-2xl bg-white border border-neutral-200 shadow-sm flex items-center justify-center p-2.5 mb-3.5 overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={currentConfig.logoUrl || "/logo.png"}
                   alt="Logo PrekDuaDara"
                   className="w-full h-full object-contain rounded-full"
                 />
               </div>
-              <p className="text-[13px] font-extrabold text-gray-900 text-center">
+              <p className="text-[13px] font-semibold text-black text-center">
                 Logo Struk &amp; Layar Display
               </p>
-              <p className="text-xs text-gray-500 font-medium text-center mt-1 mb-4">
+              <p className="text-xs text-neutral-800 font-medium text-center mt-1 mb-4">
                 Format PNG / SVG (maks. 2MB)
               </p>
               <input
@@ -917,7 +896,7 @@ export default function PengaturanTokoPage() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="bg-[#0D8A52] hover:bg-[#097343] text-white text-xs font-extrabold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition cursor-pointer"
+                className="bg-[#0D8A52] hover:bg-[#097343] text-white text-xs font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition cursor-pointer"
               >
                 <Upload size={14} />
                 <span>Unggah File Baru</span>
@@ -927,84 +906,84 @@ export default function PengaturanTokoPage() {
             {/* Form Fields */}
             <div className="flex-1 flex flex-col gap-4">
               <div>
-                <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                <label className="block text-xs font-semibold text-black mb-1.5">
                   Nama Warung / Outlet
                 </label>
                 <input
                   type="text"
                   value={currentConfig.namaWarung}
                   onChange={(e) => updateField("namaWarung", e.target.value)}
-                  className="w-full border border-gray-300 px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-900 bg-white focus:outline-none focus:border-[#D97706]"
+                  className="w-full border border-neutral-300 px-3.5 py-2 rounded-xl text-xs font-medium text-black bg-white focus:outline-none focus:border-[#D97706]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                <label className="block text-xs font-semibold text-black mb-1.5">
                   Slogan / Tagline Brand
                 </label>
                 <input
                   type="text"
                   value={currentConfig.slogan}
                   onChange={(e) => updateField("slogan", e.target.value)}
-                  className="w-full border border-gray-300 px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-900 bg-white focus:outline-none focus:border-[#D97706]"
+                  className="w-full border border-neutral-300 px-3.5 py-2 rounded-xl text-xs font-medium text-black bg-white focus:outline-none focus:border-[#D97706]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                <label className="block text-xs font-semibold text-black mb-1.5">
                   Alamat Lengkap Gerai
                 </label>
                 <textarea
                   rows={2}
                   value={currentConfig.alamat}
                   onChange={(e) => updateField("alamat", e.target.value)}
-                  className="w-full border border-gray-300 px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-900 bg-white resize-none focus:outline-none focus:border-[#D97706]"
+                  className="w-full border border-neutral-300 px-3.5 py-2 rounded-xl text-xs font-medium text-black bg-white resize-none focus:outline-none focus:border-[#D97706]"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                  <label className="block text-xs font-semibold text-black mb-1.5">
                     WhatsApp / CS Warung
                   </label>
-                  <div className="flex items-center border border-gray-300 rounded-xl bg-white px-3.5 py-2 gap-2.5 focus-within:border-[#D97706]">
-                    <Phone size={14} className="text-gray-500 shrink-0" />
+                  <div className="flex items-center border border-neutral-300 rounded-xl bg-white px-3.5 py-2 gap-2.5 focus-within:border-[#D97706]">
+                    <Phone size={14} className="text-neutral-800 shrink-0" />
                     <input
                       type="text"
                       value={currentConfig.whatsapp}
                       onChange={(e) => updateField("whatsapp", e.target.value)}
-                      className="w-full text-xs font-semibold text-gray-900 outline-none bg-transparent"
+                      className="w-full text-xs font-medium text-black outline-none bg-transparent"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                  <label className="block text-xs font-semibold text-black mb-1.5">
                     Email Restoran
                   </label>
-                  <div className="flex items-center border border-gray-300 rounded-xl bg-white px-3.5 py-2 gap-2.5 focus-within:border-[#D97706]">
-                    <Mail size={14} className="text-gray-500 shrink-0" />
+                  <div className="flex items-center border border-neutral-300 rounded-xl bg-white px-3.5 py-2 gap-2.5 focus-within:border-[#D97706]">
+                    <Mail size={14} className="text-neutral-800 shrink-0" />
                     <input
                       type="text"
                       value={currentConfig.emailResto}
                       onChange={(e) =>
                         updateField("emailResto", e.target.value)
                       }
-                      className="w-full text-xs font-semibold text-gray-900 outline-none bg-transparent"
+                      className="w-full text-xs font-medium text-black outline-none bg-transparent"
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                <label className="block text-xs font-semibold text-black mb-1.5">
                   Nomor Izin Berusaha (NIB) / NPWP Restoran
                 </label>
                 <input
                   type="text"
                   value={currentConfig.nib}
                   onChange={(e) => updateField("nib", e.target.value)}
-                  className="w-full border border-gray-300 px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-900 bg-white focus:outline-none focus:border-[#D97706]"
+                  className="w-full border border-neutral-300 px-3.5 py-2 rounded-xl text-xs font-mono font-medium text-black bg-white focus:outline-none focus:border-[#D97706]"
                 />
               </div>
             </div>
@@ -1012,41 +991,41 @@ export default function PengaturanTokoPage() {
         </section>
 
         {/* B. Jam Buka & Jadwal Operasional */}
-        <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-          <div className="flex flex-wrap justify-between items-center gap-3 mb-6 pb-4 border-b border-gray-200">
+        <section className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200">
+          <div className="flex flex-wrap justify-between items-center gap-3 mb-6 pb-4 border-b border-neutral-200">
             <div className="flex items-center gap-3.5">
-              <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-gray-900 font-black text-sm flex items-center justify-center shrink-0">
+              <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-black font-display font-bold text-sm flex items-center justify-center shrink-0">
                 B
               </span>
               <div>
-                <h3 className="font-extrabold text-sm text-gray-900">
+                <h3 className="font-display font-bold text-sm text-black">
                   Jam Buka &amp; Jadwal Operasional
                 </h3>
-                <p className="text-xs text-gray-600 mt-0.5 font-medium">
+                <p className="text-xs text-neutral-800 mt-0.5 font-medium">
                   Jadwal buka kasir otomatis dan pembatasan order dapur per
                   hari.
                 </p>
               </div>
             </div>
-            <span className="text-xs font-extrabold text-emerald-800 bg-emerald-50 px-3.5 py-1.5 rounded-lg border border-emerald-200">
+            <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-3.5 py-1.5 rounded-lg border border-emerald-200">
               7 Hari Buka
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-5">
             {/* Weekday */}
-            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-gray-200">
+            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200">
               <div className="flex justify-between items-center mb-3.5">
-                <span className="text-[13px] font-extrabold text-gray-900">
+                <span className="text-[13px] font-semibold text-black">
                   Senin s/d Jumat (Weekday)
                 </span>
-                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">
+                <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">
                   Aktif
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <span className="block text-xs font-bold text-gray-600 mb-1.5">
+                  <span className="block text-xs font-medium text-neutral-800 mb-1.5">
                     Jam Buka Kasir
                   </span>
                   <TimeWheelPicker
@@ -1057,7 +1036,7 @@ export default function PengaturanTokoPage() {
                   />
                 </div>
                 <div>
-                  <span className="block text-xs font-bold text-gray-600 mb-1.5">
+                  <span className="block text-xs font-medium text-neutral-800 mb-1.5">
                     Jam Tutup / Closing
                   </span>
                   <TimeWheelPicker
@@ -1071,18 +1050,18 @@ export default function PengaturanTokoPage() {
             </div>
 
             {/* Weekend */}
-            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-gray-200">
+            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200">
               <div className="flex justify-between items-center mb-3.5">
-                <span className="text-[13px] font-extrabold text-gray-900">
+                <span className="text-[13px] font-semibold text-black">
                   Sabtu &amp; Minggu (Weekend)
                 </span>
-                <span className="text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200">
+                <span className="text-xs font-semibold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200">
                   Peak Hours
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <span className="block text-xs font-bold text-gray-600 mb-1.5">
+                  <span className="block text-xs font-medium text-neutral-800 mb-1.5">
                     Jam Buka Kasir
                   </span>
                   <TimeWheelPicker
@@ -1093,7 +1072,7 @@ export default function PengaturanTokoPage() {
                   />
                 </div>
                 <div>
-                  <span className="block text-xs font-bold text-gray-600 mb-1.5">
+                  <span className="block text-xs font-medium text-neutral-800 mb-1.5">
                     Jam Tutup / Closing
                   </span>
                   <TimeWheelPicker
@@ -1109,12 +1088,12 @@ export default function PengaturanTokoPage() {
 
           {/* Sub-options row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-4 sm:p-5 rounded-xl bg-[#F8F9FA] border border-gray-200 flex items-center justify-between gap-4">
+            <div className="p-4 sm:p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200 flex items-center justify-between gap-4">
               <div>
-                <p className="text-[13px] font-extrabold text-gray-900">
+                <p className="text-[13px] font-semibold text-black">
                   Auto-Close Kasir saat Toko Tutup
                 </p>
-                <p className="text-xs text-gray-600 mt-1 font-medium leading-relaxed">
+                <p className="text-xs text-neutral-800 mt-1 font-medium leading-relaxed">
                   Laci kasir otomatis terkunci dan minta rekap Z-Report
                 </p>
               </div>
@@ -1137,7 +1116,7 @@ export default function PengaturanTokoPage() {
               </button>
             </div>
 
-            <div className="p-4 sm:p-5 rounded-xl bg-[#F8F9FA] border border-gray-200 flex items-center justify-between gap-4">
+            <div className="p-4 sm:p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200 flex items-center justify-between gap-4">
               <div className="flex items-start gap-3">
                 <input
                   type="checkbox"
@@ -1148,16 +1127,16 @@ export default function PengaturanTokoPage() {
                   className="mt-1 w-4 h-4 accent-[#0D8A52] rounded cursor-pointer"
                 />
                 <div>
-                  <p className="text-[13px] font-extrabold text-gray-900">
+                  <p className="text-[13px] font-semibold text-black">
                     Istirahat / Pergantian Shift Sore
                   </p>
-                  <p className="text-xs text-gray-600 mt-1 font-medium leading-relaxed">
+                  <p className="text-xs text-neutral-800 mt-1 font-medium leading-relaxed">
                     Jeda istirahat sambel &amp; hitung cash drawer (15:00 -
                     15:30 WIB)
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-black text-gray-900 bg-white px-3 py-1.5 rounded-lg border border-gray-200 shrink-0">
+              <span className="font-mono text-xs font-bold text-black bg-white px-3 py-1.5 rounded-lg border border-neutral-200 shrink-0">
                 15:00 - 15:30
               </span>
             </div>
@@ -1165,29 +1144,29 @@ export default function PengaturanTokoPage() {
         </section>
 
         {/* C. Finansial, Pajak PB1 & Biaya Pembungkusan */}
-        <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-          <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+        <section className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200">
+          <div className="flex justify-between items-center mb-6 pb-4 border-b border-neutral-200">
             <div className="flex items-center gap-3.5">
-              <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-gray-900 font-black text-sm flex items-center justify-center shrink-0">
+              <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-black font-display font-bold text-sm flex items-center justify-center shrink-0">
                 C
               </span>
               <div>
-                <h3 className="font-extrabold text-sm text-gray-900">
+                <h3 className="font-display font-bold text-sm text-black">
                   Finansial, Pajak PB1 &amp; Biaya Pembungkusan
                 </h3>
-                <p className="text-xs text-gray-600 mt-0.5 font-medium">
+                <p className="text-xs text-neutral-800 mt-0.5 font-medium">
                   Kalkulasi pajak daerah, kemasan box makan pulang, dan rounding
                   kembalian.
                 </p>
               </div>
             </div>
-            <Wallet size={18} className="text-gray-600" />
+            <Wallet size={18} className="text-neutral-800" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Col 1: Pajak Restoran (PB1) */}
-            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-gray-200">
-              <label className="block text-[13px] font-extrabold text-gray-900 mb-3">
+            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200">
+              <label className="block text-[13px] font-semibold text-black mb-3">
                 Pajak Restoran (PB1)
               </label>
               <div className="flex items-center gap-2.5">
@@ -1209,10 +1188,10 @@ export default function PengaturanTokoPage() {
                       updateField("pajakPersen", "0");
                     }
                   }}
-                  className="w-20 border border-gray-300 py-2 px-3 rounded-xl text-xs font-extrabold bg-white text-gray-900 text-center"
+                  className="w-20 border border-neutral-300 py-2 px-3 rounded-xl text-xs font-bold bg-white text-black text-center tabular-nums"
                 />
-                <span className="text-[13px] font-extrabold text-gray-900">%</span>
-                <span className="text-xs text-gray-600 font-medium leading-tight">
+                <span className="text-[13px] font-semibold text-black">%</span>
+                <span className="text-xs text-neutral-800 font-medium leading-tight">
                   Tarif standar
                   <br />
                   Pemda DKI
@@ -1220,7 +1199,7 @@ export default function PengaturanTokoPage() {
               </div>
 
               <div className="space-y-2.5 mt-4">
-                <label className="flex items-center gap-2.5 text-xs text-gray-700 font-medium cursor-pointer">
+                <label className="flex items-center gap-2.5 text-xs text-neutral-950 font-medium cursor-pointer">
                   <input
                     type="radio"
                     name="pajak_tipe"
@@ -1230,7 +1209,7 @@ export default function PengaturanTokoPage() {
                   />
                   <span>Harga menu sudah termasuk pajak</span>
                 </label>
-                <label className="flex items-center gap-2.5 text-xs font-extrabold text-gray-900 cursor-pointer">
+                <label className="flex items-center gap-2.5 text-xs font-semibold text-black cursor-pointer">
                   <input
                     type="radio"
                     name="pajak_tipe"
@@ -1244,20 +1223,20 @@ export default function PengaturanTokoPage() {
             </div>
 
             {/* Col 2: Biaya Kemasan Box / Bungkus */}
-            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-gray-200">
+            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200">
               <div className="flex justify-between items-start gap-2 mb-2">
-                <label className="text-[13px] font-extrabold text-gray-900 leading-snug">
+                <label className="text-[13px] font-semibold text-black leading-snug">
                   Biaya Kemasan Box / Bungkus
                 </label>
-                <span className="text-xs font-bold text-gray-600 bg-white px-2 py-0.5 rounded border border-gray-200 shrink-0">
+                <span className="text-xs font-semibold text-neutral-800 bg-white px-2 py-0.5 rounded border border-neutral-200 shrink-0">
                   Takeaway
                 </span>
               </div>
-              <span className="block text-xs text-gray-600 font-medium mb-2">
+              <span className="block text-xs text-neutral-800 font-medium mb-2">
                 Biaya per porsi (paper lunch box)
               </span>
-              <div className="flex items-center bg-white border border-gray-300 rounded-xl px-3.5 py-2 gap-2">
-                <span className="text-xs font-extrabold text-gray-600">Rp</span>
+              <div className="flex items-center bg-white border border-neutral-300 rounded-xl px-3.5 py-2 gap-2">
+                <span className="text-xs font-semibold text-neutral-800">Rp</span>
                 <input
                   type="text"
                   value={currentConfig.biayaKemasan}
@@ -1277,25 +1256,25 @@ export default function PengaturanTokoPage() {
                       updateField("biayaKemasan", "0");
                     }
                   }}
-                  className="w-full text-xs font-bold text-gray-900 outline-none bg-transparent"
+                  className="w-full text-xs font-semibold text-black outline-none bg-transparent tabular-nums"
                 />
               </div>
-              <p className="text-xs text-gray-600 font-medium leading-relaxed mt-3">
+              <p className="text-xs text-neutral-800 font-medium leading-relaxed mt-3">
                 Otomatis ditambahkan saat kasir memilih mode{" "}
-                <strong className="text-gray-900">Bungkus (Takeaway)</strong>{" "}
+                <strong className="font-semibold text-black">Bungkus (Takeaway)</strong>{" "}
                 atau pesanan ojol.
               </p>
             </div>
 
             {/* Col 3: Pembulatan Tunai */}
-            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-gray-200">
+            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200">
               <div className="flex justify-between items-center mb-2">
-                <label className="text-[13px] font-extrabold text-gray-900">
+                <label className="text-[13px] font-semibold text-black">
                   Pembulatan Tunai
                 </label>
-                <RefreshCw size={14} className="text-gray-500" />
+                <RefreshCw size={14} className="text-neutral-800" />
               </div>
-              <span className="block text-xs text-gray-600 font-medium mb-2">
+              <span className="block text-xs text-neutral-800 font-medium mb-2">
                 Aturan pembulatan kembalian kasir
               </span>
               <select
@@ -1306,7 +1285,7 @@ export default function PengaturanTokoPage() {
                     e.target.value as RoundingOption
                   )
                 }
-                className="w-full border border-gray-300 px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-gray-900 outline-none focus:border-[#D97706] cursor-pointer"
+                className="w-full border border-neutral-400 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white text-black outline-none focus:border-[#D97706] cursor-pointer"
               >
                 {ROUNDING_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>
@@ -1314,8 +1293,8 @@ export default function PengaturanTokoPage() {
                   </option>
                 ))}
               </select>
-              <div className="flex items-start gap-2 mt-3 text-xs text-gray-600 font-medium">
-                <Info size={14} className="text-gray-500 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2 mt-3 text-xs text-neutral-800 font-medium">
+                <Info size={14} className="text-neutral-800 shrink-0 mt-0.5" />
                 <span>Mencegah selisih koin receh saat jam ramai.</span>
               </div>
             </div>
@@ -1323,23 +1302,23 @@ export default function PengaturanTokoPage() {
         </section>
 
         {/* D. Template Struk Kasir & Thermal Printer */}
-        <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-          <div className="flex flex-wrap justify-between items-center gap-3 mb-6 pb-4 border-b border-gray-200">
+        <section className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200">
+          <div className="flex flex-wrap justify-between items-center gap-3 mb-6 pb-4 border-b border-neutral-200">
             <div className="flex items-center gap-3.5">
-              <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-gray-900 font-black text-sm flex items-center justify-center shrink-0">
+              <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-black font-display font-bold text-sm flex items-center justify-center shrink-0">
                 D
               </span>
               <div>
-                <h3 className="font-extrabold text-sm text-gray-900">
+                <h3 className="font-display font-bold text-sm text-black">
                   Template Struk Kasir &amp; Thermal Printer
                 </h3>
-                <p className="text-xs text-gray-600 mt-0.5 font-medium">
+                <p className="text-xs text-neutral-800 mt-0.5 font-medium">
                   Kustomisasi header, catatan bawah struk, dan preview cetak
                   kertas kasir.
                 </p>
               </div>
             </div>
-            <span className="text-xs font-extrabold text-gray-800 bg-gray-100 px-3.5 py-1.5 rounded-lg border border-gray-200">
+            <span className="text-xs font-semibold text-black bg-gray-100 px-3.5 py-1.5 rounded-lg border border-neutral-200">
               Lebar Kertas: 80mm
             </span>
           </div>
@@ -1349,11 +1328,11 @@ export default function PengaturanTokoPage() {
             <div className="flex-1 flex flex-col justify-between gap-4 w-full">
               <div className="space-y-4">
               <div>
-                <label className="block text-[13px] font-extrabold text-gray-900 mb-3">
+                <label className="block text-[13px] font-semibold text-black mb-3">
                   Pilihan Elemen Header Nota
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <label className="flex items-center gap-3 p-3.5 rounded-xl bg-[#F8F9FA] border border-gray-200 text-xs text-gray-800 cursor-pointer hover:bg-gray-100/70 transition">
+                  <label className="flex items-center gap-3 p-3.5 rounded-xl bg-[#F8F9FA] border border-neutral-200 text-xs text-black cursor-pointer hover:bg-gray-100/70 transition">
                     <input
                       type="checkbox"
                       checked={currentConfig.cetakLogo}
@@ -1362,10 +1341,10 @@ export default function PengaturanTokoPage() {
                       }
                       className="w-4 h-4 accent-blue-600 rounded"
                     />
-                    <span className="font-bold">Cetak Logo PrekDuaDara</span>
+                    <span className="font-semibold">Cetak Logo PrekDuaDara</span>
                   </label>
 
-                  <label className="flex items-center gap-3 p-3.5 rounded-xl bg-[#F8F9FA] border border-gray-200 text-xs text-gray-800 cursor-pointer hover:bg-gray-100/70 transition">
+                  <label className="flex items-center gap-3 p-3.5 rounded-xl bg-[#F8F9FA] border border-neutral-200 text-xs text-black cursor-pointer hover:bg-gray-100/70 transition">
                     <input
                       type="checkbox"
                       checked={currentConfig.cetakAlamat}
@@ -1374,12 +1353,12 @@ export default function PengaturanTokoPage() {
                       }
                       className="w-4 h-4 accent-blue-600 rounded"
                     />
-                    <span className="font-bold">
+                    <span className="font-semibold">
                       Cetak Alamat &amp; WhatsApp
                     </span>
                   </label>
 
-                  <label className="flex items-center gap-3 p-3.5 rounded-xl bg-[#F8F9FA] border border-gray-200 text-xs text-gray-800 cursor-pointer hover:bg-gray-100/70 transition">
+                  <label className="flex items-center gap-3 p-3.5 rounded-xl bg-[#F8F9FA] border border-neutral-200 text-xs text-black cursor-pointer hover:bg-gray-100/70 transition">
                     <input
                       type="checkbox"
                       checked={currentConfig.nomorAntrianBesar}
@@ -1388,12 +1367,12 @@ export default function PengaturanTokoPage() {
                       }
                       className="w-4 h-4 accent-blue-600 rounded"
                     />
-                    <span className="font-bold">
+                    <span className="font-semibold">
                       Nomor Antrian Besar (Dapur)
                     </span>
                   </label>
 
-                  <label className="flex items-center gap-3 p-3.5 rounded-xl bg-[#F8F9FA] border border-gray-200 text-xs text-gray-800 cursor-pointer hover:bg-gray-100/70 transition">
+                  <label className="flex items-center gap-3 p-3.5 rounded-xl bg-[#F8F9FA] border border-neutral-200 text-xs text-black cursor-pointer hover:bg-gray-100/70 transition">
                     <input
                       type="checkbox"
                       checked={currentConfig.kodeQrisDinamis}
@@ -1402,9 +1381,9 @@ export default function PengaturanTokoPage() {
                       }
                       className="w-4 h-4 accent-blue-600 rounded"
                     />
-                    <span className="font-bold">Kode QRIS Dinamis</span>
+                    <span className="font-semibold">Kode QRIS Dinamis</span>
                   </label>
-                  <label className="sm:col-span-2 flex items-center gap-3 p-3.5 rounded-xl bg-[#F8F9FA] border border-gray-200 text-xs text-gray-800 cursor-pointer hover:bg-gray-100/70 transition">
+                  <label className="sm:col-span-2 flex items-center gap-3 p-3.5 rounded-xl bg-[#F8F9FA] border border-neutral-200 text-xs text-black cursor-pointer hover:bg-gray-100/70 transition">
                     <input
                       type="checkbox"
                       checked={currentConfig.cetakDetailPedas ?? true}
@@ -1413,7 +1392,7 @@ export default function PengaturanTokoPage() {
                       }
                       className="w-4 h-4 accent-blue-600 rounded"
                     />
-                    <span className="font-bold">
+                    <span className="font-semibold">
                       Detail Level Pedas &amp; Sambal
                     </span>
                   </label>
@@ -1421,27 +1400,27 @@ export default function PengaturanTokoPage() {
               </div>
 
               <div>
-                <label className="block text-[13px] font-extrabold text-gray-900 mb-2">
+                <label className="block text-[13px] font-semibold text-black mb-2">
                   Pesan Footer Struk (Catatan Penutup)
                 </label>
                 <textarea
                   rows={2}
                   value={currentConfig.pesanFooter}
                   onChange={(e) => updateField("pesanFooter", e.target.value)}
-                  className="w-full border border-gray-300 px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-900 bg-white resize-none focus:outline-none focus:border-[#D97706]"
+                  className="w-full border border-neutral-300 px-3.5 py-2 rounded-xl text-xs font-medium text-black bg-white resize-none focus:outline-none focus:border-[#D97706]"
                 />
-                <p className="text-xs text-gray-600 font-medium mt-1.5">
+                <p className="text-xs text-neutral-800 font-medium mt-1.5">
                   Tercetak di bagian paling bawah struk setelah total
                   pembayaran.
                 </p>
               </div>
 
-              <div className="p-4 sm:p-5 rounded-xl bg-[#F8F9FA] border border-gray-200 flex items-center justify-between gap-4">
+              <div className="p-4 sm:p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200 flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-[13px] font-extrabold text-gray-900">
+                  <p className="text-[13px] font-semibold text-black">
                     Auto-Print Setelah Pembayaran Lunas
                   </p>
-                  <p className="text-xs text-gray-600 font-medium mt-1">
+                  <p className="text-xs text-neutral-800 font-medium mt-1">
                     Langsung mengirim perintah cetak tanpa konfirmasi kasir
                   </p>
                 </div>
@@ -1466,8 +1445,8 @@ export default function PengaturanTokoPage() {
                 </button>
               </div>
 
-              <div className="bg-[#F8F9FA] border border-gray-200 rounded-xl p-3.5 w-full">
-                <label className="block text-[13px] font-extrabold text-gray-900 mb-2">
+              <div className="bg-[#F8F9FA] border border-neutral-200 rounded-xl p-3.5 w-full">
+                <label className="block text-[13px] font-semibold text-black mb-2">
                   Jumlah Salinan Cetak
                 </label>
                 <select
@@ -1478,7 +1457,7 @@ export default function PengaturanTokoPage() {
                       e.target.value as BranchStoreSettings["jumlahSalinanStruk"]
                     )
                   }
-                  className="w-full border border-gray-300 px-3 py-2 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-[#D97706]"
+                  className="w-full border border-neutral-400 px-3 py-2 rounded-xl text-xs font-semibold text-black bg-white focus:outline-none focus:border-[#D97706]"
                 >
                   <option value="1x (Pelanggan)">1x (Pelanggan)</option>
                   <option value="2x (Pelanggan & Dapur)">
@@ -1488,8 +1467,8 @@ export default function PengaturanTokoPage() {
               </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-gray-200 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-xs font-extrabold text-gray-800">
+              <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-neutral-200 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-black">
                   <Printer size={14} className="text-[#D97706] shrink-0" />
                   <span>Uji Perangkat Printer (ESC/POS 80mm)</span>
                 </div>
@@ -1501,7 +1480,7 @@ export default function PengaturanTokoPage() {
                         `Mengirim sinyal Tes Cetak Thermal (${activeBranchKey})...`
                       )
                     }
-                    className="flex items-center gap-2 px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-extrabold text-gray-800 hover:text-black transition cursor-pointer shadow-2xs"
+                    className="flex items-center gap-2 px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black hover:text-black transition cursor-pointer shadow-2xs"
                   >
                     <Printer size={14} />
                     <span>Tes Cetak Thermal</span>
@@ -1511,7 +1490,7 @@ export default function PengaturanTokoPage() {
                     onClick={() =>
                       showToast("Menguji pemotong kertas (Auto-Cutter)...")
                     }
-                    className="flex items-center gap-2 px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-extrabold text-gray-800 hover:text-black transition cursor-pointer shadow-2xs"
+                    className="flex items-center gap-2 px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black hover:text-black transition cursor-pointer shadow-2xs"
                   >
                     <Scissors size={14} />
                     <span>Uji Auto-Cutter</span>
@@ -1521,12 +1500,12 @@ export default function PengaturanTokoPage() {
             </div>
 
             {/* Right Receipt Preview */}
-            <div className="w-full lg:w-80 shrink-0 bg-[#F8F9FA] border border-gray-200 rounded-2xl p-5 flex flex-col items-center">
-              <p className="text-xs font-extrabold text-center text-gray-600 tracking-wider uppercase mb-3">
+            <div className="w-full lg:w-80 shrink-0 bg-[#F8F9FA] border border-neutral-200 rounded-2xl p-5 flex flex-col items-center">
+              <p className="text-xs font-semibold text-center text-neutral-700 tracking-wider uppercase mb-3">
                 SIMULASI CETAK KERTAS (80MM)
               </p>
               <div
-                className="w-64 bg-white border border-gray-300 shadow-md p-5 pb-8 relative flex flex-col font-mono text-[10.5px] text-gray-900 rounded-t-md"
+                className="w-64 bg-white border border-neutral-300 shadow-md p-5 pb-8 relative flex flex-col font-mono text-[10.5px] text-black rounded-t-md"
                 style={{
                   backgroundImage:
                     "radial-gradient(circle at 6px 100%, #F8F9FA 5px, transparent 6px)",
@@ -1537,6 +1516,7 @@ export default function PengaturanTokoPage() {
               >
                 <div className="text-center mb-2.5">
                   {currentConfig.cetakLogo && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={currentConfig.logoUrl || "/logo.png"}
                       alt="Logo"
@@ -1548,10 +1528,10 @@ export default function PengaturanTokoPage() {
                   </h4>
                   {currentConfig.cetakAlamat && (
                     <>
-                      <p className="text-[9.5px] text-gray-600 mt-0.5 leading-snug">
+                      <p className="text-[9.5px] text-neutral-700 mt-0.5 leading-snug">
                         {currentConfig.alamat}
                       </p>
-                      <p className="text-[9.5px] text-gray-600 mt-0.5">
+                      <p className="text-[9.5px] text-neutral-700 mt-0.5">
                         WA: {currentConfig.whatsapp}
                       </p>
                     </>
@@ -1561,27 +1541,27 @@ export default function PengaturanTokoPage() {
                 {/* Nomor Antrian Besar (Dapur) */}
                 {currentConfig.nomorAntrianBesar && (
                   <div className="my-1.5 py-1.5 px-2 border-y-2 border-gray-900 text-center bg-gray-50">
-                    <div className="text-[8.5px] font-bold tracking-widest uppercase text-gray-500">
+                    <div className="text-[8.5px] font-bold tracking-widest uppercase text-neutral-700">
                       NOMOR ANTRIAN DAPUR
                     </div>
-                    <div className="text-base font-black tracking-wider text-gray-900 leading-tight">
+                    <div className="text-base font-bold tracking-wider text-black leading-tight">
                       ANTRIAN #014
                     </div>
                   </div>
                 )}
 
-                <div className="border-t border-dashed border-gray-300 my-2"></div>
+                <div className="border-t border-dashed border-neutral-300 my-2"></div>
 
                 <div className="flex justify-between font-bold text-[10px]">
                   <span>KASIR: RIAN</span>
                   <span>MEJA: 04</span>
                 </div>
-                <div className="flex justify-between text-[9.5px] text-gray-600">
+                <div className="flex justify-between text-[9.5px] text-neutral-700">
                   <span>#INV-2605-008</span>
                   <span>14:22 WIB</span>
                 </div>
 
-                <div className="border-t border-dashed border-gray-300 my-2"></div>
+                <div className="border-t border-dashed border-neutral-300 my-2"></div>
 
                 <div className="mb-1.5">
                   <div className="flex justify-between font-bold">
@@ -1589,7 +1569,7 @@ export default function PengaturanTokoPage() {
                     <span>38.000</span>
                   </div>
                   {currentConfig.cetakDetailPedas && (
-                    <p className="text-[9px] text-gray-500">
+                    <p className="text-[9px] text-neutral-700">
                       Lvl 5 • Sambal Korek
                     </p>
                   )}
@@ -1605,15 +1585,15 @@ export default function PengaturanTokoPage() {
                   <span>10.000</span>
                 </div>
 
-                <div className="border-t border-dashed border-gray-300 my-2"></div>
+                <div className="border-t border-dashed border-neutral-300 my-2"></div>
 
-                <div className="flex justify-between text-[10px] text-gray-700 mb-0.5">
+                <div className="flex justify-between text-[10px] text-neutral-950 mb-0.5">
                   <span>Subtotal</span>
                   <span>
                     {receiptSimulation.subtotal.toLocaleString("id-ID")}
                   </span>
                 </div>
-                <div className="flex justify-between text-[10px] text-gray-700 mb-1">
+                <div className="flex justify-between text-[10px] text-neutral-950 mb-1">
                   <span>
                     PB1 ({currentConfig.pajakPersen || "0"}%
                     {currentConfig.pajakTipe === "termasuk" ? " Incl." : ""})
@@ -1623,38 +1603,38 @@ export default function PengaturanTokoPage() {
                   </span>
                 </div>
 
-                <div className="flex justify-between font-extrabold text-xs mt-1 pt-1 border-t border-gray-300">
+                <div className="flex justify-between font-bold text-xs mt-1 pt-1 border-t border-neutral-300">
                   <span>TOTAL BAYAR</span>
                   <span>
                     Rp {receiptSimulation.finalTotal.toLocaleString("id-ID")}
                   </span>
                 </div>
-                <div className="flex justify-between text-[9.5px] text-gray-600 mt-0.5">
+                <div className="flex justify-between text-[9.5px] text-neutral-700 mt-0.5">
                   <span>QRIS (ShopeePay)</span>
                   <span>
                     {receiptSimulation.finalTotal.toLocaleString("id-ID")}
                   </span>
                 </div>
-                <div className="flex justify-between text-[9.5px] text-gray-600">
+                <div className="flex justify-between text-[9.5px] text-neutral-700">
                   <span>Kembali</span>
                   <span>0</span>
                 </div>
 
                 {/* Kode QRIS Dinamis */}
                 {currentConfig.kodeQrisDinamis && (
-                  <div className="mt-2.5 pt-2 border-t border-dashed border-gray-300 flex flex-col items-center text-center">
-                    <div className="p-1.5 bg-white border border-gray-300 rounded-md">
-                      <QrCode size={42} className="text-gray-900" />
+                  <div className="mt-2.5 pt-2 border-t border-dashed border-neutral-300 flex flex-col items-center text-center">
+                    <div className="p-1.5 bg-white border border-neutral-300 rounded-md">
+                      <QrCode size={42} className="text-black" />
                     </div>
-                    <span className="text-[8.5px] font-bold text-gray-600 mt-1 uppercase tracking-wider">
+                    <span className="text-[8.5px] font-bold text-neutral-700 mt-1 uppercase tracking-wider">
                       SCAN QRIS DINAMIS • LUNAS OTOMATIS
                     </span>
                   </div>
                 )}
 
-                <div className="border-t border-dashed border-gray-300 my-2.5"></div>
+                <div className="border-t border-dashed border-neutral-300 my-2.5"></div>
 
-                <div className="text-center text-[9px] text-gray-600 leading-snug">
+                <div className="text-center text-[9px] text-neutral-700 leading-snug">
                   <p>{currentConfig.pesanFooter}</p>
                 </div>
               </div>
@@ -1663,24 +1643,24 @@ export default function PengaturanTokoPage() {
         </section>
 
         {/* E. Metode Pembayaran & Integrasi EDC/QRIS */}
-        <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-          <div className="flex flex-wrap justify-between items-center gap-3 mb-6 pb-4 border-b border-gray-200">
+        <section className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200">
+          <div className="flex flex-wrap justify-between items-center gap-3 mb-6 pb-4 border-b border-neutral-200">
             <div className="flex items-center gap-3.5">
-              <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-gray-900 font-black text-sm flex items-center justify-center shrink-0">
+              <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-black font-display font-bold text-sm flex items-center justify-center shrink-0">
                 E
               </span>
               <div>
-                <h3 className="font-extrabold text-sm text-gray-900">
+                <h3 className="font-display font-bold text-sm text-black">
                   Metode Pembayaran &amp; Integrasi EDC/QRIS
                 </h3>
-                <p className="text-xs text-gray-600 mt-0.5 font-medium">
+                <p className="text-xs text-neutral-800 mt-0.5 font-medium">
                   Konfigurasi channel pembayaran aktif yang muncul di layar
                   kasir checkout.
                 </p>
               </div>
             </div>
             <span
-              className={`text-xs font-extrabold px-3.5 py-1.5 rounded-lg border ${
+              className={`text-xs font-semibold px-3.5 py-1.5 rounded-lg border ${
                 activeChannelCount === 4
                   ? "text-emerald-800 bg-emerald-50 border-emerald-200"
                   : "text-amber-800 bg-amber-50 border-amber-300"
@@ -1693,17 +1673,17 @@ export default function PengaturanTokoPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="p-4 sm:p-5 rounded-xl bg-[#F8F9FA] border border-gray-200 flex items-center justify-between gap-4">
+            <div className="p-4 sm:p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200 flex items-center justify-between gap-4">
               <div className="flex items-start gap-3.5">
                 <Banknote
                   size={18}
                   className="text-emerald-700 mt-0.5 shrink-0"
                 />
                 <div>
-                  <p className="font-extrabold text-[13px] text-gray-900">
+                  <p className="font-semibold text-[13px] text-black">
                     Tunai / Uang Cash
                   </p>
-                  <p className="text-xs text-gray-600 font-medium mt-0.5">
+                  <p className="text-xs text-neutral-800 font-medium mt-0.5">
                     Laci kasir otomatis terbuka saat bayar
                   </p>
                 </div>
@@ -1725,14 +1705,14 @@ export default function PengaturanTokoPage() {
               </button>
             </div>
 
-            <div className="p-4 sm:p-5 rounded-xl bg-[#F8F9FA] border border-gray-200 flex items-center justify-between gap-4">
+            <div className="p-4 sm:p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200 flex items-center justify-between gap-4">
               <div className="flex items-start gap-3.5">
                 <QrCode size={18} className="text-blue-700 mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-extrabold text-[13px] text-gray-900">
+                  <p className="font-semibold text-[13px] text-black">
                     QRIS Dinamis (BCA / ShopeePay)
                   </p>
-                  <p className="text-xs text-gray-600 font-medium mt-0.5">
+                  <p className="text-xs text-neutral-800 font-medium mt-0.5">
                     Auto-detect nominal &amp; notifikasi instan
                   </p>
                 </div>
@@ -1754,17 +1734,17 @@ export default function PengaturanTokoPage() {
               </button>
             </div>
 
-            <div className="p-4 sm:p-5 rounded-xl bg-[#F8F9FA] border border-gray-200 flex items-center justify-between gap-4">
+            <div className="p-4 sm:p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200 flex items-center justify-between gap-4">
               <div className="flex items-start gap-3.5">
                 <CreditCard
                   size={18}
                   className="text-[#D97706] mt-0.5 shrink-0"
                 />
                 <div>
-                  <p className="font-extrabold text-[13px] text-gray-900">
+                  <p className="font-semibold text-[13px] text-black">
                     Mesin EDC Debit &amp; Kredit
                   </p>
-                  <p className="text-xs text-gray-600 font-medium mt-0.5">
+                  <p className="text-xs text-neutral-800 font-medium mt-0.5">
                     BCA &amp; Mandiri Link (Input No. Approval)
                   </p>
                 </div>
@@ -1786,17 +1766,17 @@ export default function PengaturanTokoPage() {
               </button>
             </div>
 
-            <div className="p-4 sm:p-5 rounded-xl bg-[#F8F9FA] border border-gray-200 flex items-center justify-between gap-4">
+            <div className="p-4 sm:p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200 flex items-center justify-between gap-4">
               <div className="flex items-start gap-3.5">
                 <UtensilsCrossed
                   size={18}
                   className="text-rose-600 mt-0.5 shrink-0"
                 />
                 <div>
-                  <p className="font-extrabold text-[13px] text-gray-900">
+                  <p className="font-semibold text-[13px] text-black">
                     GrabFood &amp; GoFood Merchant
                   </p>
-                  <p className="text-xs text-gray-600 font-medium mt-0.5">
+                  <p className="text-xs text-neutral-800 font-medium mt-0.5">
                     Sinkronisasi pesanan ojol langsung ke dapur
                   </p>
                 </div>
@@ -1821,17 +1801,17 @@ export default function PengaturanTokoPage() {
         </section>
 
         {/* F. Perangkat Keras Kasir & Tata Letak Meja */}
-        <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-          <div className="flex flex-wrap justify-between items-center gap-3 mb-6 pb-4 border-b border-gray-200">
+        <section className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200">
+          <div className="flex flex-wrap justify-between items-center gap-3 mb-6 pb-4 border-b border-neutral-200">
             <div className="flex items-center gap-3.5">
-              <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-gray-900 font-black text-sm flex items-center justify-center shrink-0">
+              <span className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-black font-display font-bold text-sm flex items-center justify-center shrink-0">
                 F
               </span>
               <div>
-                <h3 className="font-extrabold text-sm text-gray-900">
+                <h3 className="font-display font-bold text-sm text-black">
                   Perangkat Keras Kasir &amp; Tata Letak Meja
                 </h3>
-                <p className="text-xs text-gray-600 mt-0.5 font-medium">
+                <p className="text-xs text-neutral-800 mt-0.5 font-medium">
                   Koneksi printer kasir bluetooth/LAN, kitchen display, dan
                   total meja dine-in.
                 </p>
@@ -1841,7 +1821,7 @@ export default function PengaturanTokoPage() {
               type="button"
               onClick={handleRescanDevices}
               disabled={isScanningDevices}
-              className="text-xs font-extrabold text-gray-800 hover:text-black bg-gray-50 hover:bg-gray-100 disabled:opacity-60 border border-gray-300 px-4 py-2 rounded-xl flex items-center gap-2 transition cursor-pointer"
+              className="text-xs font-semibold text-black hover:text-black bg-gray-50 hover:bg-gray-100 disabled:opacity-60 border border-neutral-400 px-4 py-2 rounded-xl flex items-center gap-2 transition cursor-pointer"
             >
               <RefreshCw
                 size={13}
@@ -1856,34 +1836,34 @@ export default function PengaturanTokoPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-gray-200">
-              <p className="text-xs font-bold text-gray-500 mb-1">
+            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200">
+              <p className="text-xs font-medium text-neutral-800 mb-1">
                 Printer Kasir Utama
               </p>
-              <p className="font-extrabold text-[13px] text-gray-900">
+              <p className="font-semibold text-[13px] text-black">
                 Epson TM-T82X (LAN)
               </p>
-              <p className="text-xs font-semibold text-emerald-700 mt-1.5 flex items-center gap-1.5">
+              <p className="text-xs font-mono font-medium text-emerald-700 mt-1.5 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                 IP: 192.168.1.201 • Port 9100
               </p>
             </div>
 
-            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-gray-200">
-              <p className="text-xs font-bold text-gray-500 mb-1">
+            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200">
+              <p className="text-xs font-medium text-neutral-800 mb-1">
                 Printer Dapur / Cobek
               </p>
-              <p className="font-extrabold text-[13px] text-gray-900">
+              <p className="font-semibold text-[13px] text-black">
                 Thermal Kitchen 80mm
               </p>
-              <p className="text-xs font-semibold text-emerald-700 mt-1.5 flex items-center gap-1.5">
+              <p className="text-xs font-mono font-medium text-emerald-700 mt-1.5 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                 IP: 192.168.1.202 • Auto-Buzzer
               </p>
             </div>
 
-            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-gray-200">
-              <p className="text-xs font-bold text-gray-500 mb-1.5">
+            <div className="p-5 rounded-xl bg-[#F8F9FA] border border-neutral-200">
+              <p className="text-xs font-medium text-neutral-800 mb-1.5">
                 Kapasitas Meja Dine-In
               </p>
               <div className="flex items-center gap-2">
@@ -1908,13 +1888,13 @@ export default function PengaturanTokoPage() {
                       updateField("kapasitasMeja", 1);
                     }
                   }}
-                  className="w-20 border border-gray-300 bg-white px-2.5 py-2 rounded-lg font-extrabold text-xs text-gray-900 text-center focus:outline-none focus:border-[#D97706]"
+                  className="w-20 border border-neutral-300 bg-white px-2.5 py-2 rounded-lg font-bold text-xs text-black text-center tabular-nums focus:outline-none focus:border-[#D97706]"
                 />
-                <span className="font-extrabold text-[13px] text-gray-900">
+                <span className="font-semibold text-[13px] text-black">
                   Meja
                 </span>
               </div>
-              <p className="text-xs font-medium text-gray-600 mt-1.5">
+              <p className="text-xs font-medium text-neutral-800 mt-1.5">
                 Zona Dalam AC &amp; Area Luar Terbuka
               </p>
             </div>
@@ -1922,8 +1902,8 @@ export default function PengaturanTokoPage() {
         </section>
 
         {/* BOTTOM SAVE BAR */}
-        <section className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-3 text-xs font-semibold text-gray-700">
+        <section className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-neutral-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-3 text-xs font-semibold text-neutral-950">
             <Info size={16} className="text-[#2D452B] shrink-0" />
             <span>
               Perubahan konfigurasi tersimpan otomatis ke database server MariaDB.
@@ -1932,12 +1912,12 @@ export default function PengaturanTokoPage() {
 
           <div className="flex items-center gap-3 self-end sm:self-center">
             {hasUnsavedChanges ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-xs font-extrabold whitespace-nowrap">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-xs font-semibold whitespace-nowrap">
                 <Clock size={13} className="shrink-0" />
                 <span>Ada Perubahan Belum Disimpan</span>
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-extrabold whitespace-nowrap">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold whitespace-nowrap">
                 <CheckCircle2 size={13} className="shrink-0" />
                 <span>Tersimpan</span>
               </span>
@@ -1947,7 +1927,7 @@ export default function PengaturanTokoPage() {
               type="button"
               onClick={handleSave}
               disabled={isSaving}
-              className="flex items-center gap-2 text-xs font-extrabold text-white bg-[#2D452B] hover:bg-[#223520] disabled:opacity-60 px-5 py-2.5 rounded-xl transition cursor-pointer shadow-xs"
+              className="flex items-center gap-2 text-xs font-semibold text-white bg-[#2D452B] hover:bg-[#223520] disabled:opacity-60 px-5 py-2.5 rounded-xl transition cursor-pointer shadow-xs"
             >
               {isSaving ? (
                 <>
@@ -1965,9 +1945,9 @@ export default function PengaturanTokoPage() {
         </section>
 
         {/* FOOTER SYSTEM */}
-        <footer className="pt-3 pb-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-600 font-medium gap-2">
+        <footer className="pt-3 pb-4 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-800 font-medium gap-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-extrabold text-[#EA8E18]">
+            <span className="font-display font-bold text-[#EA8E18]">
               PrekDuaDara POS v2.4
             </span>
             <span>•</span>

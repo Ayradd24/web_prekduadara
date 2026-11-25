@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
 import { useTransactions, Transaction } from "@/context/TransactionContext";
 import {
@@ -10,42 +11,13 @@ import {
   Eye,
   FileSpreadsheet,
   FileText,
-  Filter,
   Info,
   Printer,
   RefreshCw,
   RotateCcw,
-  Search,
-  Store,
   User,
   X,
 } from "lucide-react";
-
-interface RecentOrderRow {
-  id: string;
-  time: string;
-  date: string;
-  relativeTime: string;
-  mainMenu: string;
-  addons: string;
-  portions: number;
-  branch: string;
-  cashier: string;
-  terminal: string;
-  paymentMethod: "Tunai" | "QRIS";
-  paymentBadge: "QRIS Dinamis" | "Tunai / Cash";
-  orderType: "Dine-In" | "Takeaway" | "Ojol Delivery";
-  subtotal: number;
-  diskon: number;
-  total: number;
-  status: "Berhasil" | "Batal";
-}
-
-const resolveBranchFromTerminal = (terminal: string): string => {
-  if (terminal.includes("Pos-02")) return "Cabang Tebet Eco Park";
-  if (terminal.includes("Pos-03")) return "Cabang Dago Heritage";
-  return "Cabang Sudirman Utama";
-};
 
 const getSystemDateInfo = () => {
   const now = new Date();
@@ -57,13 +29,6 @@ const getSystemDateInfo = () => {
   const daysElapsedInMonth = Math.max(1, now.getDate());
   return { todayStr, firstDayOfMonthStr, daysElapsedInMonth };
 };
-
-const BRANCH_OPTIONS = [
-  "Semua Cabang",
-  "Cabang Sudirman Utama",
-  "Cabang Tebet Eco Park",
-  "Cabang Dago Heritage",
-];
 
 interface BranchProfile {
   scale: number;
@@ -427,8 +392,6 @@ const BASE_HEATMAP_DATA = [
   },
 ];
 
-const ITEMS_PER_PAGE = 5;
-
 const formatShortRupiah = (jtVal: number): string => {
   if (jtVal >= 1) {
     return `Rp ${jtVal.toFixed(1).replace(".", ",")} Jt`;
@@ -468,28 +431,31 @@ export default function TransaksiPage() {
   );
 
   // State Kontrol Header (Cabang, Periode, Rentang Kustom, Sync POS)
-  const [selectedBranch, setSelectedBranch] = useState<string>("Semua Cabang");
-  const [showBranchMenu, setShowBranchMenu] = useState<boolean>(false);
+  const selectedBranch = "Semua Cabang";
   const [selectedPeriod, setSelectedPeriod] = useState<string>("Hari Ini");
   const [isClientReady, setIsClientReady] = useState<boolean>(false);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("prekduadara_transaksi_period");
-      if (
-        saved &&
-        ["Hari Ini", "7 Hari", "Bulan Ini", "Kuartal", "Kustom"].includes(saved)
-      ) {
-        setSelectedPeriod(saved);
+    const timer = setTimeout(() => {
+      try {
+        const saved = localStorage.getItem("prekduadara_transaksi_period");
+        if (
+          saved &&
+          ["Hari Ini", "7 Hari", "Bulan Ini", "Kuartal", "Kustom"].includes(saved)
+        ) {
+          setSelectedPeriod(saved);
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
-    }
-    setIsClientReady(true);
+      setIsClientReady(true);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleSelectPeriod = (period: string) => {
     setSelectedPeriod(period);
+    setCurrentPage(1);
     try {
       localStorage.setItem("prekduadara_transaksi_period", period);
     } catch {
@@ -527,11 +493,6 @@ export default function TransaksiPage() {
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const branchDropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, filterPayment, filterTerminal, filterStatus, selectedPeriod]);
 
   const displayedTransactions = useMemo(() => {
     const now = new Date();
@@ -613,27 +574,13 @@ export default function TransaksiPage() {
   };
 
   useEffect(() => {
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    setLastSyncTime(`${hours}:${minutes} WIB`);
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (
-        branchDropdownRef.current &&
-        !branchDropdownRef.current.contains(target)
-      ) {
-        setShowBranchMenu(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    const timer = setTimeout(() => {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, "0");
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+      setLastSyncTime(`${hours}:${minutes} WIB`);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const showToast = (msg: string) => {
@@ -983,7 +930,7 @@ export default function TransaksiPage() {
       weekendSplit: profile.weekendSplit,
       stockInsightBoost: profile.stockInsightBoost,
     };
-  }, [selectedBranch, selectedPeriod, basePeriod]);
+  }, [selectedBranch, basePeriod]);
 
   // 2. KALKULASI DINAMIS GRAFIK TREN PENJUALAN & FLUKTUASI PORSI (SVG CHART)
   const dynamicHourlyChart = useMemo(() => {
@@ -1258,17 +1205,17 @@ export default function TransaksiPage() {
   const getHeatmapCellStyle = (level: string) => {
     switch (level) {
       case "peak":
-        return "bg-[#991B1B] text-white font-black shadow-2xs";
+        return "bg-[#991B1B] text-white font-bold shadow-2xs";
       case "very_high":
-        return "bg-[#DC2626] text-white font-extrabold shadow-2xs";
+        return "bg-[#DC2626] text-white font-bold shadow-2xs";
       case "high":
-        return "bg-[#EF4444] text-white font-extrabold";
+        return "bg-[#EF4444] text-white font-semibold";
       case "medium":
-        return "bg-[#FBBF24] text-gray-950 font-extrabold";
+        return "bg-[#FBBF24] text-black font-semibold";
       case "mild":
-        return "bg-[#A7F3D0] text-[#064E3B] font-extrabold";
+        return "bg-[#A7F3D0] text-[#064E3B] font-semibold";
       default:
-        return "bg-gray-100 text-gray-700 font-bold border border-gray-200/70";
+        return "bg-gray-100 text-neutral-950 font-medium border border-neutral-200/70";
     }
   };
 
@@ -1283,7 +1230,7 @@ export default function TransaksiPage() {
       : null;
 
   return (
-    <div className="min-h-screen bg-[#FAF6E9] print:bg-white flex p-4 sm:p-6 print:p-0 gap-6 font-sans items-start text-gray-900">
+    <div className="min-h-screen bg-[#FAF6E9] print:bg-white flex p-4 sm:p-6 print:p-0 gap-6 font-sans items-start text-black">
       {/* Notifikasi Toast Modern (Pojok Kanan Bawah) */}
       {toastMessage && (
         <div className="print:hidden fixed bottom-6 right-6 z-50 bg-[#2D452B] text-white border border-[#415C3E] px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-xs sm:text-sm font-bold transition-all">
@@ -1297,12 +1244,14 @@ export default function TransaksiPage() {
       {/* MODAL PREVIEW STRUK THERMAL 80MM */}
       {selectedTx && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl border border-gray-200 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl border border-neutral-200 animate-in fade-in zoom-in-95 duration-150">
             {/* Header Modal */}
             <div className="bg-[#2D452B] text-white px-5 py-3.5 flex items-center justify-between">
-              <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider">
-                <Printer size={16} />
-                <span>Preview Struk Thermal (80mm)</span>
+              <div className="flex items-center gap-2">
+                <Printer size={16} className="text-[#F3A712]" />
+                <h3 className="font-display font-bold text-sm tracking-wide">
+                  Preview Struk Thermal (80mm)
+                </h3>
               </div>
               <button
                 type="button"
@@ -1315,43 +1264,43 @@ export default function TransaksiPage() {
 
             {/* Konten Kertas Struk Thermal */}
             <div className="p-5 bg-[#FCFBF7] font-mono text-xs">
-              <div className="border border-gray-300 bg-white p-4 rounded-xl shadow-xs">
+              <div className="border border-neutral-300 bg-white p-4 rounded-xl shadow-xs">
                 {/* Logo & Judul Struk */}
-                <div className="text-center pb-3 border-b border-dashed border-gray-300 mb-3.5">
-                  <div className="font-black text-sm text-gray-900 tracking-wider">
+                <div className="text-center pb-3 border-b border-dashed border-neutral-300 mb-3.5">
+                  <div className="font-display font-bold text-base text-black tracking-wide">
                     PREKDUADARA
                   </div>
-                  <div className="text-[11px] text-gray-600 mt-0.5 font-sans font-medium">
+                  <div className="text-[11px] text-neutral-700 mt-0.5 font-sans font-medium">
                     Spesial Ayam Geprek &amp; Geprek Bakar
                   </div>
-                  <div className="text-[11px] text-gray-500 font-sans">
+                  <div className="text-[11px] text-neutral-700 font-sans font-medium">
                     Gerai Utama • Telp: 0812-xxxx-xxxx
                   </div>
                 </div>
 
                 {/* Metadata Struk */}
-                <div className="space-y-1.5 border-b border-dashed border-gray-300 pb-3.5 mb-3.5 text-[11px]">
+                <div className="space-y-1.5 border-b border-dashed border-neutral-300 pb-3.5 mb-3.5 text-[11px]">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">ID Struk:</span>
-                    <span className="font-bold text-gray-900">{selectedTx.id}</span>
+                    <span className="text-neutral-800">ID Struk:</span>
+                    <span className="font-bold text-black">{selectedTx.id}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Waktu:</span>
-                    <span className="font-semibold text-gray-800">
+                    <span className="text-neutral-800">Waktu:</span>
+                    <span className="font-semibold text-black">
                       {selectedTx.date}, {selectedTx.time} WIB
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Kasir:</span>
-                    <span className="font-bold text-gray-800">
+                    <span className="text-neutral-800">Kasir:</span>
+                    <span className="font-bold text-black">
                       {selectedTx.cashier}
                     </span>
                   </div>
                 </div>
 
                 {/* Ringkasan Item Pesanan (Per Menu Diturunkan ke Bawah) */}
-                <div className="border-b border-dashed border-gray-300 pb-3.5 mb-3.5">
-                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+                <div className="border-b border-dashed border-neutral-300 pb-3.5 mb-3.5">
+                  <div className="text-[10px] font-bold text-neutral-700 uppercase tracking-wider mb-2">
                     RINCIAN PESANAN ({selectedTx.totalItems} ITEM)
                   </div>
                   <div className="space-y-2">
@@ -1361,17 +1310,17 @@ export default function TransaksiPage() {
                             key={idx}
                             className="flex items-start justify-between gap-2 text-xs leading-relaxed"
                           >
-                            <div className="font-bold text-gray-900">
+                            <div className="font-bold text-black">
                               <span>
                                 {item.quantity}x {item.name}
                               </span>
                               {item.sambal && (
-                                <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded bg-red-50 border border-red-200 text-[#DC2626] text-[10px] font-extrabold">
+                                <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded bg-red-50 border border-red-200 text-[#DC2626] text-[10px] font-sans font-semibold">
                                   🌶️ {item.sambal}
                                 </span>
                               )}
                             </div>
-                            <span className="font-semibold text-gray-700 whitespace-nowrap tabular-nums">
+                            <span className="font-semibold text-neutral-950 whitespace-nowrap tabular-nums">
                               {formatRupiah(item.subtotal)}
                             </span>
                           </div>
@@ -1381,7 +1330,7 @@ export default function TransaksiPage() {
                           .map((item, idx) => (
                             <div
                               key={idx}
-                              className="font-bold text-gray-900 text-xs leading-relaxed"
+                              className="font-bold text-black text-xs leading-relaxed"
                             >
                               {item.trim()}
                             </div>
@@ -1390,14 +1339,14 @@ export default function TransaksiPage() {
                 </div>
 
                 {/* Kalkulasi Harga */}
-                <div className="space-y-1.5 border-b border-dashed border-gray-300 pb-3.5 mb-3.5 text-[11px]">
+                <div className="space-y-1.5 border-b border-dashed border-neutral-300 pb-3.5 mb-3.5 text-[11px]">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Subtotal:</span>
-                    <span className="font-semibold text-gray-800">
+                    <span className="text-neutral-800">Subtotal:</span>
+                    <span className="font-semibold text-black">
                       {formatRupiah(selectedTx.subtotal)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-xs font-black text-gray-900 pt-1">
+                  <div className="flex justify-between text-xs font-bold text-black pt-1">
                     <span>TOTAL AKHIR:</span>
                     <span className="text-[#EA8E18]">
                       {formatRupiah(selectedTx.total)}
@@ -1408,13 +1357,13 @@ export default function TransaksiPage() {
                 {/* Metode & Status */}
                 <div className="space-y-1.5 text-[11px]">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-500">Metode Bayar:</span>
-                    <span className="font-bold text-gray-900">
+                    <span className="text-neutral-800">Metode Bayar:</span>
+                    <span className="font-bold text-black">
                       {selectedTx.paymentMethod}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-500">Status Transaksi:</span>
+                    <span className="text-neutral-800">Status Transaksi:</span>
                     <span
                       className={`font-bold px-2 py-0.5 rounded text-[10px] ${
                         selectedTx.status === "Berhasil"
@@ -1428,18 +1377,18 @@ export default function TransaksiPage() {
                 </div>
 
                 {/* Footer Struk */}
-                <div className="text-center text-[10px] text-gray-500 font-sans mt-4 pt-3 border-t border-dashed border-gray-200">
+                <div className="text-center text-[10px] text-neutral-700 font-sans mt-4 pt-3 border-t border-dashed border-neutral-200">
                   Matur nuwun sampun mampir! Pedasnya bikin nagih.
                 </div>
               </div>
             </div>
 
             {/* Action Buttons Modal */}
-            <div className="px-5 py-3.5 bg-white border-t border-gray-200 flex items-center justify-end gap-2.5">
+            <div className="px-5 py-3.5 bg-white border-t border-neutral-200 flex items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setSelectedTx(null)}
-                className="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-bold transition cursor-pointer"
+                className="px-4 py-2 border border-neutral-400 hover:bg-gray-50 text-black rounded-xl text-xs font-bold transition cursor-pointer"
               >
                 Tutup
               </button>
@@ -1467,19 +1416,21 @@ export default function TransaksiPage() {
       {/* 2. KONTEN UTAMA ANALITIK TRANSAKSI & PENJUALAN */}
       <main className="flex-1 flex flex-col gap-5 overflow-x-hidden print:overflow-visible max-w-full">
         {/* KARTU 1: TOP HEADER BAR (SERAGAM DENGAN SELURUH HALAMAN DASHBOARD) */}
-        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
+        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-neutral-200 flex flex-wrap items-center justify-between gap-4">
           {/* Brand Title */}
           <div className="flex items-center gap-3">
-            <img
+            <Image
               src="/logo.png"
               alt="Logo PrekDuaDara"
-              className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-xs shrink-0"
+              width={40}
+              height={40}
+              className="w-10 h-10 rounded-full object-cover border border-neutral-200 shadow-xs shrink-0"
             />
             <div>
-              <div className="font-extrabold text-base text-[#EA8E18] tracking-tight leading-tight">
+              <div className="font-display font-bold text-lg text-[#EA8E18] tracking-tight leading-tight">
                 PrekDuaDara
               </div>
-              <div className="text-xs text-gray-600 font-medium leading-tight mt-0.5">
+              <div className="text-xs text-neutral-800 font-medium leading-tight mt-0.5">
                 Analitik Transaksi &amp; Penjualan Restoran
               </div>
             </div>
@@ -1488,42 +1439,45 @@ export default function TransaksiPage() {
           {/* Right Controls: Online Sync & Admin Owner Profile */}
           <div className="print:hidden flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
             {/* Online Sync Pill */}
-            <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
+            <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-semibold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
             {/* User Profile: Admin / Owner */}
-            <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
+            <div className="flex items-center gap-2.5 pl-3 border-l border-neutral-200 shrink-0">
               <div className="text-right">
-                <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
+                <div className="text-xs font-semibold text-black leading-tight whitespace-nowrap">
                   Admin
                 </div>
-                <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
+                <div className="text-[11px] text-[#EA8E18] font-medium leading-tight mt-0.5 whitespace-nowrap">
                   Owner
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-semibold text-xs flex items-center justify-center shadow-xs shrink-0">
                 <User size={16} />
               </div>
             </div>
           </div>
 
           {/* Info Periode Khusus Saat Print PDF */}
-          <div className="hidden print:flex flex-col items-end text-right text-xs text-gray-700">
-            <div className="font-extrabold text-gray-900">
+          <div className="hidden print:flex flex-col items-end text-right text-xs text-neutral-950">
+            <div className="font-display font-bold text-black">
               PrekDuaDara • Periode: {activeMetrics.periodBadge}
             </div>
-            <div>Dicetak dari Sistem POS PrekDuaDara ({lastSyncTime})</div>
+            <div>
+              Dicetak dari Sistem POS PrekDuaDara (
+              <span className="font-mono">{lastSyncTime}</span>)
+            </div>
           </div>
         </header>
 
         {/* KARTU 2: BARIS FILTER PERIODE & EKSPOR (TERPISAH DARI HEADER) */}
-        <section className="print:hidden bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-col">
+        <section className="print:hidden bg-white rounded-2xl px-6 py-4 shadow-sm border border-neutral-200 flex flex-col">
           {/* Baris Atas: Tab Filter Periode (Kiri) & Tombol Aksi Paten (Kanan) */}
           <div className="flex flex-wrap items-center justify-between gap-4 w-full">
             {/* Period Switcher Tabs */}
-            <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs">
+            <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-neutral-200 text-xs">
               {["Hari Ini", "7 Hari", "Bulan Ini", "Kuartal"].map(
                 (period) => (
                   <button
@@ -1532,8 +1486,8 @@ export default function TransaksiPage() {
                     onClick={() => handleSelectPeriod(period)}
                     className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
                       selectedPeriod === period
-                        ? "bg-white text-gray-900 font-extrabold shadow-xs"
-                        : "text-gray-700 font-semibold hover:text-gray-900"
+                        ? "bg-white text-black font-semibold shadow-xs"
+                        : "text-black font-medium hover:text-black"
                     }`}
                   >
                     {period}
@@ -1545,8 +1499,8 @@ export default function TransaksiPage() {
                 onClick={() => handleSelectPeriod("Kustom")}
                 className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
                   selectedPeriod === "Kustom"
-                    ? "bg-white text-gray-900 font-extrabold shadow-xs"
-                    : "text-gray-700 font-semibold hover:text-gray-900"
+                    ? "bg-white text-black font-semibold shadow-xs"
+                    : "text-black font-medium hover:text-black"
                 }`}
               >
                 <Calendar size={12} />
@@ -1559,7 +1513,7 @@ export default function TransaksiPage() {
               <button
                 type="button"
                 onClick={handleSyncPos}
-                className="flex items-center gap-2 px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-300 text-emerald-800 rounded-xl text-xs font-extrabold transition cursor-pointer whitespace-nowrap"
+                className="flex items-center gap-2 px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-300 text-emerald-800 rounded-xl text-xs font-semibold transition cursor-pointer whitespace-nowrap"
                 title="Klik untuk sinkronisasi manual dengan mesin kasir POS"
               >
                 <RefreshCw
@@ -1574,7 +1528,7 @@ export default function TransaksiPage() {
               <button
                 type="button"
                 onClick={handleExportExcel}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-neutral-400 hover:bg-gray-50 text-black rounded-xl text-xs font-semibold transition cursor-pointer whitespace-nowrap"
               >
                 <FileSpreadsheet size={14} className="text-emerald-700" />
                 <span>Excel</span>
@@ -1583,7 +1537,7 @@ export default function TransaksiPage() {
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="flex items-center gap-1.5 px-4 py-1.5 bg-[#D92D20] hover:bg-[#B91C1C] text-white rounded-xl text-xs font-extrabold shadow-xs transition cursor-pointer whitespace-nowrap"
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-[#D92D20] hover:bg-[#B91C1C] text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer whitespace-nowrap"
               >
                 <FileText size={14} />
                 <span>Export PDF</span>
@@ -1593,29 +1547,29 @@ export default function TransaksiPage() {
 
           {/* Baris Bawah: Custom Date Range Picker (Muncul Hanya Saat Tab Kustom Aktif) */}
           {selectedPeriod === "Kustom" && (
-            <div className="mt-3.5 pt-3.5 border-t border-gray-200 flex flex-wrap items-center gap-3">
+            <div className="mt-3.5 pt-3.5 border-t border-neutral-200 flex flex-wrap items-center gap-3">
               <div className="flex flex-wrap items-center gap-2 bg-amber-50/70 border border-amber-200 px-3 py-1.5 rounded-xl text-xs">
-                <span className="font-bold text-gray-700">Rentang:</span>
+                <span className="font-semibold text-neutral-950">Rentang:</span>
                 <input
                   type="date"
                   value={customStartDate}
                   max={customEndDate || todayStr}
                   onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="bg-white border border-gray-300 rounded-lg px-2.5 py-1 font-semibold text-gray-800 focus:outline-none focus:border-[#EA8E18]"
+                  className="bg-white border border-neutral-300 rounded-lg px-2.5 py-1 font-medium text-black focus:outline-none focus:border-[#EA8E18]"
                 />
-                <span className="text-gray-500 font-bold">s/d</span>
+                <span className="text-neutral-800 font-medium">s/d</span>
                 <input
                   type="date"
                   value={customEndDate}
                   min={customStartDate}
                   max={todayStr}
                   onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="bg-white border border-gray-300 rounded-lg px-2.5 py-1 font-semibold text-gray-800 focus:outline-none focus:border-[#EA8E18]"
+                  className="bg-white border border-neutral-300 rounded-lg px-2.5 py-1 font-medium text-black focus:outline-none focus:border-[#EA8E18]"
                 />
                 <button
                   type="button"
                   onClick={handleApplyCustomDate}
-                  className="px-3 py-1 bg-[#EA8E18] hover:bg-[#d67f12] text-white font-extrabold rounded-lg transition cursor-pointer"
+                  className="px-3 py-1 bg-[#EA8E18] hover:bg-[#d67f12] text-white font-semibold rounded-lg transition cursor-pointer"
                 >
                   Terapkan
                 </button>
@@ -1627,59 +1581,59 @@ export default function TransaksiPage() {
         {/* 4 KPI SUMMARY CARDS (DINAMIS MENGIKUTI CABANG & PERIODE) */}
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {/* Card 1: TOTAL OMZET */}
-          <div className="bg-white rounded-2xl px-4 py-4.5 shadow-sm border border-gray-200 flex flex-col justify-between print:break-inside-avoid">
+          <div className="bg-white rounded-2xl px-4 py-4.5 shadow-sm border border-neutral-200 flex flex-col justify-between print:break-inside-avoid">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider leading-tight">
+              <span className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider leading-tight">
                 {activeMetrics.omzetTitle}
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-extrabold whitespace-nowrap shrink-0">
+              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-semibold whitespace-nowrap shrink-0">
                 {activeMetrics.omzetGrowth}
               </span>
             </div>
 
             <div className="my-2">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight whitespace-nowrap tabular-nums">
+              <h2 className="font-sans text-2xl font-extrabold text-black tracking-tight whitespace-nowrap tabular-nums">
                 {activeMetrics.omzetValue}
               </h2>
             </div>
 
-            <div className="pt-2.5 border-t border-gray-200 flex items-center justify-between gap-2 text-[11px] tracking-tight">
-              <span className="text-gray-600 font-semibold min-w-0 truncate">
+            <div className="pt-2.5 border-t border-neutral-200 flex items-center justify-between gap-2 text-[11px] tracking-tight">
+              <span className="text-neutral-800 font-medium min-w-0 truncate">
                 {activeMetrics.omzetTarget}
               </span>
-              <span className="font-extrabold text-[#D97706] shrink-0 whitespace-nowrap">
+              <span className="font-semibold text-[#D97706] shrink-0 whitespace-nowrap">
                 {activeMetrics.omzetAchieved}
               </span>
             </div>
           </div>
 
           {/* Card 2: PORSI GEPREK TERJUAL */}
-          <div className="bg-white rounded-2xl px-4 py-4.5 shadow-sm border border-gray-200 flex flex-col justify-between print:break-inside-avoid">
+          <div className="bg-white rounded-2xl px-4 py-4.5 shadow-sm border border-neutral-200 flex flex-col justify-between print:break-inside-avoid">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider leading-tight">
+              <span className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider leading-tight">
                 PORSI GEPREK TERJUAL
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-extrabold whitespace-nowrap shrink-0">
+              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-semibold whitespace-nowrap shrink-0">
                 {activeMetrics.porsiGrowth}
               </span>
             </div>
 
             <div className="my-2 flex items-baseline gap-2">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight whitespace-nowrap tabular-nums">
+              <h2 className="font-sans text-2xl font-extrabold text-black tracking-tight whitespace-nowrap tabular-nums">
                 {activeMetrics.porsiValue}
               </h2>
-              <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
                 Porsi Ayam
               </span>
             </div>
 
-            <div className="pt-2.5 border-t border-gray-200 flex items-center justify-between gap-2 text-[11px] tracking-tight">
-              <span className="text-gray-600 font-semibold whitespace-nowrap shrink-0">
+            <div className="pt-2.5 border-t border-neutral-200 flex items-center justify-between gap-2 text-[11px] tracking-tight">
+              <span className="text-neutral-800 font-medium whitespace-nowrap shrink-0">
                 {activeMetrics.porsiAvg}
               </span>
               <span
                 title={activeMetrics.topMenuLabel}
-                className="font-extrabold text-[#DC2626] min-w-0 truncate"
+                className="font-semibold text-[#DC2626] min-w-0 truncate"
               >
                 {activeMetrics.topMenuLabel}
               </span>
@@ -1687,57 +1641,57 @@ export default function TransaksiPage() {
           </div>
 
           {/* Card 3: RATA-RATA ORDER (AOV) */}
-          <div className="bg-white rounded-2xl px-4 py-4.5 shadow-sm border border-gray-200 flex flex-col justify-between print:break-inside-avoid">
+          <div className="bg-white rounded-2xl px-4 py-4.5 shadow-sm border border-neutral-200 flex flex-col justify-between print:break-inside-avoid">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider leading-tight">
+              <span className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider leading-tight">
                 RATA-RATA ORDER (AOV)
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-extrabold whitespace-nowrap shrink-0">
+              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-semibold whitespace-nowrap shrink-0">
                 {activeMetrics.aovGrowth}
               </span>
             </div>
 
             <div className="my-2">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight whitespace-nowrap tabular-nums">
+              <h2 className="font-sans text-2xl font-extrabold text-black tracking-tight whitespace-nowrap tabular-nums">
                 {activeMetrics.aovValue}
               </h2>
             </div>
 
-            <div className="pt-2.5 border-t border-gray-200 flex items-center justify-between gap-2 text-[11px] tracking-tight">
-              <span className="text-gray-600 font-semibold whitespace-nowrap shrink-0">
+            <div className="pt-2.5 border-t border-neutral-200 flex items-center justify-between gap-2 text-[11px] tracking-tight">
+              <span className="text-neutral-800 font-medium whitespace-nowrap shrink-0">
                 Transaksi: {activeMetrics.totalTx}
               </span>
-              <span className="font-extrabold text-gray-800 min-w-0 truncate">
+              <span className="font-semibold text-black min-w-0 truncate">
                 {branchProfile.addonRate}
               </span>
             </div>
           </div>
 
           {/* Card 4: JAM PENJUALAN PUNCAK */}
-          <div className="bg-white rounded-2xl px-4 py-4.5 shadow-sm border border-gray-200 flex flex-col justify-between print:break-inside-avoid">
+          <div className="bg-white rounded-2xl px-4 py-4.5 shadow-sm border border-neutral-200 flex flex-col justify-between print:break-inside-avoid">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider leading-tight">
+              <span className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider leading-tight">
                 JAM PENJUALAN PUNCAK
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-amber-50 text-[#B45309] border border-amber-300 text-xs font-extrabold whitespace-nowrap shrink-0">
+              <span className="px-2 py-0.5 rounded-full bg-amber-50 text-[#B45309] border border-amber-300 text-xs font-semibold whitespace-nowrap shrink-0">
                 Jam Sibuk
               </span>
             </div>
 
             <div className="my-2 flex items-baseline gap-2">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight whitespace-nowrap tabular-nums">
+              <h2 className="font-sans text-2xl font-extrabold text-black tracking-tight whitespace-nowrap tabular-nums">
                 {activeMetrics.rushHourLabel}
               </h2>
-              <span className="text-xs text-gray-500 font-bold whitespace-nowrap">
+              <span className="text-xs text-neutral-800 font-medium whitespace-nowrap">
                 {activeMetrics.rushHourTag}
               </span>
             </div>
 
-            <div className="pt-2.5 border-t border-gray-200 flex items-center justify-between gap-2 text-[11px] tracking-tight">
-              <span className="text-gray-600 font-semibold whitespace-nowrap shrink-0">
+            <div className="pt-2.5 border-t border-neutral-200 flex items-center justify-between gap-2 text-[11px] tracking-tight">
+              <span className="text-neutral-800 font-medium whitespace-nowrap shrink-0">
                 Malam: {branchProfile.rushDinnerTime}
               </span>
-              <span className="font-extrabold text-emerald-700 min-w-0 truncate">
+              <span className="font-semibold text-emerald-700 min-w-0 truncate">
                 {branchProfile.rushContribution}
               </span>
             </div>
@@ -1747,25 +1701,25 @@ export default function TransaksiPage() {
         {/* MIDDLE ROW 1: TREN PENJUALAN (LEFT 8 COLS) & KATEGORI MENU TERLARIS (RIGHT 4 COLS) */}
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
           {/* Left Card: Tren Penjualan & Fluktuasi Porsi */}
-          <div className="lg:col-span-8 bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col justify-between print:break-inside-avoid">
+          <div className="lg:col-span-8 bg-white rounded-2xl p-6 shadow-sm border border-neutral-200 flex flex-col justify-between print:break-inside-avoid">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
                 <div className="flex items-center gap-2.5">
                   <span className="w-3 h-3 rounded-xs bg-[#F59E0B] shrink-0"></span>
-                  <h3 className="font-extrabold text-base text-gray-900">
+                  <h3 className="font-display font-bold text-base text-black">
                     Tren Penjualan &amp; Fluktuasi Porsi Berdasarkan Waktu
                     Operasional
                   </h3>
                 </div>
-                <p className="text-xs text-gray-600 font-medium mt-1 pl-5">
+                <p className="text-xs text-neutral-800 font-medium mt-1 pl-5">
                   Arahkan kursor atau klik pada titik jam (09:00 - 22:00 WIB) •{" "}
-                  <strong className="text-gray-800">{selectedBranch}</strong> (
+                  <strong className="font-semibold text-black">{selectedBranch}</strong> (
                   {activeMetrics.periodBadge})
                 </p>
               </div>
 
-              <div className="flex items-center gap-4 text-xs font-extrabold text-gray-700 shrink-0">
+              <div className="flex items-center gap-4 text-xs font-semibold text-neutral-950 shrink-0">
                 <span className="flex items-center gap-2">
                   <span className="w-3 h-3 rounded-full bg-[#F59E0B]"></span>
                   Omzet (Rp)
@@ -1836,7 +1790,7 @@ export default function TransaksiPage() {
                         x="40"
                         y={row.y + 4}
                         textAnchor="end"
-                        className="fill-gray-600 text-[10.5px] font-bold"
+                        className="fill-neutral-800 text-[10.5px] font-bold"
                       >
                         {row.label}
                       </text>
@@ -1910,7 +1864,7 @@ export default function TransaksiPage() {
                       x="54"
                       y="12.5"
                       textAnchor="middle"
-                      className="fill-[#B45309] text-[9.5px] font-extrabold"
+                      className="fill-[#B45309] text-[9.5px] font-bold"
                     >
                       PEAK 1: MAKAN SIANG
                     </text>
@@ -1931,7 +1885,7 @@ export default function TransaksiPage() {
                       x="55"
                       y="11.5"
                       textAnchor="middle"
-                      className="fill-[#DC2626] text-[9.5px] font-extrabold"
+                      className="fill-[#DC2626] text-[9.5px] font-bold"
                     >
                       PEAK 2: MAKAN MALAM
                     </text>
@@ -1981,14 +1935,14 @@ export default function TransaksiPage() {
                           x={pt.x}
                           y="220"
                           textAnchor="middle"
-                          className={`text-[11px] ${
+                          className={`text-[11px] font-mono ${
                             isActive
-                              ? "fill-gray-950 font-black underline"
+                              ? "fill-black font-bold underline"
                               : pt.highlight === "amber"
-                                ? "fill-[#B45309] font-black"
+                                ? "fill-[#B45309] font-bold"
                                 : pt.highlight === "red"
-                                  ? "fill-[#DC2626] font-black"
-                                  : "fill-gray-600 font-semibold"
+                                  ? "fill-[#DC2626] font-bold"
+                                  : "fill-neutral-800 font-medium"
                           }`}
                         >
                           {pt.t}
@@ -2024,7 +1978,7 @@ export default function TransaksiPage() {
                       x="71"
                       y="15.5"
                       textAnchor="middle"
-                      className="fill-white text-[9.5px] font-extrabold"
+                      className="fill-white text-[9.5px] font-semibold"
                     >
                       {activeHourPoint.omzetLabel} • {activeHourPoint.porsi}{" "}
                       Porsi ({activeHourPoint.t})
@@ -2035,12 +1989,12 @@ export default function TransaksiPage() {
             </div>
 
             {/* Footer Info */}
-            <div className="pt-3.5 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-600 font-medium">
+            <div className="pt-3.5 border-t border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-neutral-800 font-medium">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]"></span>
                 <span>
                   Jam dipilih:{" "}
-                  <strong className="text-gray-900 font-extrabold">
+                  <strong className="font-mono text-black font-bold">
                     {activeHourPoint.t} WIB
                   </strong>{" "}
                   ({activeHourPoint.omzetLabel} • {activeHourPoint.porsi} Porsi
@@ -2049,7 +2003,7 @@ export default function TransaksiPage() {
               </div>
               <div>
                 Waktu Penyiapan Sambal Rata-rata:{" "}
-                <strong className="text-gray-900 font-extrabold">
+                <strong className="text-black font-semibold">
                   {branchProfile.prepTime}
                 </strong>
               </div>
@@ -2057,16 +2011,16 @@ export default function TransaksiPage() {
           </div>
 
           {/* Right Card: Kategori Menu Terlaris */}
-          <div className="lg:col-span-4 bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col justify-between print:break-inside-avoid">
+          <div className="lg:col-span-4 bg-white rounded-2xl p-6 shadow-sm border border-neutral-200 flex flex-col justify-between print:break-inside-avoid">
             {/* Header */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
                 <span className="w-3 h-3 rounded-xs bg-[#DC2626] shrink-0"></span>
-                <h3 className="font-extrabold text-base text-gray-900">
+                <h3 className="font-display font-bold text-base text-black">
                   Kategori Menu Terlaris
                 </h3>
               </div>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-extrabold whitespace-nowrap shrink-0">
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-semibold whitespace-nowrap shrink-0">
                 {activeMetrics.periodBadge}
               </span>
             </div>
@@ -2109,17 +2063,17 @@ export default function TransaksiPage() {
                 })}
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 pointer-events-none">
-                <span className="text-[11px] text-gray-500 font-bold truncate max-w-[115px]">
+                <span className="text-[11px] text-neutral-700 font-medium truncate max-w-[115px]">
                   {activeDonutCategory
                     ? activeDonutCategory.pct + " Kontribusi"
                     : "Total Terjual"}
                 </span>
-                <span className="text-2xl font-black text-gray-900 leading-tight">
+                <span className="text-2xl font-bold text-black leading-tight">
                   {activeDonutCategory
                     ? activeDonutCategory.qty.toLocaleString("id-ID")
                     : activeMetrics.porsiValue}
                 </span>
-                <span className="text-[10px] font-extrabold text-[#DC2626] uppercase tracking-wider">
+                <span className="text-[10px] font-semibold text-[#DC2626] uppercase tracking-wider">
                   PORSI
                 </span>
               </div>
@@ -2154,18 +2108,18 @@ export default function TransaksiPage() {
                       <span
                         className={`text-xs truncate ${
                           isSelected
-                            ? "text-gray-950 font-extrabold"
-                            : "text-gray-800 font-semibold"
+                            ? "text-black font-bold"
+                            : "text-black font-semibold"
                         }`}
                       >
                         {item.name}
                       </span>
                     </div>
                     <div className="text-xs shrink-0">
-                      <strong className="text-gray-900 font-extrabold">
+                      <strong className="text-black font-bold">
                         {item.pct}
                       </strong>{" "}
-                      <span className="text-gray-500 font-medium">
+                      <span className="text-neutral-800 font-medium">
                         ({item.qty.toLocaleString("id-ID")})
                       </span>
                     </div>
@@ -2175,16 +2129,16 @@ export default function TransaksiPage() {
             </div>
 
             {/* Footer Info */}
-            <div className="pt-3.5 mt-4 border-t border-gray-200 flex items-center justify-between text-xs">
-              <span className="text-gray-600 font-medium">
+            <div className="pt-3.5 mt-4 border-t border-neutral-200 flex items-center justify-between text-xs">
+              <span className="text-neutral-800 font-medium">
                 Cabai Terpakai:{" "}
-                <strong className="text-[#DC2626] font-extrabold">
+                <strong className="text-[#DC2626] font-bold">
                   {activeMetrics.cabaiKg}
                 </strong>
               </span>
-              <span className="text-gray-600 font-medium">
+              <span className="text-neutral-800 font-medium">
                 Level Pedas:{" "}
-                <strong className="text-[#D97706] font-extrabold">
+                <strong className="text-[#D97706] font-bold">
                   {branchProfile.spicyLevel}
                 </strong>
               </span>
@@ -2195,18 +2149,18 @@ export default function TransaksiPage() {
         {/* MIDDLE ROW 2: KOMPARASI WEEKDAY VS WEEKEND (LEFT 5 COLS) & HEATMAP ORDER (RIGHT 7 COLS) */}
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
           {/* Left Card: Komparasi Penjualan Hari Kerja vs Weekend */}
-          <div className="lg:col-span-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col justify-between gap-5 print:break-inside-avoid">
+          <div className="lg:col-span-5 bg-white rounded-2xl p-6 shadow-sm border border-neutral-200 flex flex-col justify-between gap-5 print:break-inside-avoid">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h3 className="font-extrabold text-base text-gray-900">
+                <h3 className="font-display font-bold text-base text-black">
                   Komparasi Penjualan Hari Kerja vs Weekend
                 </h3>
-                <p className="text-xs text-gray-600 font-medium mt-1">
+                <p className="text-xs text-neutral-800 font-medium mt-1">
                   Rata-rata penjualan harian • {selectedBranch} (
                   {activeMetrics.periodBadge})
                 </p>
               </div>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-extrabold whitespace-nowrap shrink-0">
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-semibold whitespace-nowrap shrink-0">
                 {`Weekend +${comparisonData.weekendGrowthPct}%`}
               </span>
             </div>
@@ -2215,13 +2169,13 @@ export default function TransaksiPage() {
               {/* Bar 1: Hari Kerja */}
               <div>
                 <div className="flex items-center justify-between text-xs sm:text-sm mb-2">
-                  <span className="font-extrabold text-gray-900 flex items-center gap-2">
+                  <span className="font-semibold text-black flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#15803D]"></span>
                     Hari Kerja (Senin - Kamis)
                   </span>
-                  <span className="font-black text-gray-900">
+                  <span className="font-bold text-black">
                     {comparisonData.weekdayOmzet}{" "}
-                    <span className="text-xs font-semibold text-gray-500">
+                    <span className="text-xs font-medium text-neutral-800">
                       / hari
                     </span>
                   </span>
@@ -2240,10 +2194,10 @@ export default function TransaksiPage() {
                     style={{ width: `${comparisonData.weekdaySplit[2]}%` }}
                   />
                 </div>
-                <div className="flex items-center justify-between text-xs text-gray-600 font-medium mt-1.5">
+                <div className="flex items-center justify-between text-xs text-neutral-800 font-medium mt-1.5">
                   <span>
                     Porsi Rata-rata:{" "}
-                    <strong className="text-gray-900 font-extrabold">
+                    <strong className="text-black font-semibold">
                       {comparisonData.weekdayPorsi} Porsi
                     </strong>
                   </span>
@@ -2254,13 +2208,13 @@ export default function TransaksiPage() {
               {/* Bar 2: Akhir Pekan */}
               <div>
                 <div className="flex items-center justify-between text-xs sm:text-sm mb-2">
-                  <span className="font-extrabold text-gray-900 flex items-center gap-2">
+                  <span className="font-semibold text-black flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#DC2626]"></span>
                     Akhir Pekan (Jumat - Minggu)
                   </span>
-                  <span className="font-black text-[#DC2626]">
+                  <span className="font-bold text-[#DC2626]">
                     {comparisonData.weekendOmzet}{" "}
-                    <span className="text-xs font-semibold text-gray-500">
+                    <span className="text-xs font-medium text-neutral-800">
                       / hari
                     </span>
                   </span>
@@ -2279,10 +2233,10 @@ export default function TransaksiPage() {
                     style={{ width: `${comparisonData.weekendSplit[2]}%` }}
                   />
                 </div>
-                <div className="flex items-center justify-between text-xs text-gray-600 font-medium mt-1.5">
+                <div className="flex items-center justify-between text-xs text-neutral-800 font-medium mt-1.5">
                   <span>
                     Porsi Rata-rata:{" "}
-                    <strong className="text-gray-900 font-extrabold">
+                    <strong className="text-black font-semibold">
                       {comparisonData.weekendPorsi} Porsi
                     </strong>
                   </span>
@@ -2292,7 +2246,7 @@ export default function TransaksiPage() {
             </div>
 
             {/* Channel Legend */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-3.5 border-t border-gray-200 text-xs text-gray-700 font-semibold">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3.5 border-t border-neutral-200 text-xs text-neutral-950 font-semibold">
               <div className="flex items-center gap-2 whitespace-nowrap">
                 <span className="w-3 h-3 rounded-xs bg-[#1E562F] shrink-0"></span>
                 <span>Dine-In (Makan Sini)</span>
@@ -2309,14 +2263,14 @@ export default function TransaksiPage() {
 
             {/* Insight Callout Box */}
             <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-4">
-              <div className="flex items-center gap-2 text-xs font-extrabold text-[#1E562F]">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#1E562F]">
                 <Info size={15} className="text-emerald-700 shrink-0" />
                 <span>Insight Pengadaan Stok ({selectedBranch}):</span>
               </div>
-              <p className="text-xs text-gray-700 font-medium mt-1 leading-relaxed">
+              <p className="text-xs text-neutral-950 font-medium mt-1 leading-relaxed">
                 Persediaan fillet ayam potong dan stok cabai rawit disarankan
                 ditambah{" "}
-                <strong className="text-gray-900 font-extrabold">
+                <strong className="text-black font-bold">
                   {comparisonData.stockInsightBoost}
                 </strong>{" "}
                 untuk mengantisipasi lonjakan permintaan.
@@ -2325,25 +2279,25 @@ export default function TransaksiPage() {
           </div>
 
           {/* Right Card: Heatmap Kepadatan Order */}
-          <div className="lg:col-span-7 bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col justify-between print:break-inside-avoid">
+          <div className="lg:col-span-7 bg-white rounded-2xl p-6 shadow-sm border border-neutral-200 flex flex-col justify-between print:break-inside-avoid">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
               <div>
                 <div className="flex items-center gap-2.5">
                   <span className="w-3 h-3 rounded-xs bg-[#F59E0B] shrink-0"></span>
-                  <h3 className="font-extrabold text-base text-gray-900">
+                  <h3 className="font-display font-bold text-base text-black">
                     Heatmap Kepadatan Order (Hari vs Jam)
                   </h3>
                 </div>
-                <p className="text-xs text-gray-600 font-medium mt-1 pl-5">
+                <p className="text-xs text-neutral-800 font-medium mt-1 pl-5">
                   {hoveredHeatmap ? (
-                    <span className="text-gray-900 font-bold">
+                    <span className="text-black font-semibold">
                       Detail {hoveredHeatmap.day} ({hoveredHeatmap.slotLabel}):{" "}
-                      <span className="text-[#DC2626] font-extrabold">
+                      <span className="text-[#DC2626] font-bold">
                         Rata-rata {hoveredHeatmap.val} Struk
                       </span>{" "}
                       • Okupansi Meja{" "}
-                      <span className="text-[#1E562F] font-extrabold">
+                      <span className="text-[#1E562F] font-bold">
                         {hoveredHeatmap.occ}%
                       </span>
                     </span>
@@ -2354,9 +2308,9 @@ export default function TransaksiPage() {
               </div>
 
               {/* Scale Legend */}
-              <div className="flex items-center gap-1.5 text-xs text-gray-600 font-bold shrink-0">
+              <div className="flex items-center gap-1.5 text-xs text-neutral-800 font-bold shrink-0">
                 <span>Rendah</span>
-                <span className="w-3.5 h-3.5 rounded-xs bg-gray-100 border border-gray-300"></span>
+                <span className="w-3.5 h-3.5 rounded-xs bg-gray-100 border border-neutral-300"></span>
                 <span className="w-3.5 h-3.5 rounded-xs bg-[#A7F3D0]"></span>
                 <span className="w-3.5 h-3.5 rounded-xs bg-[#FBBF24]"></span>
                 <span className="w-3.5 h-3.5 rounded-xs bg-[#DC2626]"></span>
@@ -2371,7 +2325,7 @@ export default function TransaksiPage() {
             >
               <table className="w-full border-separate border-spacing-1.5 text-center text-xs sm:text-sm">
                 <thead>
-                  <tr className="text-xs text-gray-600 font-extrabold">
+                  <tr className="text-xs text-neutral-700 font-semibold">
                     <th className="text-left py-1.5 px-2">Hari</th>
                     <th className="py-1.5 px-2">10-12</th>
                     <th className="py-1.5 px-2 text-[#DC2626]">
@@ -2394,8 +2348,8 @@ export default function TransaksiPage() {
                         <td
                           className={`text-left py-1.5 px-2 text-xs sm:text-sm ${
                             isWeekend
-                              ? "font-black text-[#DC2626]"
-                              : "font-extrabold text-gray-800"
+                              ? "font-bold text-[#DC2626]"
+                              : "font-semibold text-black"
                           }`}
                         >
                           {row.day}
@@ -2436,13 +2390,13 @@ export default function TransaksiPage() {
             </div>
 
             {/* Footer Info */}
-            <div className="pt-3.5 mt-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-600 font-medium">
+            <div className="pt-3.5 mt-3 border-t border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-neutral-800 font-medium">
               <span className="italic">
                 *Angka dalam kotak menunjukkan rata-rata jumlah struk transaksi
               </span>
-              <span className="text-gray-700 whitespace-nowrap">
+              <span className="text-neutral-950 whitespace-nowrap">
                 Kapasitas Maksimal Meja:{" "}
-                <strong className="text-gray-900 font-extrabold">
+                <strong className="text-black font-bold">
                   {branchProfile.heatmapMaxCap}
                 </strong>
               </span>
@@ -2451,15 +2405,15 @@ export default function TransaksiPage() {
         </section>
 
         {/* BOTTOM TABLE: RINCIAN TRANSAKSI PENJUALAN TERKINI (SINKRON DENGAN RINGKASAN) */}
-        <section className="bg-white rounded-2xl p-5 sm:p-6 print:p-3 border border-gray-200 shadow-sm print:shadow-none flex flex-col gap-4 min-h-[430px] print:min-h-0">
+        <section className="bg-white rounded-2xl p-5 sm:p-6 print:p-3 border border-neutral-200 shadow-sm print:shadow-none flex flex-col gap-4 min-h-[430px] print:min-h-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
             <div className="flex items-center gap-2.5">
               <span className="w-3 h-3 rounded-full bg-emerald-600 shrink-0"></span>
-              <h3 className="font-extrabold text-base sm:text-lg text-gray-900">
+              <h3 className="font-display font-bold text-base sm:text-lg text-black">
                 Rincian Transaksi Penjualan Terkini
               </h3>
             </div>
-            <p className="text-xs text-gray-600 font-medium">
+            <p className="text-xs text-neutral-800 font-medium">
               Sinkronisasi real-time dengan database POS ({isLoading ? 0 : displayedTransactions.length} transaksi)
             </p>
           </div>
@@ -2469,15 +2423,21 @@ export default function TransaksiPage() {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="🔍 Cari ID struk, kasir, atau nama menu..."
-              className="flex-1 min-w-[260px] border border-gray-300 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-emerald-600 bg-gray-50/50"
+              className="flex-1 min-w-[260px] border border-neutral-300 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-medium text-black placeholder:text-neutral-400 focus:outline-none focus:border-emerald-600 bg-gray-50/50"
             />
             <div className="relative inline-flex items-center shrink-0">
               <select
                 value={filterTerminal}
-                onChange={(e) => setFilterTerminal(e.target.value)}
-                className="appearance-none w-[150px] shrink-0 truncate bg-white border border-gray-200 rounded-2xl pl-3.5 pr-7 py-2.5 text-xs font-bold text-gray-800 cursor-pointer focus:outline-none focus:border-emerald-600"
+                onChange={(e) => {
+                  setFilterTerminal(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="appearance-none w-[150px] shrink-0 truncate bg-white border border-neutral-300 rounded-2xl pl-3.5 pr-7 py-2.5 text-xs font-bold text-black cursor-pointer focus:outline-none focus:border-emerald-600"
               >
                 <option value="Semua">Semua Kasir</option>
                 <option value="Rian">Rian Pratama</option>
@@ -2486,14 +2446,17 @@ export default function TransaksiPage() {
               </select>
               <ChevronDown
                 size={14}
-                className="pointer-events-none absolute right-2.5 text-gray-700"
+                className="pointer-events-none absolute right-2.5 text-neutral-950"
               />
             </div>
             <div className="relative inline-flex items-center shrink-0">
               <select
                 value={filterPayment}
-                onChange={(e) => setFilterPayment(e.target.value)}
-                className="appearance-none w-[160px] shrink-0 truncate bg-white border border-gray-200 rounded-2xl pl-3.5 pr-7 py-2.5 text-xs font-bold text-gray-800 cursor-pointer focus:outline-none focus:border-emerald-600"
+                onChange={(e) => {
+                  setFilterPayment(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="appearance-none w-[160px] shrink-0 truncate bg-white border border-neutral-300 rounded-2xl pl-3.5 pr-7 py-2.5 text-xs font-bold text-black cursor-pointer focus:outline-none focus:border-emerald-600"
               >
                 <option value="Semua">Semua Pembayaran</option>
                 <option value="Tunai">Tunai (Cash)</option>
@@ -2501,14 +2464,17 @@ export default function TransaksiPage() {
               </select>
               <ChevronDown
                 size={14}
-                className="pointer-events-none absolute right-2.5 text-gray-700"
+                className="pointer-events-none absolute right-2.5 text-neutral-950"
               />
             </div>
             <div className="relative inline-flex items-center shrink-0">
               <select
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="appearance-none w-[160px] shrink-0 truncate bg-white border border-gray-200 rounded-2xl pl-3.5 pr-7 py-2.5 text-xs font-bold text-gray-800 cursor-pointer focus:outline-none focus:border-emerald-600"
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="appearance-none w-[160px] shrink-0 truncate bg-white border border-neutral-300 rounded-2xl pl-3.5 pr-7 py-2.5 text-xs font-bold text-black cursor-pointer focus:outline-none focus:border-emerald-600"
               >
                 <option value="Semua">Semua Status</option>
                 <option value="Berhasil">Berhasil</option>
@@ -2516,7 +2482,7 @@ export default function TransaksiPage() {
               </select>
               <ChevronDown
                 size={14}
-                className="pointer-events-none absolute right-2.5 text-gray-700"
+                className="pointer-events-none absolute right-2.5 text-neutral-950"
               />
             </div>
             <button
@@ -2524,7 +2490,7 @@ export default function TransaksiPage() {
               onClick={handleResetAllFilters}
               title="Reset Filter"
               aria-label="Reset Filter"
-              className="w-10 h-10 shrink-0 flex items-center justify-center rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 transition cursor-pointer"
+              className="w-10 h-10 shrink-0 flex items-center justify-center rounded-2xl border border-neutral-300 bg-white hover:bg-gray-50 text-black transition cursor-pointer"
             >
               <RotateCcw size={16} />
             </button>
@@ -2534,7 +2500,7 @@ export default function TransaksiPage() {
           <div className="overflow-x-auto print:overflow-visible flex-1">
             <table className="w-full min-w-full print:text-[9px] text-left border-collapse text-xs">
               <thead>
-                <tr className="border-y border-gray-200 bg-gray-50 text-gray-600 font-extrabold uppercase text-[11px] print:text-[9px] tracking-wider">
+                <tr className="border-y border-neutral-300 bg-gray-50 text-neutral-700 font-semibold uppercase text-[11px] print:text-[9px] tracking-wider">
                   <th className="py-2.5 pl-3.5 pr-2 w-[100px] whitespace-nowrap print:px-1.5 print:py-2 text-left">
                     ID STRUK
                   </th>
@@ -2564,12 +2530,12 @@ export default function TransaksiPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 text-gray-800">
+              <tbody className="divide-y divide-neutral-200 text-black">
                 {isLoading ? (
                   <tr>
                     <td
                       colSpan={9}
-                      className="h-[280px] text-center text-gray-500 font-medium align-middle"
+                      className="h-[280px] text-center text-neutral-800 font-medium align-middle"
                     >
                       Memuat data transaksi dari database MariaDB...
                     </td>
@@ -2578,7 +2544,7 @@ export default function TransaksiPage() {
                   <tr>
                     <td
                       colSpan={9}
-                      className="h-[280px] text-center text-gray-500 font-medium align-middle"
+                      className="h-[280px] text-center text-neutral-800 font-medium align-middle"
                     >
                       Tidak ada transaksi yang cocok dengan filter.
                     </td>
@@ -2589,49 +2555,49 @@ export default function TransaksiPage() {
                       key={tx.id}
                       className="hover:bg-amber-50/30 transition-colors"
                     >
-                      <td className="py-3 pl-3.5 pr-2 text-left font-extrabold text-gray-900 whitespace-nowrap">
+                      <td className="py-3 pl-3.5 pr-2 text-left font-mono font-bold text-black whitespace-nowrap">
                         {tx.id}
                       </td>
                       <td className="py-3 px-2 text-left whitespace-nowrap">
-                        <div className="font-bold text-gray-900">
+                        <div className="font-mono font-bold text-black">
                           {tx.time} WIB
                         </div>
-                        <div className="text-[11px] text-gray-500 font-medium">
+                        <div className="text-[11px] text-neutral-700 font-medium">
                           {tx.date}
                         </div>
                       </td>
                       <td className="py-3 px-2 text-left whitespace-nowrap">
-                        <div className="font-bold text-gray-900">
+                        <div className="font-semibold text-black">
                           {tx.cashier}
                         </div>
                       </td>
                       <td className="py-3 px-2.5 text-left">
                         <div
-                          className="font-bold text-gray-900 leading-snug break-words max-w-[260px]"
+                          className="font-semibold text-black leading-snug break-words max-w-[260px]"
                           title={tx.itemsSummary}
                         >
                           {tx.itemsSummary}
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                          <span className="text-[11px] text-emerald-700 font-bold">
+                          <span className="text-[11px] text-emerald-700 font-medium">
                             {tx.totalItems} item total
                           </span>
                           {tx.sambalSummary && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-red-50 border border-red-200 text-[#DC2626] text-[10px] font-extrabold">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-red-50 border border-red-200 text-[#DC2626] text-[10px] font-semibold">
                               🌶️ {tx.sambalSummary}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-2 text-right font-semibold text-gray-700 whitespace-nowrap tabular-nums">
+                      <td className="py-3 px-2 text-right font-medium text-neutral-950 whitespace-nowrap tabular-nums">
                         {formatRupiah(tx.subtotal)}
                       </td>
-                      <td className="py-3 px-2 text-right font-extrabold text-gray-900 whitespace-nowrap tabular-nums">
+                      <td className="py-3 px-2 text-right font-semibold text-black whitespace-nowrap tabular-nums">
                         {formatRupiah(tx.total)}
                       </td>
                       <td className="py-3 px-2 text-center whitespace-nowrap">
                         <span
-                          className={`inline-block font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg border ${
+                          className={`inline-block font-semibold text-[11px] px-2.5 py-0.5 rounded-lg border ${
                             tx.paymentMethod === "QRIS"
                               ? "bg-emerald-50 text-emerald-800 border-emerald-300"
                               : "bg-blue-50 text-blue-800 border-blue-300"
@@ -2642,7 +2608,7 @@ export default function TransaksiPage() {
                       </td>
                       <td className="py-3 px-2 text-center whitespace-nowrap">
                         <span
-                          className={`inline-block font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg border ${
+                          className={`inline-block font-semibold text-[11px] px-2.5 py-0.5 rounded-lg border ${
                             tx.status === "Berhasil"
                               ? "bg-emerald-50 text-emerald-700 border-emerald-300"
                               : "bg-red-50 text-red-700 border-red-300"
@@ -2656,7 +2622,7 @@ export default function TransaksiPage() {
                           <button
                             type="button"
                             onClick={() => handlePrintReceipt(tx.id)}
-                            className="p-1.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 hover:text-gray-900 cursor-pointer transition"
+                            className="p-1.5 rounded-lg border border-neutral-300 bg-gray-50 hover:bg-gray-100 text-black hover:text-black cursor-pointer transition"
                             title="Cetak Struk"
                           >
                             <Printer size={13} />
@@ -2664,7 +2630,7 @@ export default function TransaksiPage() {
                           <button
                             type="button"
                             onClick={() => setSelectedTx(tx)}
-                            className="p-1.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 hover:text-gray-900 cursor-pointer transition"
+                            className="p-1.5 rounded-lg border border-neutral-300 bg-gray-50 hover:bg-gray-100 text-black hover:text-black cursor-pointer transition"
                             title="Lihat Detail"
                           >
                             <Eye size={13} />
@@ -2677,20 +2643,20 @@ export default function TransaksiPage() {
               </tbody>
               {displayedTransactions.length > 0 && (
                 <tfoot>
-                  <tr className="border-t-2 border-gray-300 bg-gray-50/90 font-extrabold text-gray-900">
+                  <tr className="border-t-2 border-neutral-300 bg-gray-50/90 font-semibold text-black">
                     <td
                       colSpan={5}
-                      className="py-2.5 pl-3.5 pr-2 text-left text-xs uppercase tracking-wider text-gray-700"
+                      className="py-2.5 pl-3.5 pr-2 text-left text-xs uppercase tracking-wider text-neutral-950"
                     >
                       Total Rekapitulasi ({displayedTransactions.length}{" "}
                       transaksi)
                     </td>
-                    <td className="py-2.5 px-2 text-right font-black text-[#EA8E18] whitespace-nowrap tabular-nums">
+                    <td className="py-2.5 px-2 text-right font-bold text-[#EA8E18] whitespace-nowrap tabular-nums">
                       {formatRupiah(displayedTotalNominal)}
                     </td>
                     <td
                       colSpan={2}
-                      className="py-2.5 px-2 text-center text-[11px] font-bold text-emerald-700 whitespace-nowrap"
+                      className="py-2.5 px-2 text-center text-[11px] font-semibold text-emerald-700 whitespace-nowrap"
                     >
                       Transaksi Selesai
                     </td>
@@ -2702,14 +2668,14 @@ export default function TransaksiPage() {
           </div>
 
           {/* Pagination Row */}
-          <div className="print:hidden pt-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-600 font-medium">
+          <div className="print:hidden pt-3 border-t border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-neutral-800 font-medium">
             <div>
               Menampilkan{" "}
-              <strong className="text-gray-900 font-extrabold">
+              <strong className="text-black font-semibold">
                 {paginatedTransactions.length}
               </strong>{" "}
               dari{" "}
-              <strong className="text-gray-900 font-extrabold">
+              <strong className="text-black font-semibold">
                 {displayedTransactions.length}
               </strong>{" "}
               transaksi
@@ -2720,7 +2686,7 @@ export default function TransaksiPage() {
                 type="button"
                 disabled={activePage <= 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="px-3.5 py-1.5 border border-gray-300 rounded-lg text-gray-600 font-semibold hover:text-gray-900 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
+                className="px-3.5 py-1.5 border border-neutral-400 rounded-lg text-black font-medium hover:text-black hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
               >
                 Sebelumnya
               </button>
@@ -2730,10 +2696,10 @@ export default function TransaksiPage() {
                     key={page}
                     type="button"
                     onClick={() => setCurrentPage(page)}
-                    className={`w-8 h-8 rounded-lg font-extrabold transition cursor-pointer ${
+                    className={`w-8 h-8 rounded-lg font-semibold transition cursor-pointer ${
                       activePage === page
                         ? "bg-[#1E3A1C] text-white"
-                        : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                        : "border border-neutral-400 text-black hover:bg-gray-50"
                     }`}
                   >
                     {page}
@@ -2746,7 +2712,7 @@ export default function TransaksiPage() {
                 onClick={() =>
                   setCurrentPage((p) => Math.min(totalPages, p + 1))
                 }
-                className="px-3.5 py-1.5 border border-gray-300 rounded-lg text-gray-800 font-bold hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
+                className="px-3.5 py-1.5 border border-neutral-400 rounded-lg text-black font-semibold hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
               >
                 Selanjutnya
               </button>
@@ -2755,14 +2721,14 @@ export default function TransaksiPage() {
         </section>
 
         {/* FOOTER SISTEM */}
-        <footer className="print:hidden bg-white rounded-2xl px-6 py-3.5 shadow-sm border border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-700 font-semibold">
+        <footer className="print:hidden bg-white rounded-2xl px-6 py-3.5 shadow-sm border border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-neutral-950 font-medium">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="Logo" className="w-5 h-5 rounded-full object-cover shrink-0" />
-            <span><strong>Sistem Analitik Bisnis PrekDuaDara</strong> &copy; 2025. Seluruh Hak Cipta Dilindungi.</span>
+            <Image src="/logo.png" alt="Logo" width={20} height={20} className="w-5 h-5 rounded-full object-cover shrink-0" />
+            <span><strong className="font-semibold">Sistem Analitik Bisnis PrekDuaDara</strong> &copy; 2025. Seluruh Hak Cipta Dilindungi.</span>
           </div>
           <div className="flex items-center gap-3 text-xs">
-            <span>Sinkronisasi Otomatis Terakhir: <strong>14:28 WIB</strong></span>
-            <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
+            <span>Sinkronisasi Otomatis Terakhir: <strong className="font-mono font-bold">14:28 WIB</strong></span>
+            <span className="flex items-center gap-1.5 text-emerald-700 font-semibold">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               Sistem Cloud POS Terkoneksi
             </span>

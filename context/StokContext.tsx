@@ -68,6 +68,15 @@ const initialStok: StokItem[] = [
   },
 ];
 
+interface RawStockItem {
+  id: string | number;
+  name: string;
+  stock: number | string;
+  unit?: string;
+  minStock?: number | string;
+  status?: string;
+}
+
 const StokContext = createContext<StokContextType | undefined>(undefined);
 
 export function StokProvider({ children }: { children: React.ReactNode }) {
@@ -81,24 +90,27 @@ export function StokProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          const mapped: StokItem[] = json.data.map((item: any) => ({
-            id: String(item.id),
-            name: item.name,
-            category: item.name.toLowerCase().includes('cabai')
-              ? 'Bumbu & Sambal'
-              : item.name.toLowerCase().includes('teh')
-              ? 'Minuman'
-              : 'Bahan Baku',
-            stock: Number(item.stock),
-            unit: item.unit || 'kg',
-            minStock: Number(item.minStock) || 10,
-            status:
-              item.status === 'Kritis' || item.status === 'Menipis'
-                ? 'Menipis'
-                : item.stock <= 0
-                ? 'Habis'
-                : 'Aman',
-          }));
+          const mapped: StokItem[] = (json.data as RawStockItem[]).map((item) => {
+            const stockNum = Number(item.stock);
+            return {
+              id: String(item.id),
+              name: item.name,
+              category: item.name.toLowerCase().includes('cabai')
+                ? 'Bumbu & Sambal'
+                : item.name.toLowerCase().includes('teh')
+                ? 'Minuman'
+                : 'Bahan Baku',
+              stock: stockNum,
+              unit: item.unit || 'kg',
+              minStock: Number(item.minStock) || 10,
+              status:
+                item.status === 'Kritis' || item.status === 'Menipis'
+                  ? 'Menipis'
+                  : stockNum <= 0
+                  ? 'Habis'
+                  : 'Aman',
+            };
+          });
           setStokList(mapped);
         }
       }
@@ -108,9 +120,16 @@ export function StokProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    fetchStocks();
-    const timer = setInterval(fetchStocks, 15000);
-    return () => clearInterval(timer);
+    const initialTimer = setTimeout(() => {
+      void fetchStocks();
+    }, 0);
+    const timer = setInterval(() => {
+      void fetchStocks();
+    }, 15000);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(timer);
+    };
   }, [fetchStocks]);
 
   const updateStok = async (id: string, newStock: number) => {
