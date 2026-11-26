@@ -1368,6 +1368,22 @@ export default function TransaksiPage() {
                       {selectedTx.paymentMethod}
                     </span>
                   </div>
+                  {selectedTx.paymentMethod === "Tunai" && (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500">Uang Pelanggan:</span>
+                        <span className="font-semibold text-gray-800">
+                          {formatRupiah(selectedTx.cashReceived ?? selectedTx.total)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500">Kembalian:</span>
+                        <span className="font-bold text-emerald-600">
+                          {formatRupiah(selectedTx.changeAmount ?? 0)}
+                        </span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between items-center">
                     <span className="text-neutral-800">Status Transaksi:</span>
                     <span
