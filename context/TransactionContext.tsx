@@ -80,104 +80,29 @@ function isDateToday(rawDate?: string): boolean {
   );
 }
 
-// Data awal fallback sesuai transaksi autentik PrekDuaDara
-const initialTransactions: Transaction[] = [
-  {
-    id: '#TRX-001',
-    time: '14:28:19',
-    date: 'Hari ini',
-    isToday: true,
-    cashier: 'Rian Pratama',
-    terminal: 'Pos-01 (Rian)',
-    itemsSummary: '2x Ayam Geprek Bakar + Es Teh',
-    totalItems: 2,
-    subtotal: 36000,
-    diskon: 0,
-    total: 36000,
-    paymentMethod: 'QRIS',
-    status: 'Berhasil',
-    branch: 'Gerai Pusat',
-    orderType: 'Dine-In',
-    addons: '+ Sambal Cobek Bakar Lv 2',
-    relativeTime: '12 Menit Lalu',
-  },
-  {
-    id: '#TRX-002',
-    time: '14:21:05',
-    date: 'Hari ini',
-    isToday: true,
-    cashier: 'Siti Rahma',
-    terminal: 'Pos-02 (Siti)',
-    itemsSummary: '1x Ayam Geprek Biasa + Es Teh',
-    totalItems: 1,
-    subtotal: 17000,
-    diskon: 0,
-    total: 17000,
-    paymentMethod: 'Tunai',
-    status: 'Berhasil',
-    branch: 'Gerai Pusat',
-    orderType: 'Takeaway',
-    addons: '+ Sambal Uleg Asli Lv 1',
-    relativeTime: '19 Menit Lalu',
-  },
-  {
-    id: '#TRX-003',
-    time: '14:10:44',
-    date: 'Hari ini',
-    isToday: true,
-    cashier: 'Rian Pratama',
-    terminal: 'Pos-01 (Rian)',
-    itemsSummary: '3x Ayam Geprek Bakar + Es Teh',
-    totalItems: 3,
-    subtotal: 54000,
-    diskon: 0,
-    total: 54000,
-    paymentMethod: 'QRIS',
-    status: 'Berhasil',
-    branch: 'Gerai Pusat',
-    orderType: 'Dine-In',
-    addons: '+ Sambal Cobek Bakar Lv 3',
-    relativeTime: '30 Menit Lalu',
-  },
-  {
-    id: '#TRX-004',
-    time: '13:55:12',
-    date: 'Hari ini',
-    isToday: true,
-    cashier: 'Budi Santoso',
-    terminal: 'Pos-03 (Budi)',
-    itemsSummary: '2x Ayam Geprek Biasa + Es Teh',
-    totalItems: 2,
-    subtotal: 34000,
-    diskon: 0,
-    total: 34000,
-    paymentMethod: 'Tunai',
-    status: 'Berhasil',
-    branch: 'Gerai Pusat',
-    orderType: 'Dine-In',
-    addons: '+ Sambal Uleg Asli Lv 2',
-    relativeTime: '45 Menit Lalu',
-  },
-  {
-    id: '#TRX-005',
-    time: '13:42:00',
-    date: 'Hari ini',
-    isToday: true,
-    cashier: 'Siti Rahma',
-    terminal: 'Pos-02 (Siti)',
-    itemsSummary: '1x Ayam Geprek Bakar + Es Teh',
-    totalItems: 1,
-    subtotal: 18000,
-    diskon: 0,
-    total: 18000,
-    paymentMethod: 'Tunai',
-    status: 'Berhasil',
-    branch: 'Gerai Pusat',
-    orderType: 'Dine-In',
-    addons: '+ Sambal Cobek Bakar Lv 1',
-    relativeTime: '58 Menit Lalu',
-  },
-];
+interface RawTransactionItem {
+  productId?: number | string | null;
+  name?: string;
+  product_name?: string;
+  category?: string;
+  sambal?: string | null;
+  price?: number | string;
+  quantity?: number | string;
+  subtotal?: number | string;
+}
+
+interface RawTransaction {
+  id: string;
+  time?: string;
+  created_at?: string;
+  cashier?: string;
+  items?: string | RawTransactionItem[];
+  itemsSummary?: string;
+  sambal?: string | null;
+  totalItems?: number | string;
+  total?: number | string;
+  paymentMethod?: string;
+}
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
 
@@ -194,7 +119,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         if (json.data.length > 0) {
-          const mapped: Transaction[] = json.data.map((tx: any) => {
+          const mapped: Transaction[] = (json.data as RawTransaction[]).map((tx) => {
             let terminalName = 'Pos-01 (Rian)';
             if (tx.cashier && tx.cashier.toLowerCase().includes('siti')) {
               terminalName = 'Pos-02 (Siti)';
@@ -213,12 +138,12 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
             // Parse array rincian item (termasuk field sambal) dari backend
             let parsedItems: TransactionItem[] = [];
             try {
-              const rawItems =
+              const rawItems: unknown =
                 typeof tx.items === 'string' ? JSON.parse(tx.items) : tx.items;
               if (Array.isArray(rawItems)) {
-                parsedItems = rawItems
-                  .filter((it: any) => it && (it.name || it.product_name))
-                  .map((it: any) => ({
+                parsedItems = (rawItems as RawTransactionItem[])
+                  .filter((it) => it && (it.name || it.product_name))
+                  .map((it) => ({
                     productId: it.productId ? Number(it.productId) : null,
                     name: String(it.name || it.product_name || 'Menu'),
                     category: it.category ? String(it.category) : undefined,
@@ -319,9 +244,16 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   }, []);
 
   useEffect(() => {
-    fetchTransactionsFromBackend();
-    const interval = setInterval(fetchTransactionsFromBackend, 15000);
-    return () => clearInterval(interval);
+    const initialTimer = setTimeout(() => {
+      void fetchTransactionsFromBackend();
+    }, 0);
+    const interval = setInterval(() => {
+      void fetchTransactionsFromBackend();
+    }, 15000);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
   }, [fetchTransactionsFromBackend]);
 
   // State Filter & Pencarian

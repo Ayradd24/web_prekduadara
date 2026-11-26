@@ -52,9 +52,7 @@ export default function LoginPage() {
         alert(data.message || 'Login gagal! Periksa email dan password Anda.');
       }
     } catch {
-      alert(
-        'Tidak dapat terhubung ke server backend (port 5000).\nPastikan server backend dan database Laragon sudah aktif.'
-      );
+      alert('Tidak dapat terhubung ke server backend.');
     } finally {
       setLoading(false);
     }
@@ -65,7 +63,7 @@ export default function LoginPage() {
       <div className="max-w-4xl w-full flex flex-col md:flex-row items-center justify-between gap-8 md:gap-12">
         {/* Kartu Login (Sisi Kiri) */}
         <div className="bg-[#FAF9F6] rounded-3xl p-8 sm:p-10 w-full max-w-md shadow-xl flex flex-col items-center text-center mx-auto md:mx-0">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">PrekDuaDara</h1>
+          <h1 className="font-display text-2xl font-bold text-black mb-4">PrekDuaDara</h1>
 
           <div className="w-36 h-36 relative mb-6">
             <Image
@@ -85,7 +83,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1E3F20] text-sm text-gray-800"
+                className="w-full px-4 py-3 rounded-lg border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-[#1E3F20] text-sm text-black placeholder:text-neutral-400"
               />
             </div>
 
@@ -96,7 +94,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1E3F20] text-sm text-gray-800"
+                className="w-full px-4 py-3 rounded-lg border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-[#1E3F20] text-sm text-black placeholder:text-neutral-400"
               />
             </div>
 
@@ -122,15 +120,15 @@ export default function LoginPage() {
             PANEL ADMIN
           </span>
 
-          <h2 className="text-3xl sm:text-4xl font-extrabold leading-tight text-gray-900">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold leading-tight text-black">
             Pantau penjualan toko dalam satu layar.
           </h2>
 
-          <p className="text-sm text-gray-900 font-medium leading-relaxed">
+          <p className="text-sm text-black font-medium leading-relaxed">
             Tinggalkan buku tulis. Semua catatan pesanan dari kasir langsung terkumpul rapi dan siap dibaca.
           </p>
 
-          <ul className="space-y-3 pt-4 text-xs font-semibold text-gray-900">
+          <ul className="space-y-3 pt-4 text-xs font-semibold text-black">
             <li className="flex items-center gap-3 bg-white/40 backdrop-blur-sm p-2.5 rounded-xl">
               <span className="bg-amber-100 p-1.5 rounded-lg text-lg">📊</span>
               Dashboard penjualan harian

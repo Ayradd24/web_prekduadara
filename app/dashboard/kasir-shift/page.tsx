@@ -7,6 +7,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
+import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
 import TimeWheelPicker from "@/components/TimeWheelPicker";
 import { API_BASE_URL, getAuthHeaders } from "@/lib/api";
@@ -14,29 +15,18 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
-  ClipboardList,
-  Coffee,
   CreditCard,
   Edit3,
-  Filter,
-  Lock,
-  Moon,
   Power,
   Printer,
   RefreshCw,
   Repeat,
-  RotateCcw,
-  Save,
   ScanBarcode,
   Search,
   ShieldCheck,
-  Store,
   Trash2,
   User,
-  UserCheck,
   UserPlus,
-  Users,
-  Wallet,
   X,
 } from "lucide-react";
 
@@ -171,10 +161,6 @@ export default function KasirShiftPage() {
     useState<Record<SingleBranchName, BranchDrawerState>>(INITIAL_DRAWERS);
 
   // Filter Header & Tabel
-  const [selectedBranch, setSelectedBranch] = useState<string>("Gerai Utama");
-  const [showBranchMenu, setShowBranchMenu] = useState(false);
-  const branchDropdownRef = useRef<HTMLDivElement | null>(null);
-
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedShiftFilter, setSelectedShiftFilter] =
     useState<string>("Semua");
@@ -182,7 +168,6 @@ export default function KasirShiftPage() {
   const shiftDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
-  const [dbConnected, setDbConnected] = useState(false);
 
   // Toast Notification dengan useRef Timer
   const [toastMsg, setToastMsg] = useState<{
@@ -238,15 +223,9 @@ export default function KasirShiftPage() {
   const [countedCashInput, setCountedCashInput] = useState("");
   const [reopenModalAwalInput, setReopenModalAwalInput] = useState("500000");
 
-  // Click-outside handler untuk dropdown cabang & filter shift
+  // Click-outside handler untuk dropdown filter shift
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        branchDropdownRef.current &&
-        !branchDropdownRef.current.contains(e.target as Node)
-      ) {
-        setShowBranchMenu(false);
-      }
       if (
         shiftDropdownRef.current &&
         !shiftDropdownRef.current.contains(e.target as Node)
@@ -260,11 +239,14 @@ export default function KasirShiftPage() {
 
   // Refs untuk pembacaan state terkini saat sinkronisasi DB tanpa memicu re-fetch loop
   const kasirListRef = useRef<KasirItem[]>(kasirList);
-  kasirListRef.current = kasirList;
   const editingIdRef = useRef<string | null>(editingId);
-  editingIdRef.current = editingId;
   const formNameRef = useRef<string>(formName);
-  formNameRef.current = formName;
+
+  useEffect(() => {
+    kasirListRef.current = kasirList;
+    editingIdRef.current = editingId;
+    formNameRef.current = formName;
+  }, [kasirList, editingId, formName]);
 
   // 1. FETCH DATA DARI API BACKEND MARIADB
   const loadCashiersFromDB = useCallback(async (silent = false) => {
@@ -278,14 +260,13 @@ export default function KasirShiftPage() {
       if (json.success && Array.isArray(json.data)) {
         if (json.data.length === 0) {
           setKasirList([]);
-          setDbConnected(true);
           return;
         }
 
         const avatarBgs = [
           "bg-amber-100 text-amber-800 border-amber-300",
           "bg-orange-100 text-orange-800 border-orange-300",
-          "bg-slate-100 text-slate-700 border-slate-300",
+          "bg-slate-100 text-neutral-950 border-neutral-300",
           "bg-emerald-100 text-emerald-800 border-emerald-300",
         ];
 
@@ -316,7 +297,6 @@ export default function KasirShiftPage() {
           }
         );
 
-        setDbConnected(true);
         setKasirList(mappedDbItems);
 
         if (!editingIdRef.current && formNameRef.current === "") {
@@ -403,22 +383,29 @@ export default function KasirShiftPage() {
         }
       }
     } catch {
-      setDbConnected(false);
+      // ignore offline error
     } finally {
       if (!silent) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadCashiersFromDB(false);
-    const interval = setInterval(() => loadCashiersFromDB(true), 3000);
-    const handleFocus = () => loadCashiersFromDB(true);
+    const initialTimer = setTimeout(() => {
+      void loadCashiersFromDB(false);
+    }, 0);
+    const interval = setInterval(() => {
+      void loadCashiersFromDB(true);
+    }, 3000);
+    const handleFocus = () => {
+      void loadCashiersFromDB(true);
+    };
     const handleVisibility = () => {
-      if (!document.hidden) loadCashiersFromDB(true);
+      if (!document.hidden) void loadCashiersFromDB(true);
     };
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
+      clearTimeout(initialTimer);
       clearInterval(interval);
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibility);
@@ -476,7 +463,6 @@ export default function KasirShiftPage() {
 
   // Reset seluruh filter tabel
   const handleResetFilters = () => {
-    setSelectedBranch("Gerai Utama");
     setSearchQuery("");
     setSelectedShiftFilter("Semua");
     showToast("Seluruh filter telah direset.", "info");
@@ -1133,7 +1119,7 @@ export default function KasirShiftPage() {
   };
 
   return (
-    <div className="min-h-screen print:min-h-0 bg-[#FAF6E9] print:bg-white flex p-4 sm:p-6 print:p-0 gap-6 font-sans items-start text-gray-900">
+    <div className="min-h-screen print:min-h-0 bg-[#FAF6E9] print:bg-white flex p-4 sm:p-6 print:p-0 gap-6 font-sans items-start text-black">
       {/* Toast Notification Seragam */}
       {toastMsg && (
         <div
@@ -1163,14 +1149,14 @@ export default function KasirShiftPage() {
           onClick={() => setShowSopModal(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-lg overflow-hidden"
+            className="bg-white rounded-2xl shadow-2xl border border-neutral-200 w-full max-w-lg overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-[#2D452B] text-white px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <ShieldCheck size={18} className="text-[#F3A712]" />
                 <div>
-                  <h3 className="text-sm sm:text-base font-extrabold">
+                  <h3 className="font-display text-sm sm:text-base font-bold">
                     SOP Pergantian Shift &amp; Serah Terima Laci Tunai
                   </h3>
                   <p className="text-[11px] text-emerald-200 font-medium">
@@ -1187,7 +1173,7 @@ export default function KasirShiftPage() {
               </button>
             </div>
 
-            <div className="p-5 space-y-3 text-xs sm:text-sm text-gray-700 font-medium">
+            <div className="p-5 space-y-3 text-xs sm:text-sm text-neutral-950 font-medium">
               {[
                 "Hitung total uang tunai fisik di dalam laci kasir (Modal Awal + Penjualan Tunai).",
                 "Klik tombol 'Tutup Shift (X-Report)' untuk mencocokkan nominal fisik dengan catatan sistem.",
@@ -1197,21 +1183,21 @@ export default function KasirShiftPage() {
               ].map((step, i) => (
                 <div
                   key={i}
-                  className="p-3 rounded-xl bg-[#FAF8F3] border border-gray-200 flex items-start gap-3"
+                  className="p-3 rounded-xl bg-[#FAF8F3] border border-neutral-200 flex items-start gap-3"
                 >
-                  <span className="w-6 h-6 rounded-full bg-[#F3A712] text-gray-950 font-black text-xs flex items-center justify-center shrink-0">
+                  <span className="w-6 h-6 rounded-full bg-[#F3A712] text-black font-bold text-xs flex items-center justify-center shrink-0">
                     {i + 1}
                   </span>
-                  <span className="leading-relaxed">{step}</span>
+                  <span className="leading-relaxed font-medium">{step}</span>
                 </div>
               ))}
             </div>
 
-            <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex justify-end">
+            <div className="px-5 py-3.5 bg-gray-50 border-t border-neutral-200 flex justify-end">
               <button
                 type="button"
                 onClick={() => setShowSopModal(false)}
-                className="px-4 py-2 rounded-xl bg-[#2D452B] text-white text-xs font-extrabold cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-[#2D452B] text-white text-xs font-semibold cursor-pointer"
               >
                 Mengerti &amp; Tutup
               </button>
@@ -1227,13 +1213,13 @@ export default function KasirShiftPage() {
           onClick={() => setDeleteTarget(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden"
+            className="bg-white rounded-2xl shadow-2xl border border-neutral-200 w-full max-w-md overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-[#DC2626] text-white px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <Trash2 size={18} />
-                <h3 className="text-sm sm:text-base font-extrabold">
+                <h3 className="font-display text-sm sm:text-base font-bold">
                   Konfirmasi Hapus Staf Kasir
                 </h3>
               </div>
@@ -1246,26 +1232,26 @@ export default function KasirShiftPage() {
               </button>
             </div>
 
-            <div className="p-5 text-xs sm:text-sm text-gray-700 leading-relaxed font-medium">
+            <div className="p-5 text-xs sm:text-sm text-neutral-950 leading-relaxed font-medium">
               Apakah Anda yakin ingin menghapus profil kasir{" "}
-              <strong className="text-gray-900 font-extrabold">
-                {deleteTarget.name} ({deleteTarget.id})
+              <strong className="text-black font-semibold">
+                {deleteTarget.name} (<span className="font-mono">{deleteTarget.id}</span>)
               </strong>
               ? Tindakan ini akan mencabut akses login POS kasir tersebut.
             </div>
 
-            <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-2.5">
+            <div className="px-5 py-3.5 bg-gray-50 border-t border-neutral-200 flex items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setDeleteTarget(null)}
-                className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-neutral-400 bg-white hover:bg-gray-100 text-xs font-semibold text-black cursor-pointer"
               >
                 Batal
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDeleteKasir}
-                className="px-4 py-2 rounded-xl bg-[#DC2626] hover:bg-red-700 text-white text-xs font-extrabold cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-[#DC2626] hover:bg-red-700 text-white text-xs font-semibold cursor-pointer"
               >
                 Ya, Hapus Kasir
               </button>
@@ -1281,14 +1267,14 @@ export default function KasirShiftPage() {
           onClick={() => setShowSwitchOperatorModal(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden"
+            className="bg-white rounded-2xl shadow-2xl border border-neutral-200 w-full max-w-md overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-[#2D452B] text-white px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <Repeat size={18} className="text-[#F3A712]" />
                 <div>
-                  <h3 className="text-sm sm:text-base font-extrabold">
+                  <h3 className="font-display text-sm sm:text-base font-bold">
                     Ganti Operator Laci ({activeDrawer.counter})
                   </h3>
                   <p className="text-[11px] text-emerald-200 font-medium">
@@ -1306,21 +1292,21 @@ export default function KasirShiftPage() {
             </div>
 
             <form onSubmit={handleConfirmSwitchOperator} className="p-5 space-y-4">
-              <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 text-xs text-gray-700">
+              <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 text-xs text-neutral-950">
                 Operator Saat Ini:{" "}
-                <strong className="font-extrabold text-gray-900">
-                  {activeDrawer.operatorName} ({activeDrawer.operatorId})
+                <strong className="font-semibold text-black">
+                  {activeDrawer.operatorName} (<span className="font-mono">{activeDrawer.operatorId}</span>)
                 </strong>
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-black uppercase tracking-wider mb-1.5">
                   Pilih Operator Kasir Penerus
                 </label>
                 <select
                   value={selectedNewOperatorId}
                   onChange={(e) => setSelectedNewOperatorId(e.target.value)}
-                  className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-gray-900 bg-white focus:outline-none focus:border-[#EA8E18] cursor-pointer"
+                  className="w-full border border-neutral-400 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium text-black bg-white focus:outline-none focus:border-[#EA8E18] cursor-pointer"
                 >
                   {availableBranchCashiers.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -1330,17 +1316,17 @@ export default function KasirShiftPage() {
                 </select>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-gray-200">
+              <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-neutral-200">
                 <button
                   type="button"
                   onClick={() => setShowSwitchOperatorModal(false)}
-                  className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-neutral-400 bg-white hover:bg-gray-100 text-xs font-semibold text-black cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-[#F3A712] hover:bg-[#df980e] text-gray-950 text-xs font-extrabold cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-[#F3A712] hover:bg-[#df980e] text-black text-xs font-semibold cursor-pointer"
                 >
                   Alihkan Laci Sekarang
                 </button>
@@ -1357,7 +1343,7 @@ export default function KasirShiftPage() {
           onClick={() => setShowCloseShiftModal(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden"
+            className="bg-white rounded-2xl shadow-2xl border border-neutral-200 w-full max-w-md overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div
@@ -1368,7 +1354,7 @@ export default function KasirShiftPage() {
               <div className="flex items-center gap-2.5">
                 <Power size={18} />
                 <div>
-                  <h3 className="text-sm sm:text-base font-extrabold">
+                  <h3 className="font-display text-sm sm:text-base font-bold">
                     {activeDrawer.isOpen
                       ? `Tutup Shift & Rekonsiliasi (${activeDrawer.counter})`
                       : `Buka Shift Baru (${activeDrawer.counter})`}
@@ -1389,22 +1375,22 @@ export default function KasirShiftPage() {
 
             {activeDrawer.isOpen ? (
               <form onSubmit={handleConfirmCloseShift} className="p-5 space-y-4">
-                <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 space-y-1.5 text-xs">
+                <div className="p-3.5 rounded-xl bg-gray-50 border border-neutral-200 space-y-1.5 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-gray-600 font-medium">Modal Awal Laci:</span>
-                    <strong className="text-gray-900">
+                    <span className="text-neutral-800 font-medium">Modal Awal Laci:</span>
+                    <strong className="text-black">
                       Rp {activeDrawer.modalAwal.toLocaleString("id-ID")}
                     </strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600 font-medium">
+                    <span className="text-neutral-800 font-medium">
                       Total Penjualan ({activeDrawer.totalNotes} Nota):
                     </span>
-                    <strong className="text-gray-900">
+                    <strong className="text-black">
                       Rp {activeDrawer.totalSales.toLocaleString("id-ID")}
                     </strong>
                   </div>
-                  <div className="flex justify-between pt-1.5 border-t border-gray-200 font-extrabold text-gray-900">
+                  <div className="flex justify-between pt-1.5 border-t border-neutral-200 font-bold text-black">
                     <span>Ekspektasi Total Kas Sistem:</span>
                     <span className="text-[#B45309]">
                       Rp {expectedDrawerCash.toLocaleString("id-ID")}
@@ -1413,7 +1399,7 @@ export default function KasirShiftPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                  <label className="block text-xs font-semibold text-black mb-1.5">
                     Nominal Uang Fisik Dihitung di Laci (Rp) *
                   </label>
                   <input
@@ -1423,21 +1409,21 @@ export default function KasirShiftPage() {
                     step="500"
                     value={countedCashInput}
                     onChange={(e) => setCountedCashInput(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-extrabold text-gray-900 focus:outline-none focus:border-[#E11D48]"
+                    className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-black focus:outline-none focus:border-[#E11D48]"
                   />
                 </div>
 
-                <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-gray-200">
+                <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-neutral-200">
                   <button
                     type="button"
                     onClick={() => setShowCloseShiftModal(false)}
-                    className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 cursor-pointer"
+                    className="px-4 py-2 rounded-xl border border-neutral-400 bg-white hover:bg-gray-100 text-xs font-semibold text-black cursor-pointer"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-xl bg-[#E11D48] hover:bg-[#BE123C] text-white text-xs font-extrabold cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-[#E11D48] hover:bg-[#BE123C] text-white text-xs font-semibold cursor-pointer"
                   >
                     Tutup Shift &amp; Cetak X-Report
                   </button>
@@ -1446,7 +1432,7 @@ export default function KasirShiftPage() {
             ) : (
               <form onSubmit={handleConfirmReopenShift} className="p-5 space-y-4">
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                  <label className="block text-xs font-semibold text-black mb-1.5">
                     Modal Awal Laci Tunai Baru (Rp) *
                   </label>
                   <input
@@ -1456,21 +1442,21 @@ export default function KasirShiftPage() {
                     step="10000"
                     value={reopenModalAwalInput}
                     onChange={(e) => setReopenModalAwalInput(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-extrabold text-gray-900 focus:outline-none focus:border-[#1E562F]"
+                    className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-black focus:outline-none focus:border-[#1E562F]"
                   />
                 </div>
 
-                <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-gray-200">
+                <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-neutral-200">
                   <button
                     type="button"
                     onClick={() => setShowCloseShiftModal(false)}
-                    className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 cursor-pointer"
+                    className="px-4 py-2 rounded-xl border border-neutral-400 bg-white hover:bg-gray-100 text-xs font-semibold text-black cursor-pointer"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-xl bg-[#1E562F] hover:bg-[#164223] text-white text-xs font-extrabold cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-[#1E562F] hover:bg-[#164223] text-white text-xs font-semibold cursor-pointer"
                   >
                     Buka Shift Laci Sekarang
                   </button>
@@ -1489,27 +1475,29 @@ export default function KasirShiftPage() {
       {/* 2. AREA KONTEN UTAMA */}
       <main className="flex-1 flex flex-col gap-5 overflow-x-hidden max-w-full print:overflow-visible">
         {/* TOP NAVBAR HEADER (SERAGAM DI SELURUH HALAMAN DASHBOARD) */}
-        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
+        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-neutral-200 flex flex-wrap items-center justify-between gap-4">
           {/* Logo & Subtitle */}
           <div className="flex items-center gap-3">
-            <img
+            <Image
               src="/logo.png"
               alt="Logo PrekDuaDara"
-              className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-xs shrink-0"
+              width={40}
+              height={40}
+              className="w-10 h-10 rounded-full object-cover border border-neutral-200 shadow-xs shrink-0"
             />
             <div>
-              <div className="font-extrabold text-base text-[#EA8E18] tracking-tight leading-tight">
+              <div className="font-display font-bold text-lg text-[#EA8E18] tracking-tight leading-tight">
                 PrekDuaDara
               </div>
-              <div className="text-xs text-gray-600 font-medium leading-tight mt-0.5">
+              <div className="text-xs text-neutral-800 font-medium leading-tight mt-0.5">
                 Pengaturan Staf &amp; Kasir Restoran
               </div>
             </div>
           </div>
 
           {/* Info Cetak Saat Mode Print */}
-          <div className="hidden print:block text-right text-xs text-gray-700">
-            <div className="font-bold text-gray-900">
+          <div className="hidden print:block text-right text-xs text-neutral-950">
+            <div className="font-display font-bold text-black">
               Laporan Staf Kasir &amp; Shift • PrekDuaDara
             </div>
             <div className="mt-0.5">
@@ -1521,22 +1509,22 @@ export default function KasirShiftPage() {
           {/* Right Controls: Online Sync & Admin Owner Profile */}
           <div className="print:hidden flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
             {/* Online Sync Pill */}
-            <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
+            <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-semibold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
             {/* User Profile: Admin / Owner */}
-            <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
+            <div className="flex items-center gap-2.5 pl-3 border-l border-neutral-200 shrink-0">
               <div className="text-right">
-                <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
+                <div className="text-xs font-semibold text-black leading-tight whitespace-nowrap">
                   Admin
                 </div>
-                <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
+                <div className="text-[11px] text-[#EA8E18] font-medium leading-tight mt-0.5 whitespace-nowrap">
                   Owner
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-semibold text-xs flex items-center justify-center shadow-xs shrink-0">
                 <User size={16} />
               </div>
             </div>
@@ -1544,25 +1532,10 @@ export default function KasirShiftPage() {
         </header>
 
         {/* PAGE TITLE & ACTION ROW */}
-        <section className="print:hidden bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-200 flex flex-col xl:flex-row xl:items-center justify-between gap-5">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
-                Pengaturan &amp; Manajemen Kasir
-              </h1>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-300 text-[11px] font-extrabold uppercase tracking-wide shrink-0">
-                <ShieldCheck size={13} className="text-amber-600" />
-                DATABASE KASIR
-              </span>
-              <span className="px-2.5 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-700 text-[11px] font-bold shrink-0">
-                Tabel `kasir`
-              </span>
-            </div>
-            <p className="text-xs text-gray-600 mt-1.5 font-medium leading-relaxed">
-              Kelola data kasir dari database MariaDB (tabel `kasir`), pantau
-              status shift kasir, dan atur hak akses akun secara real-time.
-            </p>
-          </div>
+        <section className="print:hidden bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-neutral-200 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+          <h1 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
+            Pengaturan &amp; Manajemen Kasir
+          </h1>
 
           <div className="flex items-center gap-2.5 self-start xl:self-auto flex-wrap sm:flex-nowrap shrink-0">
             {/* Filter Shift Dropdown */}
@@ -1570,19 +1543,16 @@ export default function KasirShiftPage() {
               <button
                 type="button"
                 onClick={() => setShowShiftDropdown((prev) => !prev)}
-                className="h-9 w-[185px] justify-between shrink-0 whitespace-nowrap px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-2xs cursor-pointer"
+                className="h-9 w-[175px] justify-between shrink-0 whitespace-nowrap px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 text-black rounded-xl text-xs font-semibold transition flex items-center gap-2 shadow-2xs cursor-pointer"
               >
-                <span className="flex items-center gap-2 min-w-0">
-                  <Filter size={14} className="text-gray-600 shrink-0" />
-                  <span className="truncate">
-                    Filter Shift: {selectedShiftFilter}
-                  </span>
+                <span className="truncate">
+                  Filter Shift: {selectedShiftFilter}
                 </span>
-                <ChevronDown size={14} className="text-gray-500 shrink-0" />
+                <ChevronDown size={14} className="text-black shrink-0" />
               </button>
 
               {showShiftDropdown && (
-                <div className="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-xl z-30 py-1.5 text-xs">
+                <div className="absolute right-0 mt-1.5 w-56 bg-white border border-neutral-200 rounded-xl shadow-xl z-30 py-1.5 text-xs">
                   {[
                     { key: "Semua", label: "Semua Shift" },
                     { key: "Pagi", label: "Shift Pagi (08:00 - 12:00)" },
@@ -1598,8 +1568,8 @@ export default function KasirShiftPage() {
                       }}
                       className={`w-full text-left px-4 py-2.5 hover:bg-amber-50/60 transition cursor-pointer ${
                         selectedShiftFilter === opt.key
-                          ? "text-[#EA8E18] font-extrabold bg-amber-50/40"
-                          : "text-gray-700 font-semibold"
+                          ? "text-[#EA8E18] font-semibold bg-amber-50/40"
+                          : "text-black font-medium"
                       }`}
                     >
                       {opt.label}
@@ -1613,10 +1583,9 @@ export default function KasirShiftPage() {
             <button
               type="button"
               onClick={() => window.print()}
-              className="h-9 w-[92px] justify-center shrink-0 whitespace-nowrap px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+              className="h-9 px-3.5 py-2 shrink-0 whitespace-nowrap bg-white border border-neutral-400 hover:bg-gray-50 text-black rounded-xl text-xs font-semibold transition cursor-pointer"
             >
-              <Printer size={14} className="shrink-0" />
-              <span>Cetak</span>
+              Cetak
             </button>
 
             {/* Tombol Refresh dari Database */}
@@ -1628,7 +1597,7 @@ export default function KasirShiftPage() {
               }}
               title="Refresh Data dari Database"
               aria-label="Refresh Data dari Database"
-              className="h-9 w-9 justify-center shrink-0 p-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl transition flex items-center cursor-pointer"
+              className="h-9 w-9 justify-center shrink-0 p-2 bg-white border border-neutral-400 hover:bg-gray-50 text-black rounded-xl transition flex items-center cursor-pointer"
             >
               <RefreshCw
                 size={14}
@@ -1650,7 +1619,7 @@ export default function KasirShiftPage() {
                   "info"
                 );
               }}
-              className="h-9 w-[178px] justify-center shrink-0 whitespace-nowrap px-3.5 py-2 bg-[#F3A712] hover:bg-[#df980e] text-gray-950 rounded-xl text-xs font-extrabold transition flex items-center gap-2 shadow-xs cursor-pointer"
+              className="h-9 w-[178px] justify-center shrink-0 whitespace-nowrap px-3.5 py-2 bg-[#F3A712] hover:bg-[#df980e] text-black rounded-xl text-xs font-semibold transition flex items-center gap-2 shadow-xs cursor-pointer"
             >
               <UserPlus size={14} className="shrink-0" />
               <span>+ Tambah Kasir Baru</span>
@@ -1661,104 +1630,68 @@ export default function KasirShiftPage() {
         {/* 4 SUMMARY STAT CARDS */}
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4 gap-4 print:gap-3">
           {/* Card 1: Total Kasir */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-gray-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-extrabold text-gray-500 tracking-wider uppercase whitespace-nowrap">
-                TOTAL KASIR TERDAFTAR
-              </p>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl print:text-lg font-black text-gray-900 whitespace-nowrap tabular-nums">
-                  {kpiStats.totalKasir}
-                </span>
-                <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
-                  Staf Kasir
-                </span>
-              </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-semibold min-w-0">
-                <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                <span className="truncate">Database MariaDB</span>
-              </div>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-amber-50 border border-amber-200 text-[#EA8E18] flex items-center justify-center shrink-0">
-              <Users size={20} />
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 tracking-wider uppercase whitespace-nowrap">
+              TOTAL KASIR TERDAFTAR
+            </p>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
+                {kpiStats.totalKasir}
+              </span>
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
+                Staf Kasir
+              </span>
             </div>
           </div>
 
           {/* Card 2: Sedang Bertugas */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-gray-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <p className="text-[11px] font-extrabold text-gray-500 tracking-wider uppercase whitespace-nowrap">
-                  SEDANG BERTUGAS
-                </p>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold border border-emerald-200 shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Live
-                </span>
-              </div>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl print:text-lg font-black text-gray-900 whitespace-nowrap tabular-nums">
-                  {kpiStats.kasirOnline}
-                </span>
-                <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
-                  Kasir Online
-                </span>
-              </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-600 font-semibold min-w-0">
-                <UserCheck size={14} className="text-emerald-600 shrink-0" />
-                <span className="truncate">Status: Aktif Melayani</span>
-              </div>
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <p className="text-[11px] font-semibold text-neutral-700 tracking-wider uppercase whitespace-nowrap">
+                SEDANG BERTUGAS
+              </p>
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-200 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Live
+              </span>
             </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
-              <UserCheck size={20} />
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
+                {kpiStats.kasirOnline}
+              </span>
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
+                Kasir Online
+              </span>
             </div>
           </div>
 
           {/* Card 3: Standby / Istirahat */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-gray-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-extrabold text-gray-500 tracking-wider uppercase whitespace-nowrap">
-                STANDBY / ISTIRAHAT
-              </p>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl print:text-lg font-black text-gray-900 whitespace-nowrap tabular-nums">
-                  {kpiStats.kasirStandby}
-                </span>
-                <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
-                  Kasir
-                </span>
-              </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-600 font-semibold min-w-0">
-                <Coffee size={14} className="text-[#EA8E18] shrink-0" />
-                <span className="truncate">Pergantian shift berikutnya</span>
-              </div>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-orange-50 border border-orange-200 text-[#EA8E18] flex items-center justify-center shrink-0">
-              <Coffee size={20} />
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 tracking-wider uppercase whitespace-nowrap">
+              STANDBY / ISTIRAHAT
+            </p>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
+                {kpiStats.kasirStandby}
+              </span>
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
+                Kasir
+              </span>
             </div>
           </div>
 
           {/* Card 4: Off / Non-Aktif */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-gray-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-extrabold text-gray-500 tracking-wider uppercase whitespace-nowrap">
-                OFF / NON-AKTIF
-              </p>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl print:text-lg font-black text-gray-900 whitespace-nowrap tabular-nums">
-                  {kpiStats.kasirOff}
-                </span>
-                <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
-                  Kasir
-                </span>
-              </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-600 font-semibold min-w-0">
-                <Lock size={14} className="text-gray-500 shrink-0" />
-                <span className="truncate">Hak akses akun tertahan</span>
-              </div>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-gray-100 border border-gray-200 text-gray-600 flex items-center justify-center shrink-0">
-              <Moon size={20} />
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 tracking-wider uppercase whitespace-nowrap">
+              OFF / NON-AKTIF
+            </p>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
+                {kpiStats.kasirOff}
+              </span>
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
+                Kasir
+              </span>
             </div>
           </div>
         </section>
@@ -1768,72 +1701,64 @@ export default function KasirShiftPage() {
           className={`print:hidden rounded-2xl p-4 sm:p-5 border shadow-sm flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-5 ${
             activeDrawer.isOpen
               ? "bg-[#FFFDF7] border-[#F59E0B]/40"
-              : "bg-gray-50 border-gray-300"
+              : "bg-gray-50 border-neutral-300"
           }`}
         >
           {/* Sisi Kiri: Operator & Counter Info */}
-          <div className="flex items-start sm:items-center gap-4">
-            <div
-              className={`w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-xs ${
-                activeDrawer.isOpen
-                  ? "bg-[#FEF3C7] border-[#F59E0B]/50 text-amber-800"
-                  : "bg-gray-200 border-gray-300 text-gray-600"
-              }`}
-            >
-              <Wallet size={22} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className={`text-xs font-semibold flex items-center gap-1.5 ${
+                  activeDrawer.isOpen ? "text-emerald-700" : "text-neutral-800"
+                }`}
+              >
                 <span
-                  className={`text-xs font-extrabold flex items-center gap-1.5 ${
-                    activeDrawer.isOpen ? "text-emerald-700" : "text-gray-600"
+                  className={`w-2 h-2 rounded-full ${
+                    activeDrawer.isOpen
+                      ? "bg-emerald-500 animate-pulse"
+                      : "bg-gray-400"
                   }`}
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      activeDrawer.isOpen
-                        ? "bg-emerald-500 animate-pulse"
-                        : "bg-gray-400"
-                    }`}
-                  ></span>
-                  {activeDrawer.isOpen
-                    ? "LACI KASIR AKTIF SAAT INI"
-                    : "LACI KASIR DITUTUP (SELESAI SHIFT)"}
-                </span>
-                <span className="px-2.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-xs font-extrabold">
-                  {activeDrawer.counter}
-                </span>
-              </div>
-              <h2 className="text-base sm:text-lg font-black text-gray-900 mt-1">
-                {activeDrawer.operatorName} ({activeDrawer.operatorId})
-              </h2>
-              <p className="text-xs text-gray-600 font-medium mt-0.5">
-                {activeDrawer.shiftInfo} • Modal Awal Rp{" "}
-                {activeDrawer.modalAwal.toLocaleString("id-ID")}
-              </p>
-              {!activeDrawer.isOpen && activeDrawer.lastClosedInfo && (
-                <p className="text-xs font-bold text-rose-700 mt-1">
-                  {activeDrawer.lastClosedInfo}
-                </p>
-              )}
+                ></span>
+                {activeDrawer.isOpen
+                  ? "LACI KASIR AKTIF SAAT INI"
+                  : "LACI KASIR DITUTUP (SELESAI SHIFT)"}
+              </span>
+              <span className="px-2.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-xs font-semibold">
+                {activeDrawer.counter}
+              </span>
             </div>
+            <h2 className="font-display text-base sm:text-lg font-bold text-black mt-1">
+              {activeDrawer.operatorName}{" "}
+              <span className="font-mono text-sm font-bold text-neutral-800">
+                ({activeDrawer.operatorId})
+              </span>
+            </h2>
+            <p className="text-xs text-neutral-800 font-medium mt-0.5">
+              {activeDrawer.shiftInfo} • Modal Awal Rp{" "}
+              {activeDrawer.modalAwal.toLocaleString("id-ID")}
+            </p>
+            {!activeDrawer.isOpen && activeDrawer.lastClosedInfo && (
+              <p className="text-xs font-semibold text-rose-700 mt-1">
+                {activeDrawer.lastClosedInfo}
+              </p>
+            )}
           </div>
 
           {/* Sisi Tengah: Metrik Shift */}
           <div className="flex items-center gap-6 sm:gap-10 border-y xl:border-y-0 xl:border-x border-[#FDE68A] py-3 xl:py-0 xl:px-8 shrink-0">
             <div className="w-[160px] shrink-0">
-              <div className="text-xs font-extrabold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+              <div className="text-xs font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
                 TOTAL PENJUALAN SHIFT
               </div>
-              <div className="text-base sm:text-lg font-black text-[#B45309] mt-1 tabular-nums whitespace-nowrap">
+              <div className="text-base sm:text-lg font-bold text-[#B45309] mt-1 tabular-nums whitespace-nowrap">
                 Rp {activeDrawer.totalSales.toLocaleString("id-ID")}
               </div>
             </div>
             <div className="w-[130px] shrink-0">
-              <div className="text-xs font-extrabold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+              <div className="text-xs font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
                 TRANSAKSI SELESAI
               </div>
-              <div className="text-base sm:text-lg font-black text-gray-900 mt-1 tabular-nums whitespace-nowrap">
+              <div className="text-base sm:text-lg font-bold text-black mt-1 tabular-nums whitespace-nowrap">
                 {activeDrawer.totalNotes} Nota
               </div>
             </div>
@@ -1845,25 +1770,21 @@ export default function KasirShiftPage() {
               type="button"
               onClick={handleOpenSwitchOperator}
               disabled={!activeDrawer.isOpen}
-              className="h-9 w-[178px] shrink-0 justify-center whitespace-nowrap px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none text-gray-800 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              className="h-9 px-3.5 py-2 shrink-0 whitespace-nowrap bg-white border border-neutral-400 hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none text-black rounded-xl text-xs font-semibold transition shadow-2xs cursor-pointer"
             >
-              <Repeat size={14} className="text-gray-600 shrink-0" />
-              <span>Ganti Operator Laci</span>
+              Ganti Operator Laci
             </button>
 
             <button
               type="button"
               onClick={handleOpenCloseShiftModal}
-              className={`h-9 w-[162px] shrink-0 justify-center whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer ${
+              className={`h-9 px-3.5 py-2 shrink-0 whitespace-nowrap rounded-xl text-xs font-semibold transition shadow-2xs cursor-pointer ${
                 activeDrawer.isOpen
                   ? "bg-[#E11D48] hover:bg-[#BE123C] text-white"
                   : "bg-[#1E562F] hover:bg-[#164223] text-white"
               }`}
             >
-              <Power size={14} className="shrink-0" />
-              <span>
-                {activeDrawer.isOpen ? "Tutup Shift Paksa" : "Buka Shift Baru"}
-              </span>
+              {activeDrawer.isOpen ? "Tutup Shift Paksa" : "Buka Shift Baru"}
             </button>
           </div>
         </section>
@@ -1872,14 +1793,14 @@ export default function KasirShiftPage() {
         <section className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           {/* KOLOM KIRI: TABEL DAFTAR KASIR (8 cols, 12 on print) */}
           <div className="xl:col-span-8 print:col-span-12 flex flex-col gap-6">
-            <div className="bg-white rounded-2xl p-4 sm:p-5 print:p-3 shadow-sm print:shadow-none border border-gray-200 flex flex-col gap-4">
+            <div className="bg-white rounded-2xl p-4 sm:p-5 print:p-3 shadow-sm print:shadow-none border border-neutral-200 flex flex-col gap-4">
               {/* Header Tabel & Search */}
               <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 shrink-0">
-                  <h3 className="text-base sm:text-lg font-extrabold text-gray-900 whitespace-nowrap">
+                  <h3 className="font-display text-base sm:text-lg font-bold text-black whitespace-nowrap">
                     Daftar Staf Kasir POS
                   </h3>
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-xs font-extrabold tabular-nums whitespace-nowrap shrink-0">
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-xs font-semibold tabular-nums whitespace-nowrap shrink-0">
                     {filteredKasir.length} Terdata
                   </span>
                 </div>
@@ -1889,14 +1810,14 @@ export default function KasirShiftPage() {
                   <div className="relative h-9 flex-1 sm:w-[250px] sm:flex-none shrink-0">
                     <Search
                       size={15}
-                      className="text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                      className="text-neutral-800 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
                     />
                     <input
                       type="text"
                       placeholder="Cari nama atau kode staf kasir..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="h-9 w-full pl-9 pr-8 bg-gray-50 border border-gray-300 rounded-xl text-xs sm:text-sm font-medium text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-[#EA8E18]"
+                      className="h-9 w-full pl-9 pr-8 bg-gray-50 border border-neutral-300 rounded-xl text-xs sm:text-sm font-medium text-black placeholder:text-neutral-400 focus:outline-none focus:border-[#EA8E18]"
                     />
                     {searchQuery !== "" && (
                       <button
@@ -1904,7 +1825,7 @@ export default function KasirShiftPage() {
                         onClick={() => setSearchQuery("")}
                         title="Hapus pencarian"
                         aria-label="Hapus pencarian"
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 cursor-pointer"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black cursor-pointer"
                       >
                         <X size={14} />
                       </button>
@@ -1917,7 +1838,7 @@ export default function KasirShiftPage() {
               <div className="overflow-x-auto print:overflow-visible">
                 <table className="w-full print:table-auto print:w-full print:text-[10px] text-left border-collapse text-xs sm:text-sm">
                   <thead>
-                    <tr className="border-y border-gray-200 bg-gray-50 text-[11px] print:text-[9px] font-extrabold text-gray-600 uppercase tracking-wider">
+                    <tr className="border-y border-neutral-300 bg-gray-50 text-[11px] print:text-[9px] font-semibold text-neutral-700 uppercase tracking-wider">
                       <th className="py-2.5 px-2.5 whitespace-nowrap">
                         STAF KASIR
                       </th>
@@ -1936,7 +1857,7 @@ export default function KasirShiftPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 text-gray-800">
+                  <tbody className="divide-y divide-neutral-200 text-black">
                     {filteredKasir.map((kasir) => (
                       <tr
                         key={kasir.id}
@@ -1951,11 +1872,11 @@ export default function KasirShiftPage() {
                               {kasir.initials}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="font-extrabold text-gray-900 text-xs sm:text-sm truncate">
+                              <div className="font-semibold text-black text-xs sm:text-sm truncate">
                                 {kasir.name}
                               </div>
                               <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
-                                <span className="inline-block px-1.5 py-0.2 rounded bg-gray-100 border border-gray-200 text-gray-700 font-extrabold text-[10px] shrink-0">
+                                <span className="font-mono inline-block px-1.5 py-0.2 rounded bg-gray-100 border border-neutral-200 text-neutral-950 font-bold text-[10px] shrink-0">
                                   {kasir.id}
                                 </span>
                               </div>
@@ -1964,26 +1885,26 @@ export default function KasirShiftPage() {
                         </td>
 
                         {/* 2. Peran (role_title) */}
-                        <td className="py-3 px-2 font-bold text-gray-900 text-xs sm:text-sm whitespace-nowrap">
+                        <td className="py-3 px-2 font-medium text-black text-xs sm:text-sm whitespace-nowrap">
                           {kasir.roleTitle || "Kasir"}
                         </td>
 
                         {/* 3. Shift Terjadwal (shift) */}
                         <td className="py-3 px-2 whitespace-nowrap">
                           <div
-                            className={`font-extrabold text-xs sm:text-sm ${
+                            className={`font-semibold text-xs sm:text-sm ${
                               kasir.shift.includes("Pagi")
                                 ? "text-amber-800"
                                 : kasir.shift.includes("Siang")
                                   ? "text-orange-700"
                                   : kasir.shift.includes("Malam")
-                                    ? "text-slate-800"
+                                    ? "text-black"
                                     : "text-rose-700"
                             }`}
                           >
                             {kasir.shiftMain}
                           </div>
-                          <div className="text-[11px] text-gray-500 font-medium mt-0.5 tabular-nums">
+                          <div className="font-mono text-[11px] text-neutral-700 font-medium mt-0.5 tabular-nums">
                             {kasir.shiftHours}
                           </div>
                         </td>
@@ -2007,7 +1928,7 @@ export default function KasirShiftPage() {
                                 <span>Standby / Rehat</span>
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-[11px] font-semibold border border-gray-200 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-black text-[11px] font-semibold border border-neutral-300 whitespace-nowrap">
                                 <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0"></span>
                                 <span>Selesai Shift / Off</span>
                               </span>
@@ -2037,12 +1958,12 @@ export default function KasirShiftPage() {
 
                         {/* 6. Aksi (Edit & Delete) */}
                         <td className="py-3 px-2 text-center whitespace-nowrap print:hidden">
-                          <div className="inline-flex items-center justify-center gap-1.5 text-gray-500">
+                          <div className="inline-flex items-center justify-center gap-1.5 text-neutral-800">
                             <button
                               type="button"
                               onClick={() => handleStartEdit(kasir)}
                               title="Edit Data Kasir"
-                              className="w-7.5 h-7.5 shrink-0 border border-gray-200 hover:border-[#EA8E18] hover:text-[#EA8E18] hover:bg-amber-50 rounded-lg flex items-center justify-center transition cursor-pointer"
+                              className="w-7.5 h-7.5 shrink-0 border border-neutral-300 hover:border-[#EA8E18] hover:text-[#EA8E18] hover:bg-amber-50 rounded-lg flex items-center justify-center transition cursor-pointer"
                             >
                               <Edit3 size={13} />
                             </button>
@@ -2050,7 +1971,7 @@ export default function KasirShiftPage() {
                               type="button"
                               onClick={() => setDeleteTarget(kasir)}
                               title="Hapus Kasir"
-                              className="w-7.5 h-7.5 shrink-0 border border-gray-200 hover:border-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg flex items-center justify-center transition cursor-pointer"
+                              className="w-7.5 h-7.5 shrink-0 border border-neutral-300 hover:border-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg flex items-center justify-center transition cursor-pointer"
                             >
                               <Trash2 size={13} />
                             </button>
@@ -2063,7 +1984,7 @@ export default function KasirShiftPage() {
                       <tr>
                         <td
                           colSpan={6}
-                          className="py-10 text-center text-gray-500 font-medium"
+                          className="py-10 text-center text-neutral-800 font-medium"
                         >
                           <p>
                             {isLoading
@@ -2074,10 +1995,9 @@ export default function KasirShiftPage() {
                             <button
                               type="button"
                               onClick={handleResetFilters}
-                              className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-xs font-extrabold text-gray-700 transition cursor-pointer"
+                              className="mt-3 px-3.5 py-2 rounded-xl border border-neutral-400 bg-white hover:bg-gray-50 text-xs font-semibold text-black transition cursor-pointer"
                             >
-                              <RotateCcw size={13} />
-                              <span>Reset Semua Filter</span>
+                              Reset Semua Filter
                             </button>
                           )}
                         </td>
@@ -2088,40 +2008,26 @@ export default function KasirShiftPage() {
               </div>
 
               {/* Catatan Bawah Tabel */}
-              <div className="print:hidden flex flex-col sm:flex-row items-center justify-between text-xs text-gray-600 pt-4 border-t border-gray-200 gap-2 font-medium">
-                <div className="flex items-center gap-1.5 text-emerald-700 font-bold">
-                  <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
-                  <span>
-                    Perubahan saklar status kasir tersinkron otomatis ke
-                    database MariaDB &amp; Flutter POS.
-                  </span>
-                </div>
-                <div className="font-semibold">
-                  Menampilkan {filteredKasir.length} dari {branchScopedKasir.length} Kasir
-                </div>
+              <div className="print:hidden flex items-center justify-end text-xs text-neutral-800 pt-4 border-t border-neutral-200 font-semibold">
+                Menampilkan {filteredKasir.length} dari {branchScopedKasir.length} Kasir
               </div>
             </div>
 
             {/* BOX KEBIJAKAN KEAMANAN POS */}
-            <div className="print:hidden bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0">
-                  <ShieldCheck size={20} />
-                </div>
-                <div>
-                  <h4 className="font-extrabold text-gray-900 text-xs sm:text-sm">
-                    Kebijakan Keamanan Kasir POS PrekDuaDara
-                  </h4>
-                  <p className="text-xs text-gray-600 mt-1.5 font-medium">
-                    Setiap pergantian operator wajib cetak struk rekap &apos;Shift
-                    X-Report&apos; sebelum serah terima laci tunai.
-                  </p>
-                </div>
+            <div className="print:hidden bg-white rounded-2xl p-6 shadow-sm border border-neutral-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="font-display font-bold text-black text-xs sm:text-sm">
+                  Kebijakan Keamanan Kasir POS PrekDuaDara
+                </h4>
+                <p className="text-xs text-neutral-800 mt-1.5 font-medium">
+                  Setiap pergantian operator wajib cetak struk rekap &apos;Shift
+                  X-Report&apos; sebelum serah terima laci tunai.
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowSopModal(true)}
-                className="px-4 py-2.5 border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-800 transition whitespace-nowrap shadow-2xs cursor-pointer"
+                className="px-4 py-2.5 border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black transition whitespace-nowrap shadow-2xs cursor-pointer"
               >
                 Lihat Panduan SOP
               </button>
@@ -2134,25 +2040,17 @@ export default function KasirShiftPage() {
             className="print:hidden xl:col-span-4 flex flex-col gap-6"
           >
             {/* CARD 1: FORM KASIR */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col gap-4">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200 flex flex-col gap-4">
               {/* Header Form */}
-              <div className="flex items-start justify-between gap-3 border-b border-gray-200 pb-4">
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-black text-gray-900 text-sm sm:text-base flex items-center gap-2">
-                    <ClipboardList size={17} className="text-amber-600 shrink-0" />
-                    <span className="truncate">
-                      {editingId ? "Edit Profil Kasir" : "Form Kasir"}
-                    </span>
-                  </h3>
-                  <p className="text-xs text-gray-600 mt-1.5 font-medium truncate">
-                    {editingId
-                      ? `Memperbarui data staf ${editingId}`
-                      : "Tambah atau perbarui profil staf kasir ke database."}
-                  </p>
-                </div>
-                <span className="w-[92px] py-1 rounded bg-amber-50 border border-amber-300 text-amber-800 text-xs font-extrabold text-center shrink-0 whitespace-nowrap">
-                  {editingId ? "Mode Edit" : "Input Cepat"}
-                </span>
+              <div className="flex items-center justify-between gap-3 border-b border-neutral-200 pb-3.5">
+                <h3 className="font-display font-bold text-black text-sm sm:text-base truncate">
+                  {editingId ? `Edit Profil Kasir (${editingId})` : "Form Kasir"}
+                </h3>
+                {editingId && (
+                  <span className="px-2.5 py-0.5 rounded bg-amber-50 border border-amber-300 text-amber-800 text-[11px] font-semibold shrink-0 whitespace-nowrap">
+                    Mode Edit
+                  </span>
+                )}
               </div>
 
               {/* Form Input */}
@@ -2162,13 +2060,13 @@ export default function KasirShiftPage() {
               >
                 {/* 1. Nama Lengkap Kasir */}
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1">
+                  <label className="block text-xs font-semibold text-black uppercase tracking-wider mb-1">
                     NAMA KASIR *
                   </label>
                   <div className="relative">
                     <User
                       size={15}
-                      className="text-gray-500 absolute left-3 top-1/2 -translate-y-1/2"
+                      className="text-neutral-800 absolute left-3 top-1/2 -translate-y-1/2"
                     />
                     <input
                       type="text"
@@ -2176,15 +2074,15 @@ export default function KasirShiftPage() {
                       placeholder="Masukkan nama staf kasir..."
                       value={formName}
                       onChange={(e) => setFormName(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#EA8E18]"
+                      className="w-full pl-9 pr-3 py-2 border border-neutral-300 rounded-xl text-xs sm:text-sm font-medium text-black placeholder:text-neutral-400 focus:outline-none focus:border-[#EA8E18]"
                     />
                   </div>
                 </div>
 
                 {/* 2. Peran / role_title */}
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1">
-                    PERAN (ROLE TITLE) *
+                  <label className="block text-xs font-semibold text-black uppercase tracking-wider mb-1">
+                    PERAN *
                   </label>
                   <input
                     type="text"
@@ -2192,7 +2090,7 @@ export default function KasirShiftPage() {
                     list="role-title-options"
                     value={formRole}
                     onChange={(e) => setFormRole(e.target.value)}
-                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold text-gray-900 focus:outline-none focus:border-[#EA8E18]"
+                    className="w-full px-3.5 py-2 border border-neutral-300 rounded-xl text-xs sm:text-sm font-medium text-black focus:outline-none focus:border-[#EA8E18]"
                   />
                   <datalist id="role-title-options">
                     <option value="Kasir" />
@@ -2204,8 +2102,8 @@ export default function KasirShiftPage() {
 
                 {/* 3. ID Kasir (cashier_code) */}
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1">
-                    KODE KASIR (CASHIER CODE) *
+                  <label className="block text-xs font-semibold text-black uppercase tracking-wider mb-1">
+                    KODE KASIR *
                   </label>
                   <input
                     type="text"
@@ -2213,14 +2111,14 @@ export default function KasirShiftPage() {
                     disabled={Boolean(editingId)}
                     value={formId}
                     onChange={(e) => setFormId(e.target.value)}
-                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm font-bold text-gray-900 disabled:bg-gray-100 disabled:text-gray-500 focus:outline-none focus:border-[#EA8E18]"
+                    className="w-full px-3.5 py-2 border border-neutral-300 rounded-xl text-xs sm:text-sm font-mono font-bold text-black disabled:bg-gray-100 disabled:text-neutral-800 focus:outline-none focus:border-[#EA8E18]"
                   />
                 </div>
 
                 {/* 4. Shift Kerja Reguler */}
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-1.5">
-                    SHIFT KERJA REGULER (DATABASE)
+                  <label className="block text-xs font-semibold text-black uppercase tracking-wider mb-1.5">
+                    SHIFT KERJA
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     {(
@@ -2237,15 +2135,15 @@ export default function KasirShiftPage() {
                         className={`p-2 rounded-xl text-center border transition cursor-pointer flex flex-col items-center justify-center ${
                           formShift === s.key
                             ? "bg-gradient-to-r from-[#EA8E18] to-[#F59E0B] text-white border-transparent shadow-xs"
-                            : "bg-white border-gray-300 text-gray-800 hover:bg-gray-50"
+                            : "bg-white border-neutral-400 text-black hover:bg-gray-50"
                         }`}
                       >
-                        <span className="font-black text-xs">{s.key}</span>
+                        <span className="font-semibold text-xs">{s.key}</span>
                         <span
-                          className={`text-[10px] font-semibold ${
+                          className={`font-mono text-[10px] font-medium ${
                             formShift === s.key
                               ? "text-amber-100"
-                              : "text-gray-500"
+                              : "text-neutral-800"
                           }`}
                         >
                           {s.hours}
@@ -2259,7 +2157,7 @@ export default function KasirShiftPage() {
                     className={`mt-2.5 p-2.5 rounded-xl border transition-all ${
                       formShift === "Kustom"
                         ? "bg-amber-50/70 border-amber-300 shadow-xs"
-                        : "bg-gray-50/80 border-gray-200"
+                        : "bg-gray-50/80 border-neutral-200"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
@@ -2280,24 +2178,24 @@ export default function KasirShiftPage() {
                           )}
                         </span>
                         <span
-                          className={`text-xs font-extrabold ${
+                          className={`text-xs font-semibold ${
                             formShift === "Kustom"
                               ? "text-[#EA8E18]"
-                              : "text-gray-700 group-hover:text-gray-900"
+                              : "text-black group-hover:text-black"
                           }`}
                         >
                           Atur Jam Kustom
                         </span>
                       </button>
                       {formShift === "Kustom" && (
-                        <span className="text-[10px] font-black text-[#EA8E18] bg-amber-100 px-2 py-0.5 rounded-md border border-amber-300">
+                        <span className="font-mono text-[10px] font-bold text-[#EA8E18] bg-amber-100 px-2 py-0.5 rounded-md border border-amber-300">
                           {customStartTime} - {customEndTime}
                         </span>
                       )}
                     </div>
                     <div className="grid grid-cols-2 gap-2 mt-1">
                       <div>
-                        <label className="text-[10px] font-bold text-gray-500 block mb-0.5">
+                        <label className="text-[10px] font-bold text-neutral-700 block mb-0.5">
                           Jam Mulai
                         </label>
                         <TimeWheelPicker
@@ -2312,7 +2210,7 @@ export default function KasirShiftPage() {
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-gray-500 block mb-0.5">
+                        <label className="text-[10px] font-bold text-neutral-700 block mb-0.5">
                           Jam Selesai
                         </label>
                         <TimeWheelPicker
@@ -2330,14 +2228,14 @@ export default function KasirShiftPage() {
                   </div>
                 </div>
 
-                {/* 5. Status Akun Kasir Aktif (is_active) Toggle */}
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200 mt-1">
+                {/* 5. Status Akun Kasir Aktif Toggle */}
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-neutral-200 mt-1">
                   <div>
-                    <div className="text-xs font-extrabold text-gray-900">
-                      Status Akun Kasir Aktif (is_active)
+                    <div className="text-xs font-semibold text-black">
+                      Akun Kasir Aktif
                     </div>
-                    <div className="text-xs text-gray-600 font-medium mt-0.5">
-                      Kasir dapat login ke sistem kasir
+                    <div className="text-xs text-neutral-800 font-medium mt-0.5">
+                      Izinkan login ke aplikasi kasir
                     </div>
                   </div>
                   <button
@@ -2356,32 +2254,31 @@ export default function KasirShiftPage() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-gray-200 mt-1">
+                <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-neutral-200 mt-1">
                   <button
                     type="button"
                     onClick={handleResetForm}
-                    className="h-10 px-3 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center whitespace-nowrap cursor-pointer"
+                    className="h-10 px-3 border border-neutral-400 hover:bg-gray-50 text-black rounded-xl text-xs sm:text-sm font-semibold transition flex items-center justify-center whitespace-nowrap cursor-pointer"
                   >
                     Batal / Bersihkan
                   </button>
                   <button
                     type="submit"
-                    className="h-10 px-3 bg-[#1E562F] hover:bg-[#164223] text-white rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 shadow-xs whitespace-nowrap cursor-pointer"
+                    className="h-10 px-3 bg-[#1E562F] hover:bg-[#164223] text-white rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs whitespace-nowrap cursor-pointer"
                   >
-                    <Save size={15} className="shrink-0" />
-                    <span>{editingId ? "Perbarui Kasir" : "Simpan Kasir"}</span>
+                    {editingId ? "Perbarui Kasir" : "Simpan Kasir"}
                   </button>
                 </div>
               </form>
             </div>
 
             {/* CARD 2: KONEKSI HARDWARE KASIR */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col gap-3">
-              <div className="flex items-center justify-between border-b border-gray-200 pb-3">
-                <span className="text-xs font-extrabold text-gray-600 tracking-wider uppercase">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200 flex flex-col gap-3">
+              <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
+                <span className="text-xs font-semibold text-neutral-700 tracking-wider uppercase">
                   KONEKSI HARDWARE KASIR ({activeDrawer.counter})
                 </span>
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                   Normal
                 </span>
@@ -2389,29 +2286,29 @@ export default function KasirShiftPage() {
 
               <div className="flex flex-col gap-2.5 text-xs sm:text-sm">
                 <div className="flex items-center justify-between py-1">
-                  <div className="flex items-center gap-2.5 text-gray-800 font-semibold">
-                    <Printer size={15} className="text-gray-600" />
+                  <div className="flex items-center gap-2.5 text-black font-medium">
+                    <Printer size={15} className="text-neutral-800" />
                     <span>Printer Thermal Struk {activeDrawer.counter}</span>
                   </div>
-                  <span className="font-extrabold text-emerald-700">Ready</span>
+                  <span className="font-semibold text-emerald-700">Ready</span>
                 </div>
 
-                <div className="flex items-center justify-between py-1.5 border-t border-gray-100">
-                  <div className="flex items-center gap-2.5 text-gray-800 font-semibold">
-                    <CreditCard size={15} className="text-gray-600" />
+                <div className="flex items-center justify-between py-1.5 border-t border-neutral-200">
+                  <div className="flex items-center gap-2.5 text-black font-medium">
+                    <CreditCard size={15} className="text-neutral-800" />
                     <span>Cash Drawer RJ11</span>
                   </div>
-                  <span className="font-extrabold text-gray-900">
+                  <span className="font-semibold text-black">
                     {activeDrawer.isOpen ? "Terbuka / Aktif" : "Terkunci"}
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between py-1.5 border-t border-gray-100">
-                  <div className="flex items-center gap-2.5 text-gray-800 font-semibold">
-                    <ScanBarcode size={15} className="text-gray-600" />
+                <div className="flex items-center justify-between py-1.5 border-t border-neutral-200">
+                  <div className="flex items-center gap-2.5 text-black font-medium">
+                    <ScanBarcode size={15} className="text-neutral-800" />
                     <span>Barcode / QRIS Scanner</span>
                   </div>
-                  <span className="font-extrabold text-gray-900">Aktif</span>
+                  <span className="font-semibold text-black">Aktif</span>
                 </div>
               </div>
             </div>
@@ -2419,32 +2316,11 @@ export default function KasirShiftPage() {
         </section>
 
         {/* FOOTER SYSTEM */}
-        <footer className="print:hidden pt-3 pb-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-600 font-medium gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-extrabold text-[#EA8E18]">
-              PrekDuaDara POS v2.4
-            </span>
-            <span>•</span>
-            <span>Terminal Counter #01</span>
-            <span>•</span>
-            <span
-              className={`flex items-center gap-1.5 font-bold ${
-                dbConnected ? "text-emerald-700" : "text-amber-700"
-              }`}
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  dbConnected ? "bg-emerald-500" : "bg-amber-500"
-                }`}
-              ></span>
-              {dbConnected
-                ? "MySQL (prekduadara_db) Terhubung"
-                : "Mode Lokal (Offline Sync)"}
-            </span>
-          </div>
-          <div>
-            &copy; 2026 PrekDuaDara Quick-Service Culinary. All rights reserved.
-          </div>
+        <footer className="print:hidden pt-3 pb-4 border-t border-neutral-200 flex items-center justify-between text-xs text-neutral-700 font-medium">
+          <span className="font-display font-bold text-[#EA8E18]">
+            PrekDuaDara
+          </span>
+          <span>&copy; 2026 PrekDuaDara. All rights reserved.</span>
         </footer>
       </main>
     </div>

@@ -1,31 +1,27 @@
 "use client";
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
+import AiStockForecastSection, {
+  type ForecastItem,
+  type ForecastResponseData,
+} from "@/components/AiStockForecastSection";
 import { useStok } from "@/context/StokContext";
 import { API_BASE_URL, getAuthHeaders } from "@/lib/api";
 import {
   AlertTriangle,
-  Bell,
-  Box,
   CheckCircle2,
   ClipboardCheck,
-  Clock,
-  Download,
-  Layers,
   PackagePlus,
   Plus,
   PlusCircle,
-  Printer,
   RotateCcw,
   Save,
   Search,
   ShoppingCart,
-  SlidersHorizontal,
-  Store,
   Trash2,
   User,
-  Wallet,
   X,
 } from "lucide-react";
 
@@ -67,6 +63,8 @@ export interface InventoryDetailItem {
   safetyUnit: string;
   pct: number;
   daysLeft: string;
+  estimatedDaysLeft?: number;
+  suggestedPoQty?: number;
   unitPrice: number;
   priceUnit: string;
   status: StockStatus;
@@ -83,6 +81,32 @@ export interface MutationLog {
 }
 
 const ITEMS_PER_PAGE = 10;
+const STOCK_LOGS_STORAGE_KEY = "prekduadara_stock_logs_v1";
+const MAX_STOCK_LOGS = 100;
+const INTEGER_STOCK_UNITS = [
+  "pcs",
+  "box",
+  "cup",
+  "bungkus",
+  "pack",
+  "block",
+  "botol",
+  "kaleng",
+];
+
+function formatStockQty(val: number, unit: string): string {
+  const num = Number(val) || 0;
+  const isIntUnit = INTEGER_STOCK_UNITS.includes(unit.trim().toLowerCase());
+  if (isIntUnit) return String(Math.round(num));
+  const rounded = Math.round(num * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+let mutationLogSeq = 0;
+function createMutationLogId(suffix: string): string {
+  mutationLogSeq += 1;
+  return `LOG-${Date.now()}-${suffix}-${mutationLogSeq}`;
+}
 
 // Helper perhitungan status, persentase stok bar, dan estimasi sisa hari
 function computeStockMetrics(
@@ -149,7 +173,7 @@ const STOCK_METADATA_BY_SKU: Record<string, StockMetadataEntry> = {
     supplier: "Supplier: Lumbung Padi Karawang Jaya",
     unitPrice: 14500,
     icon: "🍚",
-    iconBg: "bg-gray-50 border-gray-200",
+    iconBg: "bg-gray-50 border-neutral-200",
   },
   "STK-05": {
     category: "Tepung & Minyak",
@@ -189,7 +213,7 @@ const STOCK_METADATA_BY_SKU: Record<string, StockMetadataEntry> = {
     supplier: "Supplier: Budidaya Jamur Segar",
     unitPrice: 18000,
     icon: "🍄",
-    iconBg: "bg-stone-50 border-stone-200",
+    iconBg: "bg-stone-50 border-neutral-200",
   },
   "STK-10": {
     category: "Minuman & Pelengkap",
@@ -388,9 +412,11 @@ function mapBackendStockToInventory(item: {
 export default function StokPage() {
   const { fetchStocks } = useStok();
 
-  const [inventory, setInventory] = useState<InventoryDetailItem[]>([]);
+  const [rawInventory, setRawInventory] = useState<InventoryDetailItem[]>([]);
+  const [forecastData, setForecastData] = useState<ForecastResponseData | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [dbConnected, setDbConnected] = useState<boolean>(false);
   const [logs, setLogs] = useState<MutationLog[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -405,8 +431,6 @@ export default function StokPage() {
   const [mutationAmount, setMutationAmount] = useState("");
   const [mutationNote, setMutationNote] = useState("");
 
-  const [reorderMarked, setReorderMarked] = useState<boolean>(false);
-
   // Toast Notification
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -415,6 +439,7 @@ export default function StokPage() {
   const [showOpnameModal, setShowOpnameModal] = useState(false);
   const [opnameValues, setOpnameValues] = useState<Record<string, string>>({});
   const [showPoModal, setShowPoModal] = useState(false);
+  const [poModalTab, setPoModalTab] = useState<"restock" | "all">("restock");
   const [poQuantities, setPoQuantities] = useState<Record<string, string>>({});
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [logModalFilter, setLogModalFilter] =
@@ -428,6 +453,35 @@ export default function StokPage() {
   const [newItemStock, setNewItemStock] = useState("");
   const [newItemUnit, setNewItemUnit] = useState("kg");
   const [newItemSafety, setNewItemSafety] = useState("");
+
+  useEffect(() => {
+    const hydrateTimer = window.setTimeout(() => {
+      try {
+        const saved = localStorage.getItem(STOCK_LOGS_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            setLogs(parsed.slice(0, MAX_STOCK_LOGS));
+          }
+        }
+      } catch {
+        // Abaikan data localStorage yang tidak valid
+      }
+    }, 0);
+    return () => window.clearTimeout(hydrateTimer);
+  }, []);
+
+  const appendMutationLog = useCallback((entry: MutationLog) => {
+    setLogs((prev) => {
+      const next = [entry, ...prev].slice(0, MAX_STOCK_LOGS);
+      try {
+        localStorage.setItem(STOCK_LOGS_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Abaikan jika penyimpanan browser penuh
+      }
+      return next;
+    });
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     if (toastTimerRef.current) {
@@ -456,9 +510,8 @@ export default function StokPage() {
       });
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
-        setDbConnected(true);
         const mapped = json.data.map(mapBackendStockToInventory);
-        setInventory(mapped);
+        setRawInventory(mapped);
         if (mapped.length > 0) {
           setSelectedSku((prev) => {
             return mapped.some((m: InventoryDetailItem) => m.sku === prev)
@@ -468,15 +521,104 @@ export default function StokPage() {
         }
       }
     } catch {
-      setDbConnected(false);
+      // Gagal menghubungi backend stok
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadStocksFromDB();
-  }, [loadStocksFromDB]);
+    let cancelled = false;
+    const initStocks = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/stocks`, {
+          headers: getAuthHeaders(),
+        });
+        const json = await res.json();
+        if (!cancelled && json.success && Array.isArray(json.data)) {
+          const mapped = json.data.map(mapBackendStockToInventory);
+          setRawInventory(mapped);
+          if (mapped.length > 0) {
+            setSelectedSku((prev) =>
+              mapped.some((m: InventoryDetailItem) => m.sku === prev)
+                ? prev
+                : mapped[0].sku
+            );
+          }
+        }
+      } catch {
+        // Gagal menghubungi backend stok
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+    void initStocks();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleForecastUpdate = useCallback((data: ForecastResponseData) => {
+    setForecastData(data);
+  }, []);
+
+  const targetSafeDays =
+    forecastData?.summary?.targetSafeDays ??
+    forecastData?.settings?.targetSafeDays ??
+    4;
+
+  const forecastMap = useMemo(() => {
+    const bySku = new Map<string, ForecastItem>();
+    const byId = new Map<string, ForecastItem>();
+    if (forecastData?.items) {
+      forecastData.items.forEach((aiItem) => {
+        const idStr = String(aiItem.id);
+        const sku = `STK-${idStr.padStart(2, "0")}`;
+        byId.set(idStr, aiItem);
+        bySku.set(sku, aiItem);
+      });
+    }
+    return { bySku, byId };
+  }, [forecastData]);
+
+  // Single Source of Truth: gabungkan data MariaDB dengan hasil analisis AI Agent
+  // (computeStockMetrics hanya sebagai fallback sementara saat data AI masih loading)
+  const inventory = useMemo<InventoryDetailItem[]>(() => {
+    return rawInventory.map((item) => {
+      const aiItem =
+        forecastMap.bySku.get(item.sku) || forecastMap.byId.get(item.id);
+      if (!aiItem) {
+        return item;
+      }
+
+      const estDays = Math.max(0, Number(aiItem.estimatedDaysLeft) || 0);
+      const safeDays = Math.max(1, targetSafeDays);
+      const status: StockStatus =
+        aiItem.isUrgentUnder2Days ||
+        estDays < 2 ||
+        item.stock <= item.safetyStock * 0.5
+          ? "KRITIS"
+          : estDays < safeDays || item.stock <= item.safetyStock
+            ? "MENIPIS"
+            : "AMAN";
+      const pct = Math.min(
+        100,
+        Math.max(0, Math.round((estDays / safeDays) * 100))
+      );
+      const daysLeft = `~${estDays.toFixed(1)} Hari`;
+
+      return {
+        ...item,
+        status,
+        pct,
+        daysLeft,
+        estimatedDaysLeft: estDays,
+        suggestedPoQty: Number(aiItem.suggestedPoQty) || 0,
+      };
+    });
+  }, [rawInventory, forecastMap, targetSafeDays]);
 
   // Handler Reset Seluruh Filter
   const handleResetFilters = () => {
@@ -492,7 +634,7 @@ export default function StokPage() {
     [inventory, selectedSku]
   );
 
-  // 4 KPI Card Metrics
+  // 4 KPI Card Metrics (disinkronkan dengan hasil analisis AI Agent)
   const kpiStats = useMemo(() => {
     const totalItems = inventory.length;
     const criticalItems = inventory.filter((item) => item.status === "KRITIS");
@@ -501,6 +643,9 @@ export default function StokPage() {
       0
     );
     const totalDays = inventory.reduce((acc, item) => {
+      if (typeof item.estimatedDaysLeft === "number") {
+        return acc + item.estimatedDaysLeft;
+      }
       const parsed = parseFloat(
         item.daysLeft.replace("~", "").replace("Hari", "").trim()
       );
@@ -559,7 +704,7 @@ export default function StokPage() {
     const pages: number[] = [];
     const maxVisible = 5;
     let start = Math.max(1, currentPage - 2);
-    let end = Math.min(totalPages, start + maxVisible - 1);
+    const end = Math.min(totalPages, start + maxVisible - 1);
     if (end - start + 1 < maxVisible) {
       start = Math.max(1, end - maxVisible + 1);
     }
@@ -568,13 +713,6 @@ export default function StokPage() {
     }
     return pages;
   }, [currentPage, totalPages]);
-
-  const filteredTotalValue = useMemo(() => {
-    return filteredInventory.reduce(
-      (acc, item) => acc + item.stock * item.unitPrice,
-      0
-    );
-  }, [filteredInventory]);
 
   // 2. HANDLER TAMBAH CEPAT (+ Button di Baris Tabel)
   const handleQuickRestockRow = async (item: InventoryDetailItem) => {
@@ -590,15 +728,16 @@ export default function StokPage() {
         await loadStocksFromDB();
         await fetchStocks();
         const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
-        const newLog: MutationLog = {
-          id: `LOG-${Date.now()}-${item.sku}`,
-          title: `${item.name.split(" ").slice(0, 3).join(" ")} • +${addVal} ${item.unit}`,
+        appendMutationLog({
+          id: createMutationLogId(item.sku),
+          title: `${item.name.split(" ").slice(0, 3).join(" ")} • +${formatStockQty(addVal, item.unit)} ${item.unit}`,
           subtitle: `Penambahan cepat stok tabel (${item.sku}) • Gerai Utama`,
           time: nowStr,
           type: "in",
-        };
-        setLogs((prev) => [newLog, ...prev]);
-        showToast(`+${addVal} ${item.unit} ditambahkan ke ${item.name}!`);
+        });
+        showToast(
+          `+${formatStockQty(addVal, item.unit)} ${item.unit} ditambahkan ke ${item.name}!`
+        );
       } else {
         showToast(json.message || "Gagal memperbarui stok di server!");
       }
@@ -610,9 +749,9 @@ export default function StokPage() {
   // 3. HANDLER SIMPAN FORM PENYESUAIAN CEPAT (Dapur & Kasir)
   const handleSaveMutation = async (e: React.FormEvent) => {
     e.preventDefault();
-    const qty = parseFloat(mutationAmount);
-    if (isNaN(qty) || qty < 2) {
-      showToast("Jumlah mutasi stok minimal 2!");
+    const qty = parseFloat(String(mutationAmount).replace(",", "."));
+    if (isNaN(qty) || qty <= 0) {
+      showToast("Jumlah mutasi stok harus lebih dari 0!");
       return;
     }
 
@@ -625,7 +764,7 @@ export default function StokPage() {
 
     if (!isAddition && qty > selectedItemObj.stock) {
       showToast(
-        `Stok tidak mencukupi! Sisa stok ${selectedItemObj.name} saat ini: ${selectedItemObj.stock} ${selectedItemObj.unit}.`
+        `Stok tidak mencukupi! Sisa stok ${selectedItemObj.name} saat ini: ${formatStockQty(selectedItemObj.stock, selectedItemObj.unit)} ${selectedItemObj.unit}.`
       );
       return;
     }
@@ -646,11 +785,11 @@ export default function StokPage() {
         await loadStocksFromDB();
         await fetchStocks();
         const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
-        const newLog: MutationLog = {
-          id: `LOG-${Date.now()}-${selectedItemObj.sku}`,
+        appendMutationLog({
+          id: createMutationLogId(selectedItemObj.sku),
           title: `${selectedItemObj.name.split(" ").slice(0, 3).join(" ")} • ${
             isAddition ? "+" : "-"
-          }${qty} ${selectedItemObj.unit}`,
+          }${formatStockQty(qty, selectedItemObj.unit)} ${selectedItemObj.unit}`,
           subtitle: `${
             mutationNote.trim() || `${mutationType} (${selectedItemObj.sku})`
           } • Gerai Utama`,
@@ -660,8 +799,7 @@ export default function StokPage() {
             : mutationType === "Stok Rusak / Basi"
               ? "replace"
               : "out",
-        };
-        setLogs((prev) => [newLog, ...prev]);
+        });
         setMutationAmount("");
         setMutationNote("");
         showToast(
@@ -688,17 +826,29 @@ export default function StokPage() {
   const handleSaveOpname = async (e: React.FormEvent) => {
     e.preventDefault();
     let updatedCount = 0;
+    const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
     try {
       for (const item of inventory) {
         const rawVal = opnameValues[item.sku];
         const parsed = parseFloat(rawVal);
         if (!isNaN(parsed) && parsed >= 0 && parsed !== item.stock) {
-          await fetch(`${API_BASE_URL}/api/stocks/${item.id}`, {
+          const res = await fetch(`${API_BASE_URL}/api/stocks/${item.id}`, {
             method: "PATCH",
             headers: getAuthHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ newStock: parsed }),
           });
-          updatedCount++;
+          if (res.ok) {
+            const diff = Math.round((parsed - item.stock) * 100) / 100;
+            const sign = diff > 0 ? "+" : "-";
+            appendMutationLog({
+              id: createMutationLogId(item.sku),
+              title: `${item.name.split(" ").slice(0, 3).join(" ")} • ${sign}${formatStockQty(Math.abs(diff), item.unit)} ${item.unit}`,
+              subtitle: `Audit / Opname Fisik (${formatStockQty(item.stock, item.unit)} → ${formatStockQty(parsed, item.unit)} ${item.unit}) • Gerai Utama`,
+              time: nowStr,
+              type: diff > 0 ? "in" : "replace",
+            });
+            updatedCount++;
+          }
         }
       }
       await loadStocksFromDB();
@@ -712,48 +862,54 @@ export default function StokPage() {
     }
   };
 
-  // 5. HANDLER QUICK PO RESTOCK MODAL
-  const handleOpenPoModal = () => {
-    const initialMap: Record<string, string> = {};
-    const criticals = inventory.filter(
-      (item) => item.status === "KRITIS" || item.status === "MENIPIS"
-    );
-    const targetList = criticals.length > 0 ? criticals : inventory;
-    targetList.forEach((item) => {
-      const deficit = Math.max(
-        0,
-        Number((item.safetyStock * 1.5 - item.stock).toFixed(1))
+  const handleApplyRecommendedPo = useCallback(
+    (poMap: Record<string, string>) => {
+      const count = Object.keys(poMap).length;
+      if (count === 0) {
+        showToast("Seluruh bahan baku saat ini dalam status aman menurut AI.");
+        return;
+      }
+      setPoQuantities(poMap);
+      setPoModalTab("restock");
+      setShowPoModal(true);
+      showToast(
+        `Kuantitas saran PO dari analisis AI (${count} bahan) berhasil dimuat ke form!`
       );
-      const suggested = deficit > 0 ? deficit : 10;
-      initialMap[item.sku] = String(
-        item.unit === "Pcs" ? Math.round(suggested) : suggested
-      );
-    });
-    setPoQuantities(initialMap);
-    setShowPoModal(true);
-  };
+    },
+    [showToast]
+  );
 
   const handleSendPo = async (e: React.FormEvent) => {
     e.preventDefault();
     let count = 0;
+    const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
     try {
       for (const [sku, qtyStr] of Object.entries(poQuantities)) {
-        const qty = parseFloat(qtyStr);
+        const parsedQty = parseFloat(String(qtyStr).replace(",", "."));
+        const qty = Math.round(parsedQty * 100) / 100;
         if (!isNaN(qty) && qty > 0) {
           const item = inventory.find((i) => i.sku === sku);
           if (item) {
-            await fetch(`${API_BASE_URL}/api/stocks/${item.id}`, {
+            const res = await fetch(`${API_BASE_URL}/api/stocks/${item.id}`, {
               method: "PATCH",
               headers: getAuthHeaders({ "Content-Type": "application/json" }),
               body: JSON.stringify({ amount: qty, action: "add" }),
             });
-            count++;
+            if (res.ok) {
+              appendMutationLog({
+                id: createMutationLogId(item.sku),
+                title: `${item.name.split(" ").slice(0, 3).join(" ")} • +${formatStockQty(qty, item.unit)} ${item.unit}`,
+                subtitle: `PO Restock Supplier (${item.sku}) • Gerai Utama`,
+                time: nowStr,
+                type: "in",
+              });
+              count++;
+            }
           }
         }
       }
       await loadStocksFromDB();
       await fetchStocks();
-      setReorderMarked(true);
       setShowPoModal(false);
       showToast(`Pesanan PO (${count} bahan) berhasil dikirim ke database!`);
     } catch {
@@ -794,6 +950,14 @@ export default function StokPage() {
       });
       const json = await res.json();
       if (json.success) {
+        const nowStr = new Date().toTimeString().slice(0, 5) + " WIB";
+        appendMutationLog({
+          id: createMutationLogId("NEW"),
+          title: `${cleanName.split(" ").slice(0, 3).join(" ")} • +${formatStockQty(initStock, newItemUnit)} ${newItemUnit}`,
+          subtitle: `Stok awal bahan baku baru (${newItemCategory}) • Gerai Utama`,
+          time: nowStr,
+          type: "in",
+        });
         await loadStocksFromDB();
         await fetchStocks();
         setNewItemName("");
@@ -858,8 +1022,8 @@ export default function StokPage() {
       item.name,
       item.category,
       item.supplier.replace("Supplier: ", ""),
-      `${item.unit === "Pcs" ? item.stock : item.stock.toFixed(1)} ${item.unit}`,
-      `${item.safetyStock} ${item.safetyUnit}`,
+      `${formatStockQty(item.stock, item.unit)} ${item.unit}`,
+      `${formatStockQty(item.safetyStock, item.safetyUnit)} ${item.safetyUnit}`,
       item.daysLeft,
       `Rp ${item.unitPrice.toLocaleString("id-ID")}`,
       `Rp ${Math.round(item.stock * item.unitPrice).toLocaleString("id-ID")}`,
@@ -897,8 +1061,37 @@ export default function StokPage() {
     return logs.filter((l) => l.type === "out" || l.type === "replace");
   }, [logs, logModalFilter]);
 
+  const poRestockItems = useMemo(() => {
+    return inventory.filter((item) => {
+      const qty =
+        parseFloat(String(poQuantities[item.sku] || "0").replace(",", ".")) ||
+        0;
+      return qty > 0 || item.status === "KRITIS" || item.status === "MENIPIS";
+    });
+  }, [inventory, poQuantities]);
+
+  const visiblePoItems = useMemo(
+    () => (poModalTab === "restock" ? poRestockItems : inventory),
+    [poModalTab, poRestockItems, inventory]
+  );
+
+  const poSummary = useMemo(() => {
+    let totalCost = 0;
+    let filledCount = 0;
+    inventory.forEach((item) => {
+      const qty =
+        parseFloat(String(poQuantities[item.sku] || "0").replace(",", ".")) ||
+        0;
+      if (qty > 0) {
+        totalCost += Math.round(qty * item.unitPrice);
+        filledCount++;
+      }
+    });
+    return { totalCost, filledCount };
+  }, [inventory, poQuantities]);
+
   return (
-    <div className="min-h-screen print:min-h-0 bg-[#FAF6E9] print:bg-white flex p-4 sm:p-6 print:p-0 gap-6 font-sans items-start text-gray-900">
+    <div className="min-h-screen print:min-h-0 bg-[#FAF6E9] print:bg-white flex p-4 sm:p-6 print:p-0 gap-6 font-sans items-start text-black">
       {/* Toast Notification */}
       {toastMsg && (
         <div className="print:hidden fixed bottom-6 right-6 z-50 bg-[#2D452B] text-white border border-[#415C3E] px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-xs sm:text-sm font-bold transition-all">
@@ -916,14 +1109,14 @@ export default function StokPage() {
           onClick={() => setShowOpnameModal(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[88vh]"
+            className="bg-white rounded-2xl shadow-2xl border border-neutral-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[88vh]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-[#2D452B] text-white px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <ClipboardCheck size={18} className="text-[#F3A712]" />
                 <div>
-                  <h3 className="text-sm sm:text-base font-extrabold">
+                  <h3 className="font-display text-sm sm:text-base font-bold">
                     Lembar Kerja Audit / Opname Fisik (Gerai Utama)
                   </h3>
                   <p className="text-[11px] text-emerald-200 font-medium">
@@ -953,34 +1146,31 @@ export default function StokPage() {
                   return (
                     <div
                       key={item.sku}
-                      className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      className="p-3.5 rounded-xl bg-gray-50 border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg">{item.icon}</span>
-                        <div>
-                          <div className="text-xs sm:text-sm font-extrabold text-gray-900">
-                            {item.name}{" "}
-                            <span className="text-[11px] text-gray-500 font-bold">
-                              [{item.sku}]
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-600 font-medium">
-                            Stok Sistem:{" "}
-                            <strong className="text-gray-900">
-                              {item.stock} {item.unit}
-                            </strong>
-                          </div>
+                      <div>
+                        <div className="text-xs sm:text-sm font-semibold text-black">
+                          {item.name}{" "}
+                          <span className="font-mono text-[11px] text-neutral-700 font-bold">
+                            [{item.sku}]
+                          </span>
+                        </div>
+                        <div className="text-xs text-neutral-800 font-medium">
+                          Stok Sistem:{" "}
+                          <strong className="font-semibold text-black">
+                            {item.stock} {item.unit}
+                          </strong>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-3 self-end sm:self-center">
                         <span
-                          className={`text-xs font-extrabold px-2.5 py-1 rounded-lg ${
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${
                             diff > 0
                               ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                               : diff < 0
                                 ? "bg-red-50 text-[#DC2626] border border-red-200"
-                                : "bg-gray-100 text-gray-600"
+                                : "bg-gray-100 text-neutral-800"
                           }`}
                         >
                           {diff > 0
@@ -990,7 +1180,7 @@ export default function StokPage() {
                               : "Sesuai"}
                         </span>
 
-                        <div className="flex items-center border border-gray-300 rounded-xl bg-white px-3 py-1.5 w-32">
+                        <div className="flex items-center border border-neutral-300 rounded-xl bg-white px-3 py-1.5 w-32">
                           <input
                             type="number"
                             step="0.1"
@@ -1002,9 +1192,9 @@ export default function StokPage() {
                                 [item.sku]: e.target.value,
                               }))
                             }
-                            className="w-full text-xs sm:text-sm font-extrabold text-gray-900 outline-none bg-transparent"
+                            className="w-full text-xs sm:text-sm font-semibold text-black outline-none bg-transparent"
                           />
-                          <span className="text-xs font-bold text-gray-500 ml-1">
+                          <span className="text-xs font-medium text-neutral-800 ml-1">
                             {item.unit}
                           </span>
                         </div>
@@ -1014,17 +1204,17 @@ export default function StokPage() {
                 })}
               </div>
 
-              <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-2.5">
+              <div className="px-5 py-3.5 bg-gray-50 border-t border-neutral-200 flex items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setShowOpnameModal(false)}
-                  className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 transition cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-neutral-400 bg-white hover:bg-gray-100 text-xs font-semibold text-black transition cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#F3A712] hover:bg-[#df980e] text-gray-950 text-xs font-extrabold flex items-center gap-2 shadow-xs transition cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-[#F3A712] hover:bg-[#df980e] text-black text-xs font-semibold flex items-center gap-2 shadow-xs transition cursor-pointer"
                 >
                   <Save size={14} />
                   <span>Simpan Hasil Opname</span>
@@ -1042,14 +1232,14 @@ export default function StokPage() {
           onClick={() => setShowPoModal(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-xl overflow-hidden flex flex-col max-h-[88vh]"
+            className="bg-white rounded-2xl shadow-2xl border border-neutral-200 w-full max-w-xl overflow-hidden flex flex-col max-h-[88vh]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-[#DC2626] text-white px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <ShoppingCart size={18} />
                 <div>
-                  <h3 className="text-sm sm:text-base font-extrabold">
+                  <h3 className="font-display text-sm sm:text-base font-bold">
                     Form Re-Order Cepat (Gerai Utama)
                   </h3>
                   <p className="text-[11px] text-red-100 font-medium">
@@ -1070,90 +1260,154 @@ export default function StokPage() {
               onSubmit={handleSendPo}
               className="flex flex-col flex-1 overflow-hidden"
             >
-              <div className="p-5 overflow-y-auto space-y-3">
-                {inventory.map((item) => {
-                  const qty = parseFloat(poQuantities[item.sku] || "0") || 0;
-                  const subtotal = Math.round(qty * item.unitPrice);
-                  return (
-                    <div
-                      key={item.sku}
-                      className="p-4 rounded-xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs sm:text-sm font-extrabold text-gray-900">
-                            {item.name}
-                          </span>
-                          <span
-                            className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                              item.status === "KRITIS"
-                                ? "bg-red-100 text-red-700"
-                                : item.status === "MENIPIS"
-                                  ? "bg-amber-100 text-amber-800"
-                                  : "bg-emerald-100 text-emerald-800"
-                            }`}
-                          >
-                            {item.status}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-600 mt-1 font-medium">
-                          Stok: <strong>{item.stock} {item.unit}</strong> • Safety:{" "}
-                          <strong>{item.safetyStock} {item.safetyUnit}</strong>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-0.5">
-                          {item.supplier}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 self-end sm:self-center">
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500 font-semibold">
-                            Est. Biaya:
-                          </div>
-                          <div className="text-xs font-black text-gray-900 tabular-nums">
-                            Rp {subtotal.toLocaleString("id-ID")}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center border border-gray-300 rounded-xl bg-white px-3 py-1.5 w-28">
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            value={poQuantities[item.sku] || ""}
-                            onChange={(e) =>
-                              setPoQuantities((prev) => ({
-                                ...prev,
-                                [item.sku]: e.target.value,
-                              }))
-                            }
-                            className="w-full text-xs sm:text-sm font-extrabold text-gray-900 outline-none bg-transparent"
-                          />
-                          <span className="text-xs font-bold text-gray-500 ml-1">
-                            {item.unit}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-2.5">
+              <div className="px-5 pt-3.5 pb-2.5 border-b border-neutral-200 flex items-center gap-2 bg-gray-50/70">
                 <button
                   type="button"
-                  onClick={() => setShowPoModal(false)}
-                  className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 transition cursor-pointer"
+                  onClick={() => setPoModalTab("restock")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    poModalTab === "restock"
+                      ? "bg-[#DC2626] text-white shadow-2xs"
+                      : "bg-white border border-neutral-300 text-black hover:bg-gray-100"
+                  }`}
                 >
-                  Batal
+                  Perlu Restock ({poRestockItems.length})
                 </button>
                 <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-extrabold flex items-center gap-2 shadow-xs transition cursor-pointer"
+                  type="button"
+                  onClick={() => setPoModalTab("all")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    poModalTab === "all"
+                      ? "bg-[#2D452B] text-white shadow-2xs"
+                      : "bg-white border border-neutral-300 text-black hover:bg-gray-100"
+                  }`}
                 >
-                  <ShoppingCart size={14} />
-                  <span>Kirim PO Restock ke Database</span>
+                  Semua Bahan ({inventory.length})
                 </button>
+              </div>
+
+              <div className="p-5 overflow-y-auto space-y-3 flex-1">
+                {visiblePoItems.length === 0 ? (
+                  <div className="py-10 text-center space-y-2.5">
+                    <p className="text-xs font-medium text-neutral-800">
+                      Tidak ada bahan yang berstatus Kritis/Menipis atau terisi kuantitas PO.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setPoModalTab("all")}
+                      className="px-3.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs font-semibold text-black transition cursor-pointer"
+                    >
+                      Tampilkan Semua Bahan
+                    </button>
+                  </div>
+                ) : (
+                  visiblePoItems.map((item) => {
+                    const qty =
+                      parseFloat(
+                        String(poQuantities[item.sku] || "0").replace(",", ".")
+                      ) || 0;
+                    const subtotal = Math.round(qty * item.unitPrice);
+                    return (
+                      <div
+                        key={item.sku}
+                        className="p-4 rounded-xl bg-gray-50 border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs sm:text-sm font-semibold text-black">
+                              {item.name}
+                            </span>
+                            <span className="font-mono text-[10px] font-bold text-neutral-700">
+                              [{item.sku}]
+                            </span>
+                            <span
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                item.status === "KRITIS"
+                                  ? "bg-red-100 text-red-700"
+                                  : item.status === "MENIPIS"
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-emerald-100 text-emerald-800"
+                              }`}
+                            >
+                              {item.status}
+                            </span>
+                          </div>
+                          <div className="text-xs text-neutral-800 mt-1 font-medium">
+                            Stok:{" "}
+                            <strong className="font-semibold text-black">
+                              {formatStockQty(item.stock, item.unit)} {item.unit}
+                            </strong>{" "}
+                            • Safety:{" "}
+                            <strong className="font-semibold text-black">
+                              {formatStockQty(item.safetyStock, item.safetyUnit)}{" "}
+                              {item.safetyUnit}
+                            </strong>
+                          </div>
+                          <div className="text-xs text-neutral-800 font-medium mt-0.5">
+                            {item.supplier}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 self-end sm:self-center">
+                          <div className="text-right">
+                            <div className="text-xs text-neutral-800 font-medium">
+                              Est. Biaya:
+                            </div>
+                            <div className="text-xs font-bold text-black tabular-nums">
+                              Rp {subtotal.toLocaleString("id-ID")}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center border border-neutral-300 rounded-xl bg-white px-3 py-1.5 w-28">
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              value={poQuantities[item.sku] || ""}
+                              onChange={(e) =>
+                                setPoQuantities((prev) => ({
+                                  ...prev,
+                                  [item.sku]: e.target.value,
+                                }))
+                              }
+                              className="w-full text-xs sm:text-sm font-semibold text-black outline-none bg-transparent"
+                            />
+                            <span className="text-xs font-medium text-neutral-800 ml-1">
+                              {item.unit}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="px-5 py-3.5 bg-gray-50 border-t border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-medium text-neutral-700">
+                    Total Estimasi Biaya PO ({poSummary.filledCount} bahan)
+                  </div>
+                  <div className="text-sm sm:text-base font-bold text-black tabular-nums">
+                    Rp {poSummary.totalCost.toLocaleString("id-ID")}
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowPoModal(false)}
+                    className="px-4 py-2 rounded-xl border border-neutral-400 bg-white hover:bg-gray-100 text-xs font-semibold text-black transition cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={poSummary.filledCount === 0}
+                    className="px-5 py-2 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold flex items-center gap-2 shadow-xs transition cursor-pointer"
+                  >
+                    <ShoppingCart size={14} />
+                    <span>Kirim PO Restock ke Database</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -1167,12 +1421,12 @@ export default function StokPage() {
           onClick={() => setShowLogsModal(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[88vh]"
+            className="bg-white rounded-2xl shadow-2xl border border-neutral-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[88vh]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-[#2D452B] text-white px-5 py-4 flex items-center justify-between">
               <div>
-                <h3 className="text-sm sm:text-base font-extrabold">
+                <h3 className="font-display text-sm sm:text-base font-bold">
                   Riwayat Lengkap Log Mutasi Stok (Gerai Utama)
                 </h3>
                 <p className="text-[11px] text-emerald-200 font-medium">
@@ -1188,7 +1442,7 @@ export default function StokPage() {
               </button>
             </div>
 
-            <div className="px-5 pt-3.5 pb-2 border-b border-gray-200 flex items-center gap-2">
+            <div className="px-5 pt-3.5 pb-2 border-b border-neutral-200 flex items-center gap-2">
               {(
                 [
                   { key: "Semua", label: `Semua (${logs.length})` },
@@ -1208,10 +1462,10 @@ export default function StokPage() {
                   key={tab.key}
                   type="button"
                   onClick={() => setLogModalFilter(tab.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                     logModalFilter === tab.key
-                      ? "bg-[#F3A712] text-gray-950"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      ? "bg-[#F3A712] text-black"
+                      : "bg-gray-100 text-black hover:bg-gray-200"
                   }`}
                 >
                   {tab.label}
@@ -1221,18 +1475,18 @@ export default function StokPage() {
 
             <div className="p-5 overflow-y-auto space-y-3 flex-1">
               {filteredModalLogs.length === 0 ? (
-                <div className="py-12 text-center text-gray-500 font-medium text-xs">
+                <div className="py-12 text-center text-neutral-800 font-medium text-xs">
                   Belum ada catatan mutasi stok tercatat.
                 </div>
               ) : (
                 filteredModalLogs.map((log) => (
                   <div
                     key={log.id}
-                    className="p-3.5 rounded-xl bg-[#F8F9FA] border border-gray-200 flex items-start justify-between gap-3"
+                    className="p-3.5 rounded-xl bg-[#F8F9FA] border border-neutral-200 flex items-start justify-between gap-3"
                   >
                     <div className="flex items-start gap-3 min-w-0">
                       <div
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 mt-0.5 ${
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${
                           log.type === "in"
                             ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                             : log.type === "replace"
@@ -1249,15 +1503,15 @@ export default function StokPage() {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs sm:text-sm font-extrabold text-gray-900">
+                        <p className="text-xs sm:text-sm font-semibold text-black">
                           {log.title}
                         </p>
-                        <p className="text-xs text-gray-600 font-medium mt-0.5">
+                        <p className="text-xs text-neutral-800 font-medium mt-0.5">
                           {log.subtitle}
                         </p>
                       </div>
                     </div>
-                    <span className="text-xs font-extrabold text-gray-500 shrink-0">
+                    <span className="font-mono text-xs font-bold text-neutral-800 shrink-0">
                       {log.time}
                     </span>
                   </div>
@@ -1265,11 +1519,11 @@ export default function StokPage() {
               )}
             </div>
 
-            <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 flex justify-end">
+            <div className="px-5 py-3 bg-gray-50 border-t border-neutral-200 flex justify-end">
               <button
                 type="button"
                 onClick={() => setShowLogsModal(false)}
-                className="px-4 py-2 rounded-xl bg-[#2D452B] text-white text-xs font-extrabold cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-[#2D452B] text-white text-xs font-semibold cursor-pointer"
               >
                 Tutup
               </button>
@@ -1285,18 +1539,18 @@ export default function StokPage() {
           onClick={() => setShowAddModal(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
+            className="bg-white rounded-2xl shadow-2xl border border-neutral-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-[#2D452B] text-white px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <PackagePlus size={18} className="text-[#F3A712]" />
                 <div>
-                  <h3 className="text-sm sm:text-base font-extrabold">
+                  <h3 className="font-display text-sm sm:text-base font-bold">
                     Tambah Bahan Baku Baru
                   </h3>
                   <p className="text-[11px] text-emerald-200 font-medium">
-                    Daftarkan item inventaris baru langsung ke database MariaDB
+                    Daftarkan item inventaris baru ke sistem inventaris
                   </p>
                 </div>
               </div>
@@ -1314,7 +1568,7 @@ export default function StokPage() {
               className="p-5 overflow-y-auto space-y-3.5"
             >
               <div>
-                <label className="block text-xs font-extrabold text-gray-800 mb-1">
+                <label className="block text-xs font-semibold text-black mb-1">
                   Nama Bahan Baku *
                 </label>
                 <input
@@ -1323,12 +1577,12 @@ export default function StokPage() {
                   placeholder="Contoh: Saus Keju Spesial"
                   value={newItemName}
                   onChange={(e) => setNewItemName(e.target.value)}
-                  className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-900 focus:outline-none focus:border-[#D97706]"
+                  className="w-full border border-neutral-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-black focus:outline-none focus:border-[#D97706]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-gray-800 mb-1">
+                <label className="block text-xs font-semibold text-black mb-1">
                   Kategori Bahan
                 </label>
                 <select
@@ -1336,7 +1590,7 @@ export default function StokPage() {
                   onChange={(e) =>
                     setNewItemCategory(e.target.value as InventoryCategory)
                   }
-                  className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-900 bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
+                  className="w-full border border-neutral-400 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-black bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
                 >
                   <option value="Protein & Unggas">Protein &amp; Unggas</option>
                   <option value="Bumbu & Sambal">Bumbu &amp; Sambal</option>
@@ -1350,7 +1604,7 @@ export default function StokPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1">
+                  <label className="block text-xs font-semibold text-black mb-1">
                     Stok Awal *
                   </label>
                   <input
@@ -1361,18 +1615,18 @@ export default function StokPage() {
                     placeholder="Misal: 10"
                     value={newItemStock}
                     onChange={(e) => setNewItemStock(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-900 focus:outline-none focus:border-[#D97706]"
+                    className="w-full border border-neutral-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold text-black focus:outline-none focus:border-[#D97706]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1">
+                  <label className="block text-xs font-semibold text-black mb-1">
                     Satuan *
                   </label>
                   <select
                     value={newItemUnit}
                     onChange={(e) => setNewItemUnit(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-900 bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
+                    className="w-full border border-neutral-400 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-black bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
                   >
                     <option value="kg">kg</option>
                     <option value="Liter">Liter</option>
@@ -1383,7 +1637,7 @@ export default function StokPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1">
+                  <label className="block text-xs font-semibold text-black mb-1">
                     Batas Aman (Min) *
                   </label>
                   <input
@@ -1394,22 +1648,22 @@ export default function StokPage() {
                     placeholder="Misal: 5"
                     value={newItemSafety}
                     onChange={(e) => setNewItemSafety(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-900 focus:outline-none focus:border-[#D97706]"
+                    className="w-full border border-neutral-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold text-black focus:outline-none focus:border-[#D97706]"
                   />
                 </div>
               </div>
 
-              <div className="pt-2 flex justify-end gap-2.5 border-t border-gray-200 mt-2">
+              <div className="pt-2 flex justify-end gap-2.5 border-t border-neutral-200 mt-2">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 transition cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-neutral-400 bg-white hover:bg-gray-100 text-xs font-semibold text-black transition cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#2D452B] hover:bg-[#1E562F] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-[#2D452B] hover:bg-[#1E562F] text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
                 >
                   <Save size={14} />
                   <span>Simpan ke Database</span>
@@ -1426,19 +1680,21 @@ export default function StokPage() {
       {/* KONTEN UTAMA */}
       <main className="flex-1 min-w-0 flex flex-col gap-5">
         {/* TOP NAVBAR HEADER (SERAGAM DI SELURUH HALAMAN DASHBOARD) */}
-        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
+        <header className="bg-white rounded-2xl px-6 py-4 shadow-sm border border-neutral-200 flex flex-wrap items-center justify-between gap-4">
           {/* Logo & Subtitle */}
           <div className="flex items-center gap-3">
-            <img
+            <Image
               src="/logo.png"
               alt="Logo PrekDuaDara"
-              className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-xs shrink-0"
+              width={40}
+              height={40}
+              className="w-10 h-10 rounded-full object-cover border border-neutral-200 shadow-xs shrink-0"
             />
             <div>
-              <div className="font-extrabold text-base text-[#EA8E18] tracking-tight leading-tight">
+              <div className="font-display font-bold text-lg text-[#EA8E18] tracking-tight leading-tight">
                 PrekDuaDara
               </div>
-              <div className="text-xs text-gray-600 font-medium leading-tight mt-0.5">
+              <div className="text-xs text-neutral-800 font-medium leading-tight mt-0.5">
                 Manajemen Stok &amp; Inventaris Dapur
               </div>
             </div>
@@ -1447,22 +1703,22 @@ export default function StokPage() {
           {/* Right Controls: Online Sync & Admin Profile */}
           <div className="print:hidden flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
             {/* Online Sync Pill */}
-            <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-extrabold rounded-full shrink-0 whitespace-nowrap">
+            <div className="h-9 flex items-center gap-2 px-3.5 bg-[#E8F8F0] border border-[#A7F3D0] text-[#047857] text-xs font-semibold rounded-full shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
               <span>ONLINE SYNC</span>
             </div>
 
             {/* User Profile: Admin / Owner */}
-            <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
+            <div className="flex items-center gap-2.5 pl-3 border-l border-neutral-200 shrink-0">
               <div className="text-right">
-                <div className="text-xs font-extrabold text-gray-900 leading-tight whitespace-nowrap">
+                <div className="text-xs font-semibold text-black leading-tight whitespace-nowrap">
                   Admin
                 </div>
-                <div className="text-[11px] text-[#EA8E18] font-bold leading-tight mt-0.5 whitespace-nowrap">
+                <div className="text-[11px] text-[#EA8E18] font-medium leading-tight mt-0.5 whitespace-nowrap">
                   Owner
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#EA8E18] to-[#FBBF24] text-white font-semibold text-xs flex items-center justify-center shadow-xs shrink-0">
                 <User size={16} />
               </div>
             </div>
@@ -1470,56 +1726,40 @@ export default function StokPage() {
         </header>
 
         {/* PAGE TITLE & ACTION SECTION */}
-        <section className="print:hidden bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
-                Manajemen Stok &amp; Bahan Baku
-              </h2>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-[11px] font-extrabold">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                Tersambung ke Database MariaDB
-              </span>
-            </div>
-            <p className="text-xs text-gray-600 mt-1.5 max-w-2xl leading-relaxed font-medium">
-              Pantau ketersediaan bahan utama ayam geprek, peringatan stok
-              menipis, pencatatan mutasi barang, dan audit opname fisik secara
-              real-time.
-            </p>
-          </div>
+        <section className="print:hidden bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-neutral-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <h2 className="font-display text-base sm:text-lg font-bold text-black tracking-tight">
+            Manajemen Stok &amp; Bahan Baku
+          </h2>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end lg:self-center">
             <button
               type="button"
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-700 transition cursor-pointer whitespace-nowrap"
+              className="px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black transition cursor-pointer whitespace-nowrap"
             >
-              <Printer size={14} />
-              <span>Cetak Laporan</span>
+              Cetak Laporan
             </button>
 
             <button
               type="button"
               onClick={handleExportExcel}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 rounded-xl text-xs font-bold text-emerald-800 transition cursor-pointer whitespace-nowrap"
+              className="px-3.5 py-2 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 rounded-xl text-xs font-semibold text-emerald-800 transition cursor-pointer whitespace-nowrap"
             >
-              <Download size={14} />
-              <span>Export Excel</span>
+              Export Excel
             </button>
 
             <button
               type="button"
               onClick={handleOpenOpnameModal}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-800 transition cursor-pointer whitespace-nowrap"
+              className="px-3.5 py-2 bg-white border border-neutral-400 hover:bg-gray-50 rounded-xl text-xs font-semibold text-black transition cursor-pointer whitespace-nowrap"
             >
-              <ClipboardCheck size={14} className="text-gray-700" />
-              <span>Audit / Opname Fisik</span>
+              Audit / Opname Fisik
             </button>
 
             <button
               type="button"
               onClick={() => setShowAddModal(true)}
-              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#F3A712] hover:bg-[#df980e] text-gray-950 font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#F3A712] hover:bg-[#df980e] text-black font-semibold text-xs rounded-xl shadow-xs transition cursor-pointer whitespace-nowrap"
             >
               <PlusCircle size={14} />
               <span>+ Tambah Bahan Baru</span>
@@ -1530,244 +1770,138 @@ export default function StokPage() {
         {/* 4 SUMMARY KPI CARDS */}
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4 gap-4 print:gap-3">
           {/* Card 1: TOTAL ITEM AKTIF */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-gray-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                TOTAL ITEM AKTIF
-              </p>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl print:text-lg font-black text-gray-900 whitespace-nowrap tabular-nums">
-                  {kpiStats.totalItems}
-                </span>
-                <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
-                  Bahan Baku
-                </span>
-              </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-semibold min-w-0">
-                <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                <span className="truncate">Database `stocks` Aktif</span>
-              </div>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-gray-100 border border-gray-200 text-gray-700 flex items-center justify-center shrink-0">
-              <Layers size={20} />
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
+              TOTAL ITEM AKTIF
+            </p>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
+                {kpiStats.totalItems}
+              </span>
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
+                Bahan Baku
+              </span>
             </div>
           </div>
 
           {/* Card 2: STOK KRITIS / RESTOCK */}
           <div
-            className={`rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border flex items-center justify-between gap-3 ${
+            className={`rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border ${
               kpiStats.criticalCount > 0
                 ? "bg-[#FFF5F5] border-red-300"
                 : "bg-emerald-50/60 border-emerald-300"
             }`}
           >
-            <div className="min-w-0 flex-1">
-              <p
-                className={`text-[11px] font-extrabold uppercase tracking-wider whitespace-nowrap ${
+            <p
+              className={`text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap ${
+                kpiStats.criticalCount > 0
+                  ? "text-[#DC2626]"
+                  : "text-emerald-800"
+              }`}
+            >
+              STOK KRITIS / RESTOCK
+            </p>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span
+                className={`text-2xl print:text-lg font-extrabold whitespace-nowrap tabular-nums ${
                   kpiStats.criticalCount > 0
                     ? "text-[#DC2626]"
                     : "text-emerald-800"
                 }`}
               >
-                STOK KRITIS / RESTOCK
-              </p>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span
-                  className={`text-2xl print:text-lg font-black whitespace-nowrap tabular-nums ${
-                    kpiStats.criticalCount > 0
-                      ? "text-[#DC2626]"
-                      : "text-emerald-800"
-                  }`}
-                >
-                  {kpiStats.criticalCount}
-                </span>
-                <span
-                  className={`text-xs font-bold whitespace-nowrap ${
-                    kpiStats.criticalCount > 0
-                      ? "text-red-700"
-                      : "text-emerald-700"
-                  }`}
-                >
-                  Bahan Baku
-                </span>
-              </div>
-              <div
-                className={`mt-1.5 flex items-center gap-1.5 text-xs font-semibold min-w-0 ${
+                {kpiStats.criticalCount}
+              </span>
+              <span
+                className={`text-xs font-medium whitespace-nowrap ${
                   kpiStats.criticalCount > 0
-                    ? "text-[#DC2626]"
+                    ? "text-red-700"
                     : "text-emerald-700"
                 }`}
-                title={kpiStats.criticalLabel}
               >
-                <AlertTriangle size={14} className="shrink-0" />
-                <span className="truncate">{kpiStats.criticalLabel}</span>
-              </div>
+                Bahan Baku
+              </span>
             </div>
             <div
-              className={`w-11 h-11 print:w-8 print:h-8 rounded-xl border flex items-center justify-center shrink-0 ${
+              className={`mt-1.5 flex items-center gap-1.5 text-xs font-medium min-w-0 ${
                 kpiStats.criticalCount > 0
-                  ? "bg-red-100 border-red-200 text-[#DC2626]"
-                  : "bg-emerald-100 border-emerald-200 text-emerald-700"
+                  ? "text-[#DC2626]"
+                  : "text-emerald-700"
               }`}
+              title={kpiStats.criticalLabel}
             >
-              <Bell size={20} />
+              <AlertTriangle size={14} className="shrink-0" />
+              <span className="truncate">{kpiStats.criticalLabel}</span>
             </div>
           </div>
 
           {/* Card 3: KETAHANAN OPERASIONAL */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-gray-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                KETAHANAN OPERASIONAL
-              </p>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl print:text-lg font-black text-gray-900 whitespace-nowrap tabular-nums">
-                  {kpiStats.avgDays}
-                </span>
-                <span className="text-xs font-bold text-gray-500 whitespace-nowrap">
-                  Hari
-                </span>
-              </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-600 font-semibold min-w-0">
-                <Clock size={14} className="text-[#D97706] shrink-0" />
-                <span className="truncate">Estimasi ketahanan rata-rata</span>
-              </div>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-amber-50 border border-amber-200 text-[#D97706] flex items-center justify-center shrink-0">
-              <Clock size={20} />
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
+              KETAHANAN OPERASIONAL
+            </p>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl print:text-lg font-extrabold text-black whitespace-nowrap tabular-nums">
+                {kpiStats.avgDays}
+              </span>
+              <span className="text-xs font-medium text-neutral-800 whitespace-nowrap">
+                Hari
+              </span>
             </div>
           </div>
 
           {/* Card 4: NILAI TOTAL INVENTARIS */}
-          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-gray-200 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                NILAI TOTAL INVENTARIS
-              </p>
-              <div className="mt-2">
-                <span className="text-lg xl:text-xl print:text-base font-black text-gray-900 whitespace-nowrap tabular-nums">
-                  Rp {Math.round(kpiStats.totalValue).toLocaleString("id-ID")}
-                </span>
-              </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-600 font-semibold min-w-0">
-                <Box size={14} className="text-emerald-600 shrink-0" />
-                <span className="truncate">Gerai Utama</span>
-              </div>
-            </div>
-            <div className="w-11 h-11 print:w-8 print:h-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
-              <Wallet size={20} />
+          <div className="bg-white rounded-2xl p-4 print:p-3.5 shadow-sm print:shadow-none border border-neutral-200">
+            <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wider whitespace-nowrap">
+              NILAI TOTAL INVENTARIS
+            </p>
+            <div className="mt-2">
+              <span className="text-lg xl:text-xl print:text-base font-extrabold text-black whitespace-nowrap tabular-nums">
+                Rp {Math.round(kpiStats.totalValue).toLocaleString("id-ID")}
+              </span>
             </div>
           </div>
         </section>
 
-        {/* DYNAMIC CRITICAL RE-ORDER ALERT BANNER */}
-        {kpiStats.criticalCount > 0 ? (
-          <section className="print:hidden min-h-[76px] bg-[#FFF5F5] border border-red-300 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
-            <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-[#DC2626] text-white font-black text-base flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                !
-              </div>
-              <div>
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <h3 className="text-sm sm:text-base font-extrabold text-gray-900">
-                    Peringatan Kritis: {kpiStats.criticalCount} Bahan Memerlukan Re-Order Mendesak
-                  </h3>
-                  <span className="bg-[#DC2626] text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-md uppercase tracking-wider">
-                    RUSH SIANG–MALAM
-                  </span>
-                </div>
-                <p className="text-xs sm:text-sm text-gray-700 mt-1.5 leading-relaxed font-medium">
-                  {kpiStats.criticalItems.map((ci, idx) => (
-                    <React.Fragment key={ci.sku}>
-                      {idx > 0 && " • "}
-                      <strong className="text-[#DC2626] font-extrabold">
-                        {ci.name}
-                      </strong>{" "}
-                      tersisa{" "}
-                      <strong className="text-gray-900">
-                        {ci.stock} {ci.unit}
-                      </strong>{" "}
-                      (Batas Aman: {ci.safetyStock} {ci.safetyUnit})
-                    </React.Fragment>
-                  ))}
-                  . Segera lakukan pengadaan ulang sebelum jam sibuk operasional.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2.5 shrink-0 self-end xl:self-center">
-              <button
-                type="button"
-                onClick={handleOpenPoModal}
-                className="px-4 py-2.5 bg-[#E11D48] hover:bg-[#BE123C] text-white rounded-xl text-xs font-extrabold flex items-center gap-2 shadow-xs transition cursor-pointer whitespace-nowrap"
-              >
-                <ShoppingCart size={14} />
-                <span>Pesan ke Supplier Sekarang</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const nextState = !reorderMarked;
-                  setReorderMarked(nextState);
-                  showToast(
-                    nextState
-                      ? "Ditandai sudah dipesan ke supplier!"
-                      : "Status pesanan supplier direset."
-                  );
-                }}
-                className={`px-4 py-2.5 border rounded-xl text-xs font-extrabold transition cursor-pointer whitespace-nowrap ${
-                  reorderMarked
-                    ? "bg-emerald-100 border-emerald-400 text-emerald-900"
-                    : "bg-white border-gray-300 hover:bg-gray-50 text-gray-800"
-                }`}
-              >
-                {reorderMarked ? "✓ Sudah Dipesan" : "Tandai Sudah Dipesan"}
-              </button>
-            </div>
-          </section>
-        ) : (
-          <section className="print:hidden min-h-[76px] bg-emerald-50 border border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-emerald-600 text-white font-black text-base flex items-center justify-center shrink-0 shadow-xs">
-                <CheckCircle2 size={20} />
-              </div>
-              <div>
-                <h3 className="text-sm sm:text-base font-extrabold text-emerald-950">
-                  Semua Stok Bahan Baku dalam Batas Aman
-                </h3>
-                <p className="text-xs sm:text-sm text-emerald-800 font-medium mt-1.5">
-                  Tidak ada bahan baku yang berstatus kritis di database MariaDB saat ini. Operasional
-                  dapur siap melayani pelanggan.
-                </p>
-              </div>
-            </div>
-          </section>
-        )}
+        {/* AI STOCK FORECAST & PERINGATAN DINI TERPADU */}
+        <AiStockForecastSection
+          onApplyRecommendedPo={handleApplyRecommendedPo}
+          onForecastUpdate={handleForecastUpdate}
+          onNotify={showToast}
+          refreshTrigger={rawInventory
+            .map((item) => `${item.id}:${item.stock}`)
+            .join("|")}
+        />
 
         {/* 2-COLUMN MAIN CONTENT: LEFT (TABLE) & RIGHT (MUTATION FORM & LOGS) */}
         <section className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
           {/* LEFT COLUMN: TABLE (8 COLS) */}
-          <div className="xl:col-span-8 print:col-span-12 bg-white rounded-2xl p-3.5 sm:p-4 md:p-5 shadow-sm border border-gray-200 flex flex-col justify-between gap-4 h-full">
+          <div className="xl:col-span-8 print:col-span-12 bg-white rounded-2xl p-3.5 sm:p-4 md:p-5 shadow-sm border border-neutral-200 flex flex-col justify-between gap-4 h-full">
             <div className="flex flex-col gap-4 flex-1">
             {/* SEARCH & STATUS FILTER */}
             <div className="print:hidden flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
               <div className="relative flex-1">
                 <Search
                   size={15}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400"
                 />
                 <input
                   type="text"
                   placeholder="Cari nama bahan, supplier, atau kode SKU..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-xl text-xs font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#D97706] bg-gray-50/50"
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setActivePage(1);
+                  }}
+                  className="w-full pl-9 pr-8 py-2 border border-neutral-300 rounded-xl text-xs font-medium text-black placeholder:text-neutral-400 focus:outline-none focus:border-[#D97706] bg-gray-50/50"
                 />
                 {searchQuery && (
                   <button
                     type="button"
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 cursor-pointer"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setActivePage(1);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black cursor-pointer"
                   >
                     <X size={13} />
                   </button>
@@ -1775,12 +1909,15 @@ export default function StokPage() {
               </div>
 
               <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
-                <div className="flex items-center gap-1.5 text-xs font-extrabold text-gray-600">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-800">
                   <span>STATUS:</span>
                   <select
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="border border-gray-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value);
+                      setActivePage(1);
+                    }}
+                    className="border border-neutral-400 rounded-xl px-2.5 py-1.5 text-xs font-medium text-black bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
                   >
                     <option value="Semua Status">Semua Status</option>
                     <option value="KRITIS">KRITIS</option>
@@ -1793,16 +1930,15 @@ export default function StokPage() {
                   type="button"
                   onClick={handleResetFilters}
                   title="Reset Filter"
-                  className="p-1.5 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-100 transition cursor-pointer flex items-center gap-1 text-xs font-bold"
+                  className="px-2.5 py-1.5 border border-neutral-400 rounded-xl text-black hover:bg-gray-100 transition cursor-pointer text-xs font-semibold"
                 >
-                  <RotateCcw size={13} />
-                  <span>Reset</span>
+                  Reset
                 </button>
               </div>
             </div>
 
             {/* CATEGORY TABS */}
-            <div className="print:hidden flex items-center gap-1.5 flex-wrap pb-1 text-[11px] font-extrabold border-b border-gray-100">
+            <div className="print:hidden flex items-center gap-1.5 flex-wrap pb-1 text-[11px] font-semibold border-b border-neutral-200">
               {(
                 [
                   "Semua Bahan",
@@ -1827,8 +1963,8 @@ export default function StokPage() {
                     }}
                     className={`px-2.5 py-1 rounded-lg whitespace-nowrap transition cursor-pointer ${
                       activeCategory === cat
-                        ? "bg-[#F3A712] text-gray-950 shadow-2xs font-black"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        ? "bg-[#F3A712] text-black shadow-2xs font-semibold"
+                        : "bg-gray-100 text-black font-medium hover:bg-gray-200"
                     }`}
                   >
                     {cat} ({count})
@@ -1839,18 +1975,18 @@ export default function StokPage() {
 
             {/* TABEL INVENTARIS */}
             <div className="overflow-x-auto print:overflow-visible flex-1">
-              <table className="table-fixed w-full text-left border-collapse text-xs">
+              <table className="table-fixed w-full min-w-[740px] text-left border-collapse text-xs">
                 <colgroup>
-                  <col className="w-[28%]" />
-                  <col className="w-[15%]" />
-                  <col className="w-[14%]" />
-                  <col className="w-[15%]" />
+                  <col className="w-[25%]" />
                   <col className="w-[13%]" />
-                  <col className="w-[8%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[13%]" />
                   <col className="w-[7%] print:hidden" />
                 </colgroup>
                 <thead>
-                  <tr className="border-b border-gray-200 text-[10px] font-black text-gray-500 uppercase tracking-wider bg-gray-50/50">
+                  <tr className="border-b border-neutral-300 text-[10px] font-semibold text-neutral-700 uppercase tracking-wider bg-gray-50/50">
                     <th className="py-2.5 px-2.5">BAHAN BAKU</th>
                     <th className="py-2.5 px-1.5">KATEGORI</th>
                     <th className="py-2.5 px-1.5">STOK</th>
@@ -1860,21 +1996,21 @@ export default function StokPage() {
                     <th className="py-2.5 px-1 text-center print:hidden">AKSI</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 text-gray-800">
+                <tbody className="divide-y divide-neutral-200 text-black">
                   {isLoading ? (
                     <tr>
                       <td
                         colSpan={7}
-                        className="py-12 text-center text-gray-500 font-medium"
+                        className="py-12 text-center text-neutral-800 font-medium"
                       >
-                        Memuat data inventaris dari database MariaDB...
+                        Memuat data inventaris...
                       </td>
                     </tr>
                   ) : paginatedInventory.length === 0 ? (
                     <tr>
                       <td
                         colSpan={7}
-                        className="py-12 text-center text-gray-500 font-medium"
+                        className="py-12 text-center text-neutral-800 font-medium"
                       >
                         Tidak ada data bahan baku yang sesuai dengan filter.
                       </td>
@@ -1887,26 +2023,23 @@ export default function StokPage() {
                       >
                         {/* Bahan Baku & SKU */}
                         <td className="py-2.5 px-2.5">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-base shrink-0">{item.icon}</span>
-                            <div className="min-w-0 flex-1">
-                              <div
-                                className="font-extrabold text-gray-900 text-xs truncate"
-                                title={item.name}
+                          <div className="min-w-0">
+                            <div
+                              className="font-semibold text-black text-xs truncate"
+                              title={item.name}
+                            >
+                              {item.name}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                              <span className="font-mono inline-block px-1 py-0.2 rounded bg-gray-100 border border-neutral-200 text-neutral-950 font-bold text-[9px] shrink-0">
+                                {item.sku}
+                              </span>
+                              <span
+                                className="text-[10px] text-neutral-700 font-medium truncate"
+                                title={item.supplier}
                               >
-                                {item.name}
-                              </div>
-                              <div className="flex items-center gap-1 mt-0.5 min-w-0">
-                                <span className="inline-block px-1 py-0.2 rounded bg-gray-100 border border-gray-200 text-gray-700 font-extrabold text-[9px] shrink-0">
-                                  {item.sku}
-                                </span>
-                                <span
-                                  className="text-[10px] text-gray-500 font-medium truncate"
-                                  title={item.supplier}
-                                >
-                                  {item.supplier.replace(/^Supplier:\s*/i, "")}
-                                </span>
-                              </div>
+                                {item.supplier.replace(/^Supplier:\s*/i, "")}
+                              </span>
                             </div>
                           </div>
                         </td>
@@ -1914,7 +2047,7 @@ export default function StokPage() {
                         {/* Kategori */}
                         <td className="py-2.5 px-1.5">
                           <span
-                            className="font-bold text-gray-700 text-xs truncate block"
+                            className="font-medium text-neutral-950 text-xs truncate block"
                             title={item.category}
                           >
                             {item.category}
@@ -1923,14 +2056,12 @@ export default function StokPage() {
 
                         {/* Stok Aktual */}
                         <td className="py-2.5 px-1.5">
-                          <div className="font-black text-gray-900 text-xs tabular-nums">
-                            {item.unit === "Pcs"
-                              ? item.stock
-                              : item.stock.toFixed(1)}{" "}
-                            {item.unit}
+                          <div className="font-semibold text-black text-xs tabular-nums">
+                            {formatStockQty(item.stock, item.unit)} {item.unit}
                           </div>
-                          <div className="text-[10px] text-gray-500 font-medium">
-                            Min: {item.safetyStock} {item.safetyUnit}
+                          <div className="text-[10px] text-neutral-700 font-medium">
+                            Min: {formatStockQty(item.safetyStock, item.safetyUnit)}{" "}
+                            {item.safetyUnit}
                           </div>
                         </td>
 
@@ -1952,11 +2083,11 @@ export default function StokPage() {
                                   }`}
                                 />
                               </div>
-                              <span className="text-[10px] font-bold text-gray-700 tabular-nums shrink-0">
+                              <span className="text-[10px] font-semibold text-neutral-950 tabular-nums shrink-0">
                                 {item.pct}%
                               </span>
                             </div>
-                            <span className="text-[10px] font-semibold text-emerald-800 tabular-nums">
+                            <span className="text-[10px] font-medium text-emerald-800 tabular-nums">
                               {item.daysLeft}
                             </span>
                           </div>
@@ -1964,10 +2095,10 @@ export default function StokPage() {
 
                         {/* Harga Unit */}
                         <td className="py-2.5 px-1.5">
-                          <div className="font-extrabold text-gray-900 text-xs tabular-nums whitespace-nowrap">
+                          <div className="font-semibold text-black text-xs tabular-nums whitespace-nowrap">
                             Rp {item.unitPrice.toLocaleString("id-ID")}
                           </div>
-                          <div className="text-[10px] text-gray-500 font-medium">
+                          <div className="text-[10px] text-neutral-700 font-medium">
                             {item.priceUnit}
                           </div>
                         </td>
@@ -1975,7 +2106,7 @@ export default function StokPage() {
                         {/* Status */}
                         <td className="py-2.5 px-1 text-center">
                           <span
-                            className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase ${
+                            className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase ${
                               item.status === "KRITIS"
                                 ? "bg-red-100 text-red-700 border border-red-200"
                                 : item.status === "MENIPIS"
@@ -1994,7 +2125,7 @@ export default function StokPage() {
                               type="button"
                               onClick={() => handleQuickRestockRow(item)}
                               title={`Tambah cepat +2 ${item.unit}`}
-                              className="w-6.5 h-6.5 rounded-lg border border-gray-200 hover:border-[#F3A712] hover:bg-amber-50 text-gray-700 hover:text-amber-800 flex items-center justify-center transition cursor-pointer"
+                              className="w-6.5 h-6.5 rounded-lg border border-neutral-300 hover:border-[#F3A712] hover:bg-amber-50 text-black hover:text-amber-800 flex items-center justify-center transition cursor-pointer"
                             >
                               <Plus size={12} />
                             </button>
@@ -2002,7 +2133,7 @@ export default function StokPage() {
                               type="button"
                               onClick={() => handleDeleteStock(item)}
                               title="Hapus Bahan Baku dari Database"
-                              className="w-6.5 h-6.5 rounded-lg border border-gray-200 hover:border-red-400 hover:bg-red-50 text-gray-500 hover:text-red-600 flex items-center justify-center transition cursor-pointer"
+                              className="w-6.5 h-6.5 rounded-lg border border-neutral-300 hover:border-red-400 hover:bg-red-50 text-black hover:text-red-600 flex items-center justify-center transition cursor-pointer"
                             >
                               <Trash2 size={12} />
                             </button>
@@ -2017,10 +2148,10 @@ export default function StokPage() {
             </div>
 
             {/* Pagination & Summary */}
-            <div className="print:hidden pt-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-600 font-medium">
+            <div className="print:hidden pt-3 border-t border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-neutral-800 font-medium">
               <div>
                 Menampilkan{" "}
-                <strong className="text-gray-900 font-extrabold">
+                <strong className="text-black font-semibold">
                   {paginatedInventory.length} dari {filteredInventory.length}
                 </strong>{" "}
                 item bahan baku operasional
@@ -2031,7 +2162,7 @@ export default function StokPage() {
                   type="button"
                   disabled={currentPage <= 1}
                   onClick={() => setActivePage((p) => Math.max(1, p - 1))}
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-600 font-semibold hover:text-gray-900 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
+                  className="px-3 py-1.5 border border-neutral-400 rounded-lg text-black font-medium hover:text-black hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
                 >
                   Sebelumnya
                 </button>
@@ -2040,10 +2171,10 @@ export default function StokPage() {
                     key={p}
                     type="button"
                     onClick={() => setActivePage(p)}
-                    className={`w-7 h-7 rounded-lg font-extrabold transition cursor-pointer ${
+                    className={`w-7 h-7 rounded-lg font-semibold transition cursor-pointer ${
                       currentPage === p
-                        ? "bg-[#F3A712] text-gray-950 shadow-2xs"
-                        : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                        ? "bg-[#F3A712] text-black shadow-2xs"
+                        : "border border-neutral-400 text-black hover:bg-gray-50"
                     }`}
                   >
                     {p}
@@ -2055,7 +2186,7 @@ export default function StokPage() {
                   onClick={() =>
                     setActivePage((p) => Math.min(totalPages, p + 1))
                   }
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-800 font-bold hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
+                  className="px-3 py-1.5 border border-neutral-400 rounded-lg text-black font-semibold hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer"
                 >
                   Selanjutnya
                 </button>
@@ -2066,26 +2197,11 @@ export default function StokPage() {
           {/* RIGHT COLUMN: PENYESUAIAN CEPAT (DAPUR & KASIR) & LOG MUTASI (4 COLS) */}
           <div className="print:hidden xl:col-span-4 flex flex-col gap-5">
             {/* CARD 1: PENYESUAIAN CEPAT */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col gap-4">
-              <div className="flex items-start justify-between gap-2 pb-3.5 border-b border-gray-200">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#F3A712] text-gray-950 flex items-center justify-center shrink-0 shadow-xs">
-                    <SlidersHorizontal size={18} />
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-base text-gray-900">
-                      Penyesuaian Cepat
-                    </h3>
-                    <p className="text-xs text-gray-600 font-medium mt-1">
-                      Catat stok masuk, keluar, atau sisa basi
-                    </p>
-                  </div>
-                </div>
-                <span className="px-2.5 py-1 rounded-md bg-gray-100 border border-gray-200 text-gray-700 text-[10px] font-extrabold uppercase leading-tight text-center shrink-0">
-                  DAPUR &amp;
-                  <br />
-                  KASIR
-                </span>
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-neutral-200 flex flex-col gap-4">
+              <div className="pb-3.5 border-b border-neutral-200">
+                <h3 className="font-display font-bold text-base text-black">
+                  Penyesuaian Cepat
+                </h3>
               </div>
 
               <form
@@ -2093,13 +2209,13 @@ export default function StokPage() {
                 className="flex flex-col gap-4"
               >
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                  <label className="block text-xs font-semibold text-black mb-1.5">
                     Pilih Bahan Baku
                   </label>
                   <select
                     value={selectedSku}
                     onChange={(e) => setSelectedSku(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-gray-900 bg-gray-50 focus:outline-none focus:border-[#D97706] cursor-pointer"
+                    className="w-full border border-neutral-400 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium text-black bg-gray-50 focus:outline-none focus:border-[#D97706] cursor-pointer"
                   >
                     {inventory.map((item) => (
                       <option key={item.sku} value={item.sku}>
@@ -2110,27 +2226,32 @@ export default function StokPage() {
 
                   {/* Kotak Info Live Stok Aktual, Batas Aman & Status */}
                   {selectedItemObj && (
-                    <div className="mt-2.5 p-3 rounded-xl bg-[#FAF8F3] border border-gray-200 flex items-center justify-between gap-2 text-xs">
+                    <div className="mt-2.5 p-3 rounded-xl bg-[#FAF8F3] border border-neutral-200 flex items-center justify-between gap-2 text-xs">
                       <div>
-                        <span className="text-gray-500 font-semibold">
+                        <span className="text-neutral-800 font-medium">
                           Stok Saat Ini:{" "}
                         </span>
-                        <strong className="font-black text-gray-900">
-                          {selectedItemObj.unit === "Pcs"
-                            ? selectedItemObj.stock
-                            : selectedItemObj.stock.toFixed(1)}{" "}
+                        <strong className="font-bold text-black">
+                          {formatStockQty(
+                            selectedItemObj.stock,
+                            selectedItemObj.unit
+                          )}{" "}
                           {selectedItemObj.unit}
                         </strong>
-                        <span className="text-gray-400 mx-1.5">•</span>
-                        <span className="text-gray-500 font-semibold">
+                        <span className="text-neutral-700 mx-1.5">•</span>
+                        <span className="text-neutral-800 font-medium">
                           Safety:{" "}
-                          <strong className="text-gray-800">
-                            {selectedItemObj.safetyStock} {selectedItemObj.safetyUnit}
+                          <strong className="font-semibold text-black">
+                            {formatStockQty(
+                              selectedItemObj.safetyStock,
+                              selectedItemObj.safetyUnit
+                            )}{" "}
+                            {selectedItemObj.safetyUnit}
                           </strong>
                         </span>
                       </div>
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase shrink-0 ${
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase shrink-0 ${
                           selectedItemObj.status === "KRITIS"
                             ? "bg-red-100 text-[#DC2626] border border-red-200"
                             : selectedItemObj.status === "MENIPIS"
@@ -2146,7 +2267,7 @@ export default function StokPage() {
 
                 <div className="grid grid-cols-1 gap-3.5">
                   <div>
-                    <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                    <label className="block text-xs font-semibold text-black mb-1.5">
                       Tipe Mutasi
                     </label>
                     <select
@@ -2154,7 +2275,7 @@ export default function StokPage() {
                       onChange={(e) =>
                         setMutationType(e.target.value as MutationType)
                       }
-                      className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-gray-900 bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
+                      className="w-full border border-neutral-400 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium text-black bg-white focus:outline-none focus:border-[#D97706] cursor-pointer"
                     >
                       <option value="Stok Masuk (PO)">Stok Masuk (PO)</option>
                       <option value="Pemakaian Dapur">Pemakaian Dapur</option>
@@ -2166,24 +2287,24 @@ export default function StokPage() {
 
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-extrabold text-gray-800">
+                      <label className="text-xs font-semibold text-black">
                         Jumlah
                       </label>
-                      <span className="text-[10px] font-bold text-amber-700">
-                        Min. 2 {selectedItemObj?.unit || "kg"}
+                      <span className="text-[10px] font-medium text-amber-700">
+                        Min. 0.1 {selectedItemObj?.unit || "kg"}
                       </span>
                     </div>
-                    <div className="flex items-center border border-gray-300 rounded-xl bg-white px-3.5 py-2.5 focus-within:border-[#D97706]">
+                    <div className="flex items-center border border-neutral-300 rounded-xl bg-white px-3.5 py-2.5 focus-within:border-[#D97706]">
                       <input
                         type="number"
                         step="0.1"
-                        min="2"
-                        placeholder="Misal: 2"
+                        min="0.1"
+                        placeholder="Misal: 0.5"
                         value={mutationAmount}
                         onChange={(e) => setMutationAmount(e.target.value)}
-                        className="w-full text-xs sm:text-sm font-bold text-gray-900 outline-none bg-transparent"
+                        className="w-full text-xs sm:text-sm font-semibold text-black outline-none bg-transparent"
                       />
-                      <span className="text-xs font-extrabold text-gray-500 ml-1.5 shrink-0">
+                      <span className="text-xs font-semibold text-neutral-800 ml-1.5 shrink-0">
                         {selectedItemObj?.unit}
                       </span>
                     </div>
@@ -2191,7 +2312,7 @@ export default function StokPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-extrabold text-gray-800 mb-1.5">
+                  <label className="block text-xs font-semibold text-black mb-1.5">
                     Catatan / No. Faktur
                   </label>
                   <input
@@ -2199,35 +2320,29 @@ export default function StokPage() {
                     placeholder="Contoh: Pengiriman Supplier Pagi / No. DO-8812"
                     value={mutationNote}
                     onChange={(e) => setMutationNote(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:border-[#D97706]"
+                    className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium text-black placeholder:text-neutral-400 bg-white focus:outline-none focus:border-[#D97706]"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3 bg-[#F3A712] hover:bg-[#df980e] text-gray-950 font-extrabold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-xs transition cursor-pointer mt-1"
+                  className="w-full py-3 bg-[#F3A712] hover:bg-[#df980e] text-black font-semibold text-xs sm:text-sm rounded-xl shadow-xs transition cursor-pointer mt-1"
                 >
-                  <Save size={15} />
-                  <span>Simpan Mutasi Stok</span>
+                  Simpan Mutasi Stok
                 </button>
               </form>
             </div>
 
             {/* CARD 2: LOG MUTASI */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col gap-4">
-              <div className="flex items-center justify-between pb-3.5 border-b border-gray-200">
-                <div>
-                  <h3 className="font-extrabold text-base text-gray-900">
-                    Log Mutasi Hari Ini
-                  </h3>
-                  <p className="text-xs text-gray-600 font-medium mt-1">
-                    Sinkron otomatis POS &amp; Dapur MariaDB
-                  </p>
-                </div>
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-neutral-200 flex flex-col gap-4">
+              <div className="flex items-center justify-between pb-3.5 border-b border-neutral-200">
+                <h3 className="font-display font-bold text-base text-black">
+                  Log Mutasi Hari Ini
+                </h3>
                 <button
                   type="button"
                   onClick={() => setShowLogsModal(true)}
-                  className="text-xs font-extrabold text-[#D97706] hover:underline cursor-pointer"
+                  className="text-xs font-semibold text-[#D97706] hover:underline cursor-pointer"
                 >
                   Lihat Semua
                 </button>
@@ -2235,18 +2350,18 @@ export default function StokPage() {
 
               <div className="flex flex-col gap-3">
                 {logs.length === 0 ? (
-                  <div className="py-8 text-center text-gray-400 text-xs font-medium">
+                  <div className="py-8 text-center text-neutral-700 text-xs font-medium">
                     Belum ada log mutasi tercatat hari ini.
                   </div>
                 ) : (
                   logs.slice(0, 5).map((log) => (
                     <div
                       key={log.id}
-                      className="p-3 rounded-xl bg-[#F8F9FA] border border-gray-200 flex items-start justify-between gap-3"
+                      className="p-3 rounded-xl bg-[#F8F9FA] border border-neutral-200 flex items-start justify-between gap-3"
                     >
                       <div className="flex items-start gap-2.5 min-w-0">
                         <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5 ${
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 ${
                             log.type === "in"
                               ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                               : log.type === "replace"
@@ -2263,15 +2378,15 @@ export default function StokPage() {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-extrabold text-gray-900 truncate">
+                          <p className="text-xs font-semibold text-black truncate">
                             {log.title}
                           </p>
-                          <p className="text-[11px] text-gray-600 font-medium mt-0.5 leading-snug truncate">
+                          <p className="text-[11px] text-neutral-700 font-medium mt-0.5 leading-snug truncate">
                             {log.subtitle}
                           </p>
                         </div>
                       </div>
-                      <span className="text-[11px] font-extrabold text-gray-500 shrink-0">
+                      <span className="font-mono text-[11px] font-bold text-neutral-700 shrink-0">
                         {log.time}
                       </span>
                     </div>
@@ -2283,22 +2398,11 @@ export default function StokPage() {
         </section>
 
         {/* FOOTER SYSTEM */}
-        <footer className="print:hidden pt-3 pb-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-600 font-medium gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-extrabold text-[#EA8E18]">
-              PrekDuaDara POS v2.4
-            </span>
-            <span>•</span>
-            <span>Terminal Counter #01</span>
-            <span>•</span>
-            <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              MariaDB (prekduadara_db.stocks) Terhubung
-            </span>
-          </div>
-          <div>
-            &copy; 2026 PrekDuaDara Quick-Service Culinary. All rights reserved.
-          </div>
+        <footer className="print:hidden pt-3 pb-4 border-t border-neutral-200 flex items-center justify-between text-xs text-neutral-700 font-medium">
+          <span className="font-display font-bold text-[#EA8E18]">
+            PrekDuaDara
+          </span>
+          <span>&copy; 2026 PrekDuaDara. All rights reserved.</span>
         </footer>
       </main>
     </div>

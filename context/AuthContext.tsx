@@ -29,19 +29,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 1. Inisialisasi: Pulihkan state sesi dari localStorage saat pertama kali dimuat
   useEffect(() => {
-    try {
-      const savedToken = localStorage.getItem('prek_auth_token');
-      const savedUser = localStorage.getItem('prek_auth_user');
+    const timer = setTimeout(() => {
+      try {
+        const savedToken = localStorage.getItem('prek_auth_token');
+        const savedUser = localStorage.getItem('prek_auth_user');
 
-      if (savedToken && savedUser) {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
+        if (savedToken && savedUser) {
+          setToken(savedToken);
+          setUser(JSON.parse(savedUser));
+        }
+      } catch (e) {
+        console.error('Gagal membaca sesi auth dari storage:', e);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (e) {
-      console.error('Gagal membaca sesi auth dari storage:', e);
-    } finally {
-      setIsLoading(false);
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   // 2. Fungsi Login: Menyimpan data user & token ke State + LocalStorage
