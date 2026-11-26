@@ -29,6 +29,7 @@ interface ProductItem {
   price: number;
   category: string;
   image?: string;
+  image_url?: string;
   created_at?: string;
 }
 
@@ -68,6 +69,63 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 }
 
+const MENU_IMAGE_FALLBACK_BY_ID: Record<number, string> = {
+  1: "/images/menu/geprek_bakar.jpg",
+  2: "/images/menu/geprek_biasa.jpg",
+  3: "/images/menu/geprek_mozzarella.jpg",
+  4: "/images/menu/geprek_tanpa_nasi.jpg",
+  5: "/images/menu/tahu_tempe.jpg",
+  6: "/images/menu/telur_krispi.jpg",
+  7: "/images/menu/jamur_krispi.jpg",
+};
+
+/**
+ * Memetakan nama atau ID menu ke foto lokal bawaan di `/images/menu/`
+ * saat kolom gambar di database kosong atau gagal dimuat.
+ */
+function getFallbackMenuImage(item: {
+  id?: number | null;
+  name?: string;
+}): string {
+  const normalizedName = (item.name || "").toLowerCase().trim();
+
+  if (normalizedName) {
+    if (normalizedName.includes("bakar")) {
+      return "/images/menu/geprek_bakar.jpg";
+    }
+    if (
+      normalizedName.includes("mozzarella") ||
+      normalizedName.includes("mozarella")
+    ) {
+      return "/images/menu/geprek_mozzarella.jpg";
+    }
+    if (normalizedName.includes("tanpa nasi")) {
+      return "/images/menu/geprek_tanpa_nasi.jpg";
+    }
+    if (normalizedName.includes("tahu") || normalizedName.includes("tempe")) {
+      return "/images/menu/tahu_tempe.jpg";
+    }
+    if (normalizedName.includes("telur")) {
+      return "/images/menu/telur_krispi.jpg";
+    }
+    if (normalizedName.includes("jamur")) {
+      return "/images/menu/jamur_krispi.jpg";
+    }
+    if (
+      normalizedName.includes("biasa") ||
+      normalizedName.includes("ayam geprek")
+    ) {
+      return "/images/menu/geprek_biasa.jpg";
+    }
+  }
+
+  if (item.id != null && MENU_IMAGE_FALLBACK_BY_ID[item.id]) {
+    return MENU_IMAGE_FALLBACK_BY_ID[item.id];
+  }
+
+  return "";
+}
+
 /**
  * Menyelesaikan URL gambar menu untuk web:
  * - URL penuh (http/https) atau Data URI base64 dikembalikan apa adanya.
@@ -94,6 +152,54 @@ function resolveImageUrl(img?: string | null): string {
     return `${API_BASE_URL}/${trimmed}`;
   }
   return trimmed;
+}
+
+function MenuThumbnail({
+  name,
+  primarySrc,
+  fallbackSrc,
+  sizeClass = "w-10 h-10",
+  iconSize = 15,
+}: {
+  name: string;
+  primarySrc: string;
+  fallbackSrc: string;
+  sizeClass?: string;
+  iconSize?: number;
+}) {
+  const candidates = useMemo(() => {
+    const list: string[] = [];
+    if (primarySrc) list.push(primarySrc);
+    if (fallbackSrc && fallbackSrc !== primarySrc) list.push(fallbackSrc);
+    return list;
+  }, [primarySrc, fallbackSrc]);
+
+  const [activeIndex, setActiveIndex] = useState(0);
+  const currentSrc = candidates[activeIndex] || "";
+
+  if (!currentSrc) {
+    return (
+      <div
+        className={`${sizeClass} aspect-square rounded-xl bg-[#FAF8F3] border border-amber-200 text-[#D97706] flex items-center justify-center shrink-0`}
+      >
+        <UtensilsCrossed size={iconSize} />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`${sizeClass} aspect-square rounded-xl overflow-hidden border border-amber-200 bg-amber-50 shrink-0 shadow-2xs relative`}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={currentSrc}
+        alt={name}
+        className="w-full h-full object-cover"
+        onError={() => setActiveIndex((prev) => prev + 1)}
+      />
+    </div>
+  );
 }
 
 /**
@@ -240,16 +346,21 @@ export default function ManajemenMenuPage() {
             price?: number | string;
             category?: string;
             image?: string | null;
+            image_url?: string | null;
             created_at?: string;
-          }) => ({
-            id: Number(item.id),
-            name: String(item.name || ""),
-            description: String(item.description || ""),
-            price: Number(item.price) || 0,
-            category: String(item.category || "Paket Menu"),
-            image: item.image ? String(item.image) : "",
-            created_at: item.created_at,
-          })
+          }) => {
+            const rawImage = item.image || item.image_url || "";
+            return {
+              id: Number(item.id),
+              name: String(item.name || ""),
+              description: String(item.description || ""),
+              price: Number(item.price) || 0,
+              category: String(item.category || "Paket Menu"),
+              image: rawImage ? String(rawImage) : "",
+              image_url: item.image_url ? String(item.image_url) : undefined,
+              created_at: item.created_at,
+            };
+          }
         );
         setProducts(mapped);
       }
@@ -334,6 +445,10 @@ export default function ManajemenMenuPage() {
 
   // Mulai Edit Menu
   const handleStartEdit = (item: ProductItem) => {
+    const rawImg = item.image || item.image_url || "";
+    const resolvedDbImg = resolveImageUrl(rawImg);
+    const fallbackImg = getFallbackMenuImage(item);
+
     setEditingId(item.id);
     setFormName(item.name);
     setFormCategory(
@@ -341,8 +456,8 @@ export default function ManajemenMenuPage() {
     );
     setFormPrice(String(item.price));
     setFormDescription(item.description || "");
-    setFormImage(item.image || "");
-    setImagePreview(item.image ? resolveImageUrl(item.image) : null);
+    setFormImage(rawImg);
+    setImagePreview(resolvedDbImg || fallbackImg || null);
     setImageMeta(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -929,28 +1044,23 @@ export default function ManajemenMenuPage() {
                             {/* NAMA MENU */}
                             <td className="py-3.5 pl-4 pr-3 align-middle whitespace-normal break-words">
                               <div className="flex items-start gap-2.5 min-w-0">
-                                {item.image ? (
-                                  <div className="w-9 h-9 rounded-xl overflow-hidden border border-amber-200 bg-amber-50 shrink-0 mt-0.5 shadow-2xs relative">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                      src={resolveImageUrl(item.image)}
-                                      alt={item.name}
-                                      className="w-full h-full object-cover"
-                                      onError={(e) => {
-                                        (e.currentTarget as HTMLElement).style.display = "none";
-                                        const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                                        if (fallback) fallback.classList.remove("hidden");
-                                      }}
+                                {(() => {
+                                  const primarySrc = resolveImageUrl(
+                                    item.image || item.image_url
+                                  );
+                                  const fallbackSrc =
+                                    getFallbackMenuImage(item);
+                                  return (
+                                    <MenuThumbnail
+                                      key={`${item.id}-${primarySrc}-${fallbackSrc}`}
+                                      name={item.name}
+                                      primarySrc={primarySrc}
+                                      fallbackSrc={fallbackSrc}
+                                      sizeClass="w-10 h-10 mt-0.5"
+                                      iconSize={15}
                                     />
-                                    <div className="hidden w-full h-full items-center justify-center text-[#D97706] bg-[#FAF8F3]">
-                                      <UtensilsCrossed size={14} />
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="w-9 h-9 rounded-xl bg-[#FAF8F3] border border-amber-200 text-[#D97706] flex items-center justify-center shrink-0 mt-0.5">
-                                    <UtensilsCrossed size={14} />
-                                  </div>
-                                )}
+                                  );
+                                })()}
                                 <div className="min-w-0 flex-1">
                                   <div className="font-semibold text-black text-xs sm:text-[13px] leading-snug break-words">
                                     {item.name}
@@ -1202,12 +1312,23 @@ export default function ManajemenMenuPage() {
 
                   {imagePreview ? (
                     <div className="relative border-2 border-dashed border-amber-300 rounded-2xl p-3 bg-amber-50/40 flex items-center gap-3">
-                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-amber-200 bg-white shrink-0 shadow-xs">
+                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 aspect-square rounded-xl overflow-hidden border border-amber-200 bg-white shrink-0 shadow-xs">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={imagePreview}
                           alt="Preview Menu"
                           className="w-full h-full object-cover"
+                          onError={() => {
+                            const fallback = getFallbackMenuImage({
+                              id: editingId,
+                              name: formName,
+                            });
+                            if (fallback && imagePreview !== fallback) {
+                              setImagePreview(fallback);
+                            } else {
+                              setImagePreview(null);
+                            }
+                          }}
                         />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -1226,7 +1347,9 @@ export default function ManajemenMenuPage() {
                           </div>
                         ) : (
                           <p className="text-[10px] text-neutral-700 font-medium mt-0.5">
-                            Foto aktif di database POS
+                            {formImage
+                              ? "Foto aktif di database POS"
+                              : "Foto bawaan menu (lokal)"}
                           </p>
                         )}
                         <button
