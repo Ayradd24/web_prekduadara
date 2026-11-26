@@ -101,6 +101,11 @@ interface RawTransaction {
   sambal?: string | null;
   totalItems?: number | string;
   total?: number | string;
+  cashReceived?: number | string;
+  cash_received?: number | string;
+  amount_paid?: number | string;
+  changeAmount?: number | string;
+  change_amount?: number | string;
   paymentMethod?: string;
 }
 
@@ -214,13 +219,17 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
               cashReceived:
                 tx.cashReceived !== undefined && tx.cashReceived !== null
                   ? Number(tx.cashReceived)
-                  : isQris
-                    ? undefined
-                    : Number(tx.total) || 0,
+                  : tx.cash_received !== undefined && tx.cash_received !== null
+                    ? Number(tx.cash_received)
+                    : isQris
+                      ? undefined
+                      : Number(tx.total) || 0,
               changeAmount:
                 tx.changeAmount !== undefined && tx.changeAmount !== null
                   ? Number(tx.changeAmount)
-                  : 0,
+                  : tx.change_amount !== undefined && tx.change_amount !== null
+                    ? Number(tx.change_amount)
+                    : 0,
               paymentMethod: isQris ? 'QRIS' : 'Tunai',
               status: 'Berhasil',
               branch: 'Gerai Pusat',
