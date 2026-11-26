@@ -414,10 +414,7 @@ export default function ManajemenMenuPage() {
         showToast(json.message || "Gagal menyimpan data menu ke server!", "warning");
       }
     } catch {
-      showToast(
-        "Tidak dapat terhubung ke server backend (port 5000).",
-        "warning"
-      );
+      showToast("Tidak dapat terhubung ke server backend.", "warning");
     } finally {
       setIsSubmitting(false);
     }
@@ -596,9 +593,7 @@ export default function ManajemenMenuPage() {
                 ({formatRupiah(deleteTarget.price)}) dari daftar produk POS.
               </p>
               <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-medium">
-                Tindakan ini akan menghapus data menu secara permanen dari tabel{" "}
-                <code className="font-mono font-bold">products</code> di
-                MariaDB.
+                Tindakan ini akan menghapus data menu secara permanen dari daftar produk POS.
               </div>
             </div>
 
@@ -904,7 +899,7 @@ export default function ManajemenMenuPage() {
                           colSpan={5}
                           className="py-12 text-center text-neutral-800 font-medium"
                         >
-                          Memuat daftar menu dari database MariaDB...
+                          Memuat daftar menu...
                         </td>
                       </tr>
                     ) : paginatedProducts.length === 0 ? (

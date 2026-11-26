@@ -269,9 +269,7 @@ export default function AiStockForecastSection({
           );
         }
       } catch {
-        setErrorMsg(
-          "Tidak dapat terhubung ke layanan AI Forecast backend (port 5000)."
-        );
+        setErrorMsg("Tidak dapat terhubung ke server backend.");
       } finally {
         setIsLoading(false);
       }

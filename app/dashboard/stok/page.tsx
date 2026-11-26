@@ -1550,7 +1550,7 @@ export default function StokPage() {
                     Tambah Bahan Baku Baru
                   </h3>
                   <p className="text-[11px] text-emerald-200 font-medium">
-                    Daftarkan item inventaris baru langsung ke database MariaDB
+                    Daftarkan item inventaris baru ke sistem inventaris
                   </p>
                 </div>
               </div>
@@ -2003,7 +2003,7 @@ export default function StokPage() {
                         colSpan={7}
                         className="py-12 text-center text-neutral-800 font-medium"
                       >
-                        Memuat data inventaris dari database MariaDB...
+                        Memuat data inventaris...
                       </td>
                     </tr>
                   ) : paginatedInventory.length === 0 ? (

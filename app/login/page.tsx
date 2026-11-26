@@ -52,9 +52,7 @@ export default function LoginPage() {
         alert(data.message || 'Login gagal! Periksa email dan password Anda.');
       }
     } catch {
-      alert(
-        'Tidak dapat terhubung ke server backend (port 5000).\nPastikan server backend dan database Laragon sudah aktif.'
-      );
+      alert('Tidak dapat terhubung ke server backend.');
     } finally {
       setLoading(false);
     }

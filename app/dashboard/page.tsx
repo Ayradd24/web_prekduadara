@@ -61,6 +61,16 @@ export default function DashboardPage() {
     return 'Rp ' + val.toLocaleString('id-ID');
   };
 
+  // Daftar nama kasir unik secara dinamis dari transaksi
+  const cashierOptions = useMemo(() => {
+    const unique = new Set<string>();
+    transactions.forEach((tx) => {
+      const name = tx.cashier?.trim();
+      if (name) unique.add(name);
+    });
+    return Array.from(unique).sort((a, b) => a.localeCompare(b, 'id-ID'));
+  }, [transactions]);
+
   // Statistik KPI Ringkasan diambil real-time dari data backend/transaksi (Hari Ini)
   const dashboardStats = useMemo(() => {
     let totalCount = 0;
@@ -517,7 +527,7 @@ export default function DashboardPage() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="🔍 Cari ID struk, kasir, atau nama menu..."
+              placeholder="Cari ID struk, kasir, atau nama menu..."
               className="flex-1 min-w-[260px] border border-neutral-300 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-medium text-black placeholder:text-neutral-400 focus:outline-none focus:border-emerald-600 bg-gray-50/50"
             />
             <div className="relative inline-flex items-center shrink-0">
@@ -530,9 +540,11 @@ export default function DashboardPage() {
                 className="appearance-none w-[150px] shrink-0 truncate bg-white border border-neutral-300 rounded-2xl pl-3.5 pr-7 py-2.5 text-xs font-bold text-black cursor-pointer focus:outline-none focus:border-emerald-600"
               >
                 <option value="Semua">Semua Kasir</option>
-                <option value="Rian">Rian Pratama</option>
-                <option value="Siti">Siti Rahma</option>
-                <option value="Budi">Budi Santoso</option>
+                {cashierOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
               </select>
               <ChevronDown
                 size={14}
@@ -641,14 +653,14 @@ export default function DashboardPage() {
                 {isLoading ? (
                   <tr>
                     <td colSpan={9} className="h-[280px] text-center text-neutral-800 font-medium align-middle">
-                      Memuat data transaksi dari database MariaDB...
+                      Memuat data transaksi...
                     </td>
                   </tr>
                 ) : paginatedTransactions.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="h-[280px] text-center text-neutral-800 font-medium align-middle">
                       {filterPeriod === 'Hari Ini'
-                        ? 'Belum ada transaksi hari ini di MariaDB.'
+                        ? 'Belum ada transaksi hari ini.'
                         : 'Tidak ada transaksi yang cocok dengan filter.'}
                     </td>
                   </tr>

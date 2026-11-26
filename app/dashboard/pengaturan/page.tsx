@@ -27,12 +27,7 @@ import {
   X,
 } from "lucide-react";
 
-type SingleBranchName =
-  | "Cabang Sudirman Utama"
-  | "Cabang Tebet Eco Park"
-  | "Cabang Dago Heritage";
-
-type BranchOption = "Semua Cabang" | SingleBranchName;
+type SingleBranchName = "Gerai Utama";
 
 type RoundingOption =
   | "Tanpa Pembulatan"
@@ -84,11 +79,11 @@ const ROUNDING_OPTIONS: RoundingOption[] = [
 const STORAGE_KEY = "prekduadara_store_settings_v1";
 
 const DEFAULT_BRANCH_SETTINGS: Record<SingleBranchName, BranchStoreSettings> = {
-  "Cabang Sudirman Utama": {
+  "Gerai Utama": {
     outletId: "OUT-001",
     namaWarung: "Ayam Geprek PrekDuaDara",
     slogan: "Spesial Ayam Geprek Cobek & Sambal Uleg Asli",
-    alamat: "Jl. Jend. Sudirman No. 45 (Samping Gerbang UM/Matos)",
+    alamat: "Jl. Jend. Sudirman No. 45, Malang (Samping Gerbang UM/Matos)",
     whatsapp: "0812-8899-7766",
     emailResto: "halo@prekduadara.id",
     nib: "9120003491824",
@@ -118,83 +113,11 @@ const DEFAULT_BRANCH_SETTINGS: Record<SingleBranchName, BranchStoreSettings> = {
     channelOjol: true,
     kapasitasMeja: 24,
   },
-  "Cabang Tebet Eco Park": {
-    outletId: "OUT-TBT-002",
-    namaWarung: "Ayam Geprek PrekDuaDara - Cabang Tebet",
-    slogan: "Spesial Ayam Geprek Cobek & Sambal Uleg Asli",
-    alamat: "Jl. Tebet Barat Dalam Raya No. 18, Jakarta Selatan",
-    whatsapp: "0812-9000-4455",
-    emailResto: "halo.tebet@prekduadara.id",
-    nib: "9120003491825",
-    logoUrl: "/logo.png",
-    jamBukaWeekday: "09:00 WIB",
-    jamTutupWeekday: "22:00 WIB",
-    jamBukaWeekend: "08:30 WIB",
-    jamTutupWeekend: "23:00 WIB",
-    autoCloseKasir: true,
-    istirahatSore: false,
-    pajakPersen: "10",
-    pajakTipe: "akhir",
-    biayaKemasan: "2.000",
-    aturanPembulatan: "Kelipatan Rp 500 terdekat",
-    cetakLogo: true,
-    cetakAlamat: true,
-    nomorAntrianBesar: true,
-    kodeQrisDinamis: true,
-    cetakDetailPedas: true,
-    jumlahSalinanStruk: "1x (Pelanggan)",
-    pesanFooter:
-      "Matur nuwun sampun mampir di Cabang Tebet! Follow IG @prekduadara.id",
-    autoPrintLunas: true,
-    channelTunai: true,
-    channelQris: true,
-    channelEdc: true,
-    channelOjol: true,
-    kapasitasMeja: 30,
-  },
-  "Cabang Dago Heritage": {
-    outletId: "OUT-DGO-003",
-    namaWarung: "Ayam Geprek PrekDuaDara - Cabang Dago",
-    slogan: "Spesial Ayam Geprek Cobek & Sambal Uleg Asli",
-    alamat: "Jl. Ir. H. Juanda No. 112, Dago, Bandung",
-    whatsapp: "0812-2233-8899",
-    emailResto: "halo.dago@prekduadara.id",
-    nib: "9120003491826",
-    logoUrl: "/logo.png",
-    jamBukaWeekday: "09:30 WIB",
-    jamTutupWeekday: "22:00 WIB",
-    jamBukaWeekend: "09:00 WIB",
-    jamTutupWeekend: "23:30 WIB",
-    autoCloseKasir: true,
-    istirahatSore: true,
-    pajakPersen: "10",
-    pajakTipe: "akhir",
-    biayaKemasan: "2.000",
-    aturanPembulatan: "Kelipatan Rp 500 terdekat",
-    cetakLogo: true,
-    cetakAlamat: true,
-    nomorAntrianBesar: true,
-    kodeQrisDinamis: true,
-    cetakDetailPedas: true,
-    jumlahSalinanStruk: "1x (Pelanggan)",
-    pesanFooter:
-      "Hatur nuhun tos mampir di Cabang Dago! Follow IG @prekduadara.id",
-    autoPrintLunas: true,
-    channelTunai: true,
-    channelQris: true,
-    channelEdc: true,
-    channelOjol: true,
-    kapasitasMeja: 28,
-  },
 };
 
 export default function PengaturanTokoPage() {
-  // Cabang aktif yang sedang dikonfigurasi
-  const selectedBranch: BranchOption = "Semua Cabang";
-  const activeBranchKey: SingleBranchName =
-    selectedBranch === "Semua Cabang"
-      ? "Cabang Sudirman Utama"
-      : selectedBranch;
+  // Gerai utama yang sedang dikonfigurasi
+  const activeBranchKey: SingleBranchName = "Gerai Utama";
 
   // State Konfigurasi Semua Cabang & Snapshot Tersimpan
   const [configsByBranch, setConfigsByBranch] = useState<
@@ -267,18 +190,12 @@ export default function PengaturanTokoPage() {
         if (local) {
           const parsed = JSON.parse(local);
           if (parsed && typeof parsed === "object") {
+            const savedOutlet =
+              parsed["Gerai Utama"] || parsed["Cabang Sudirman Utama"] || {};
             const merged: Record<SingleBranchName, BranchStoreSettings> = {
-              "Cabang Sudirman Utama": {
-                ...DEFAULT_BRANCH_SETTINGS["Cabang Sudirman Utama"],
-                ...(parsed["Cabang Sudirman Utama"] || {}),
-              },
-              "Cabang Tebet Eco Park": {
-                ...DEFAULT_BRANCH_SETTINGS["Cabang Tebet Eco Park"],
-                ...(parsed["Cabang Tebet Eco Park"] || {}),
-              },
-              "Cabang Dago Heritage": {
-                ...DEFAULT_BRANCH_SETTINGS["Cabang Dago Heritage"],
-                ...(parsed["Cabang Dago Heritage"] || {}),
+              "Gerai Utama": {
+                ...DEFAULT_BRANCH_SETTINGS["Gerai Utama"],
+                ...savedOutlet,
               },
             };
             setConfigsByBranch(merged);
@@ -542,19 +459,10 @@ export default function PengaturanTokoPage() {
 
   // Handler Konfirmasi Reset ke Data Terakhir Disimpan
   const handleConfirmResetSaved = () => {
-    const updated =
-      selectedBranch === "Semua Cabang"
-        ? savedConfigsByBranch
-        : {
-            ...configsByBranch,
-            [activeBranchKey]: savedConfigsByBranch[activeBranchKey],
-          };
-    setConfigsByBranch(updated);
+    setConfigsByBranch(savedConfigsByBranch);
     setShowResetModal(false);
     showToast(
-      selectedBranch === "Semua Cabang"
-        ? "Konfigurasi seluruh cabang berhasil dikembalikan ke data yang terakhir disimpan."
-        : `Konfigurasi ${activeBranchKey} berhasil dikembalikan ke data yang terakhir disimpan.`
+      "Konfigurasi toko berhasil dikembalikan ke data yang terakhir disimpan."
     );
   };
 
@@ -1112,9 +1020,7 @@ export default function PengaturanTokoPage() {
                 />
                 <span className="text-[13px] font-semibold text-black">%</span>
                 <span className="text-xs text-neutral-800 font-medium leading-tight">
-                  Tarif standar
-                  <br />
-                  Pemda DKI
+                  Tarif pajak restoran standar
                 </span>
               </div>
 
